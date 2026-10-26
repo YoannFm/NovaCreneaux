@@ -10,6 +10,18 @@ const sortable = Sortable.create(document.getElementById('roles'), {
 });
 
 const saveBtn = document.getElementById('roles-save');
+
+function notify(type, icon, text) {
+    document.querySelectorAll('#roles-alert').forEach(el => el.remove());
+    const msg = document.createElement('div');
+    msg.id = 'roles-alert';
+    msg.className = 'alert alert-' + type + ' alert-dismissible mt-3';
+    msg.innerHTML = '<i class="bi bi-' + icon + ' me-1"></i><span></span>' +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    msg.querySelector('span').textContent = text;
+    document.querySelector('.container-fluid').prepend(msg);
+}
+
 saveBtn.addEventListener('click', function () {
     saveBtn.disabled = true;
     const ids = [].slice.call(sortable.el.children).map(c => c.dataset.id).reverse();
@@ -21,15 +33,9 @@ saveBtn.addEventListener('click', function () {
         },
         body: JSON.stringify({ roles: ids }),
     })
-    .then(r => r.json())
-    .then(data => {
-        const msg = document.createElement('div');
-        msg.className = 'alert alert-success alert-dismissible mt-3';
-        msg.innerHTML = '<i class="bi bi-check-circle me-1"></i> ' + data.message +
-            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-        document.querySelector('.container-fluid').prepend(msg);
-    })
-    .catch(() => {})
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(data => notify('success', 'check-circle', data.message))
+    .catch(() => notify('danger', 'exclamation-triangle', "L'ordre n'a pas pu être enregistré."))
     .finally(() => saveBtn.disabled = false);
 });
 </script>
@@ -39,6 +45,8 @@ saveBtn.addEventListener('click', function () {
 
 <div class="card shadow mb-4">
     <div class="card-body">
+
+        <p class="text-body-secondary small">Glissez les rôles avec <i class="bi bi-arrows-move"></i> : le plus haut de la liste est le plus élevé. Cliquez ensuite sur Sauvegarder.</p>
 
         <ol class="list-unstyled mb-3" id="roles">
             @foreach($roles as $role)
@@ -89,7 +97,6 @@ saveBtn.addEventListener('click', function () {
 
         <button type="button" class="btn btn-success me-1" id="roles-save">
             <i class="bi bi-save me-1"></i> Sauvegarder
-            <span class="spinner-border spinner-border-sm d-none" id="roles-spinner"></span>
         </button>
 
         <a class="btn btn-primary" href="{{ route('admin.roles.create') }}">
