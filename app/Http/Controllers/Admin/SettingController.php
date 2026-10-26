@@ -229,6 +229,7 @@ class SettingController extends Controller
             'mail_smtp_encryption' => 'nullable|in:tls,ssl,starttls',
             'mail_smtp_username'   => 'nullable|string|max:255',
             'mail_smtp_password'   => 'nullable|string|max:255',
+            'notify_account_deletion' => 'nullable|in:0,1',
             'clear_secrets'        => 'nullable|array',
             'clear_secrets.*'      => Rule::in(SettingService::SECRET_KEYS),
         ]);

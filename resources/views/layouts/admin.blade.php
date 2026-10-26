@@ -170,16 +170,15 @@
         <footer class="footer">
             <div class="container-fluid text-center text-muted" style="font-size:.78rem;">
                 <div>
-                    &copy; Copyright {{ date('Y') }} -
-                    Tous droits réservés
-                    <a href="https://wiki.novadev.ovh" target="_blank" rel="noopener"
+                    &copy; Copyright 2026 -
+                    <a href="https://github.com/{{ config('nova.repo') }}" target="_blank" rel="noopener"
                        style="color:var(--accent-text);text-decoration:none;font-weight:600;">
                         NovaCreneaux
                     </a>
                     -
                     <button onclick="document.getElementById('admin-licence-modal').style.display='flex'"
                             style="background:none;border:none;padding:0;color:var(--text-muted);font-size:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">
-                        Licence
+                        Licence MIT
                     </button>
                 </div>
                 <div style="margin-top:.15rem;">

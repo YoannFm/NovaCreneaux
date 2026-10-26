@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\ApiTokenService;
+use App\Services\SettingService;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -39,6 +41,15 @@ class ApiTokenController extends Controller
 
         // Le secret n'est conserve que le temps d'une page : il ne sera plus jamais affichable
         return redirect()->route('admin.api-tokens.index')->with('new_token', $token->plainTextToken);
+    }
+
+    public function updateStatus(Request $request, SettingService $settings)
+    {
+        $enabled = $request->boolean('enabled');
+        $settings->set('api_enabled', $enabled ? '1' : '0');
+        ActivityLogger::log($enabled ? 'API activée' : 'API désactivée');
+
+        return redirect()->route('admin.api-tokens.index')->with('success', $enabled ? "L'API est activée." : "L'API est désactivée : toutes les requêtes reçoivent une erreur 503 et les jetons sont conservés.");
     }
 
     public function destroy(PersonalAccessToken $token)

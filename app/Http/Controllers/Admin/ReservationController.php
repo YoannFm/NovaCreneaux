@@ -20,9 +20,10 @@ class ReservationController extends Controller {
         if ($request->get('export') === 'csv') return $this->exportCsv($reservations,$date);
         return view('admin.reservations.index', compact('reservations','resources','date','resourceId'));
     }
-    public function destroy(Reservation $reservation) {
-        $this->service->cancelByAdmin($reservation);
-        ActivityLogger::log('Réservation supprimée (admin)', "#{$reservation->id}");
+    public function destroy(Request $request, Reservation $reservation) {
+        $reason = $request->validate(['reason' => 'nullable|string|max:300'])['reason'] ?? null;
+        $this->service->cancelByAdmin($reservation, $reason);
+        ActivityLogger::log('Réservation supprimée (admin)', "#{$reservation->id}" . ($reason ? ", motif : {$reason}" : ''));
         return back()->with('success','Réservation supprimée.');
     }
     private function exportCsv($reservations, string $date) {

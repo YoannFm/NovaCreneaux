@@ -1,6 +1,8 @@
 <?php
 namespace App\Services\Update;
 use App\Services\ActivityLogger;
+use App\Services\Backup\BackupException;
+use App\Services\Backup\BackupManager;
 use App\Services\SettingService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -21,6 +23,7 @@ class UpdateManager {
         private SettingService $settings,
         private ?string $basePath = null,
         private ?string $storagePath = null,
+        private ?BackupManager $databaseBackups = null,
     ) {
         $this->basePath ??= base_path();
         $this->storagePath ??= storage_path('app');
@@ -77,7 +80,7 @@ class UpdateManager {
     }
 
     /** Etape 1 de l'installation : maintenance, sauvegarde, copie des fichiers. Les migrations viennent a l'etape suivante. */
-    public function install(): array {
+    public function install(bool $backupDatabase = true): array {
         $release = $this->availableRelease();
         $zip = $this->zipPath($release['version']);
         if (!is_file($zip)) {
@@ -104,6 +107,9 @@ class UpdateManager {
             $this->settings->set('maintenance_message', 'Mise à jour en cours, le site revient dans quelques minutes.');
 
             try {
+                if ($backupDatabase) {
+                    $this->backupDatabase();
+                }
                 $counts = $this->installer->install($zip, $this->basePath, $this->backupPath($from, $release['version']), $manifest['deleted'] ?? [], ['from' => $from, 'to' => $release['version']]);
             } catch (\Throwable $e) {
                 $this->restoreMaintenance($pending);
@@ -263,6 +269,21 @@ class UpdateManager {
             report($e);
             throw new UpdateException('Erreur inattendue : ' . $e->getMessage());
         }
+    }
+
+    /** Sauvegarde de la base juste avant de toucher aux fichiers. Un echec arrete l'installation : mieux vaut ne rien changer. */
+    private function backupDatabase(): void {
+        if ($this->databaseBackups === null) {
+            return;
+        }
+
+        try {
+            $backup = $this->databaseBackups->create(BackupManager::BEFORE_UPDATE);
+        } catch (BackupException $e) {
+            throw new UpdateException("La sauvegarde de la base a échoué ({$e->getMessage()}). Rien n'a été modifié : corrigez le problème, ou décochez la sauvegarde de la base pour installer quand même.");
+        }
+        $this->databaseBackups->pruneBeforeUpdate();
+        ActivityLogger::log('Sauvegarde de la base avant mise à jour', $backup['name']);
     }
 
     private function restoreMaintenance(array $pending): void {

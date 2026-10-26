@@ -24,7 +24,11 @@
     }
 
     function post(url) {
-        return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } })
+        var data = new FormData();
+        var backup = document.getElementById('backup-database');
+        if (backup) { data.append('backup_database', backup.checked ? '1' : '0'); }
+
+        return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }, body: data })
             .then(function (response) {
                 return response.json().catch(function () { return {}; }).then(function (body) {
                     if (!response.ok) { throw new Error(body.message || 'Erreur ' + response.status); }
@@ -106,13 +110,17 @@
 
             <div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle me-1"></i>
-                <strong>Avant de continuer :</strong> faites une sauvegarde de la base de données (section <a href="#sauvegardes">Sauvegardes</a> plus bas). Les fichiers remplacés sont
-                sauvegardés automatiquement, mais pas la base, et les migrations ne sont pas réversibles.
+                Les fichiers remplacés sont sauvegardés automatiquement, et la base l'est aussi juste avant l'installation (case ci-dessous).
+                Les migrations ne sont pas réversibles : la sauvegarde de la base est ce qui permet de revenir en arrière.
                 Le site passera en maintenance quelques instants pour les visiteurs.
             </div>
 
             @if($status['downloaded'])
                 <p>L'archive est téléchargée. Elle sera vérifiée de nouveau (signature) avant l'installation.</p>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="backup-database" checked>
+                    <label class="form-check-label" for="backup-database">Sauvegarder la base de données avant l'installation (recommandé)</label>
+                </div>
                 <button type="button" class="btn btn-success" data-update-route="{{ route('admin.update.install') }},{{ route('admin.update.finalize') }}"
                         data-confirm="Installer la version {{ $release['version'] }} maintenant ? Le site passe en maintenance pendant l'opération."
                         data-wait="Installation en cours (une à deux minutes)... Ne fermez pas cette page.">

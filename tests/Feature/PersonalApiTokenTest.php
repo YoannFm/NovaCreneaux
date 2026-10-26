@@ -173,4 +173,33 @@ class PersonalApiTokenTest extends TestCase
     {
         $this->assertSame(0, Role::where('api_access', false)->count());
     }
+
+    public function test_the_global_switch_cuts_the_api_for_everyone_and_hides_the_token_section(): void
+    {
+        $pupil = $this->pupil();
+        $secret = app(ApiTokenService::class)->create($pupil, 'appli', ['resources:read'], 30)->plainTextToken;
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->put(route('admin.api-tokens.status'), ['enabled' => '0'])->assertSessionHas('success');
+        $this->assertTrue(ActivityLog::where('action', 'API désactivée')->exists());
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeader('Authorization', 'Bearer ' . $secret)->getJson('/api/v1/me')->assertStatus(503)->assertJsonPath('error.code', 'api_disabled');
+        $this->getJson('/api/v1/meta')->assertStatus(503)->assertJsonPath('error.code', 'api_disabled');
+        $this->actingAs($pupil)->get(route('profile.edit'))->assertDontSee("Jetons d'API", false);
+        $this->post(route('profile.api-tokens.store'), $this->payload())->assertForbidden();
+        $this->actingAs($admin)->post(route('admin.api-tokens.store'), ['user_id' => $pupil->id, 'name' => 'x', 'abilities' => ['resources:read']])->assertSessionHas('error');
+        $this->get(route('admin.api-tokens.index'))->assertSee('Désactivée')->assertSee("Activer l'API");
+
+        $this->put(route('admin.api-tokens.status'), ['enabled' => '1'])->assertSessionHas('success');
+        $this->app['auth']->forgetGuards();
+        $this->withHeader('Authorization', 'Bearer ' . $secret)->getJson('/api/v1/me')->assertOk();
+        $this->getJson('/api/v1/meta')->assertOk();
+    }
+
+    public function test_only_administrators_flip_the_global_switch(): void
+    {
+        $this->actingAs($this->pupil())->put(route('admin.api-tokens.status'), ['enabled' => '0'])->assertRedirect('/');
+        $this->assertTrue(ApiTokenService::enabled());
+    }
 }

@@ -3,11 +3,12 @@
 use App\Http\Controllers\Api\V1;
 use App\Http\Middleware\EnforceMaintenanceMode;
 use App\Http\Middleware\EnsureApiAccess;
+use App\Http\Middleware\EnsureApiEnabled;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 // API publique v1 (prefixe /api/v1). Authentification par jeton Sanctum, droits par "ability".
-Route::prefix('v1')->name('api.v1.')->middleware('throttle:api-ip')->group(function () {
+Route::prefix('v1')->name('api.v1.')->middleware([EnsureApiEnabled::class, 'throttle:api-ip'])->group(function () {
     Route::get('meta', [V1\MetaController::class, 'show'])->name('meta');
 
     Route::middleware(['auth:sanctum', EnsureUserIsActive::class, EnsureApiAccess::class, EnforceMaintenanceMode::class, 'throttle:api'])->group(function () {

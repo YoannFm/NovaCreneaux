@@ -8,7 +8,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 class ReservationCancelled extends Mailable {
     use Queueable, SerializesModels;
-    public function __construct(public Reservation $reservation) {}
+    public function __construct(public Reservation $reservation, public bool $byAdmin = false, public ?string $reason = null) {}
     public function envelope(): Envelope {
         return new Envelope(subject: 'Réservation annulée - '.setting('app_name','NovaCreneaux'));
     }

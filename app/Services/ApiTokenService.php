@@ -17,6 +17,11 @@ class ApiTokenService {
     public const PERSONAL_DURATIONS = [30, 90, 365];
     public const PERSONAL_LIMIT = 5;
 
+    /** Interrupteur general de Admin > Integrations API : coupe l'API pour tout le monde sans toucher aux jetons. */
+    public static function enabled(): bool {
+        return setting('api_enabled', '1') === '1';
+    }
+
     /** @param list<string> $abilities */
     public function create(User $user, string $name, array $abilities, ?int $days = null): NewAccessToken {
         $unknown = array_diff($abilities, array_keys(self::ABILITIES));
@@ -25,6 +30,9 @@ class ApiTokenService {
         }
         if (!$user->is_active) {
             throw new \InvalidArgumentException('Ce compte est désactivé.');
+        }
+        if (!self::enabled()) {
+            throw new \InvalidArgumentException("L'API est désactivée par un administrateur.");
         }
         if (!$user->canUseApi()) {
             throw new \InvalidArgumentException("Le rôle de ce compte n'a pas accès à l'API.");

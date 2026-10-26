@@ -76,6 +76,7 @@ class AdminNavigation
             ['header' => 'Système', 'items' => [
                 $this->link('Activité', 'bi-journal-text', 'admin.logs.index', Permission::LOGS, 'admin.logs.*'),
                 $this->link('Intégrations API', 'bi-plug', 'admin.api-tokens.index', self::ADMIN_ONLY, 'admin.api-tokens.*'),
+                $this->link('Webhooks', 'bi-broadcast', 'admin.webhooks.index', self::ADMIN_ONLY, 'admin.webhooks.*'),
                 $this->link('Mise à jour', 'bi-cloud-download', 'admin.update.index', self::ADMIN_ONLY, 'admin.update.*') + [
                     'badge' => fn () => $this->updates->cachedHasUpdate() ? 'Une nouvelle version est disponible' : null,
                 ],

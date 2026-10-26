@@ -50,11 +50,10 @@
                     <td>{{ $r->reservation_date->format('d/m/Y') }}</td>
                     <td>{{ $r->created_at->format('d/m/Y H:i') }}</td>
                     <td>
-                        <form method="POST" action="{{ route('admin.reservations.destroy', $r) }}">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('Supprimer ?')"><i class="bi bi-trash"></i></button>
-                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancel-modal"
+                                data-action="{{ route('admin.reservations.destroy', $r) }}"
+                                data-label="{{ $r->user->name }} - {{ $r->slot->resource->name }}, {{ $r->slot->name }} ({{ $r->reservation_date->format('d/m/Y') }})"
+                                title="Supprimer"><i class="bi bi-trash"></i></button>
                     </td>
                 </tr>
                 @empty
@@ -65,5 +64,37 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="cancel-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content" id="cancel-form">
+            @csrf @method('DELETE')
+            <div class="modal-header">
+                <h5 class="modal-title">Supprimer la réservation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3" id="cancel-label"></p>
+                <label class="form-label" for="cancel-reason">Motif (facultatif)</label>
+                <input type="text" class="form-control" id="cancel-reason" name="reason" maxlength="300" placeholder="Ex. salle fermée ce jour-là">
+                <div class="form-text">L'élève est prévenu par une notification sur le site et par e-mail, avec ce motif.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i> Supprimer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@push('footer-scripts')
+<script>
+document.getElementById('cancel-modal').addEventListener('show.bs.modal', function (event) {
+    document.getElementById('cancel-form').action = event.relatedTarget.dataset.action;
+    document.getElementById('cancel-label').textContent = event.relatedTarget.dataset.label;
+    document.getElementById('cancel-reason').value = '';
+});
+</script>
+@endpush
 
 @endsection

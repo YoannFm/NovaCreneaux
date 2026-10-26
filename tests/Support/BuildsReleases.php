@@ -2,6 +2,8 @@
 
 namespace Tests\Support;
 
+use App\Services\Backup\BackupManager;
+use App\Services\Backup\DatabaseDumper;
 use App\Services\SettingService;
 use App\Services\Update\FileInstaller;
 use App\Services\Update\ReleaseClient;
@@ -45,7 +47,13 @@ trait BuildsReleases
         File::deleteDirectory($this->workDir);
     }
 
-    protected function manager(): UpdateManager
+    /** Gestionnaire de sauvegardes de la base qui ecrit dans le dossier temporaire du test, jamais dans storage. */
+    protected function databaseBackups(?DatabaseDumper $dumper = null): BackupManager
+    {
+        return new BackupManager($dumper ?? $this->app->make(DatabaseDumper::class), $this->workDir . '/database-backups');
+    }
+
+    protected function manager(?BackupManager $databaseBackups = null): UpdateManager
     {
         return new UpdateManager(
             $this->app->make(ReleaseClient::class),
@@ -54,6 +62,7 @@ trait BuildsReleases
             $this->app->make(SettingService::class),
             $this->siteDir,
             $this->storageDir,
+            $databaseBackups ?? $this->databaseBackups(),
         );
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\DeliverWebhooks;
 use App\Console\Commands\PurgeOldLogs;
 use App\Console\Commands\RunScheduledBackup;
 use Illuminate\Foundation\Inspiring;
@@ -13,3 +14,5 @@ Artisan::command('inspire', function () {
 Schedule::command(PurgeOldLogs::class)->daily();
 // Avec le cron du serveur, la sauvegarde part exactement a l'heure choisie dans Admin > Mise a jour
 Schedule::command(RunScheduledBackup::class)->everyMinute()->withoutOverlapping();
+// Webhooks en attente et nouveaux essais
+Schedule::command(DeliverWebhooks::class)->everyMinute()->withoutOverlapping();

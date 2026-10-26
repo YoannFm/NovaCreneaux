@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnforceAdminTwoFactor::class,
             \App\Http\Middleware\EnforceEmailVerification::class,
             \App\Http\Middleware\RunDueBackupOnRequest::class,
+            \App\Http\Middleware\DeliverWebhooksOnRequest::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

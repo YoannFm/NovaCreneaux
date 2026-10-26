@@ -5,6 +5,9 @@ use App\Mail\ReservationConfirmed;
 use App\Models\Reservation;
 use App\Models\Slot;
 use App\Models\User;
+use App\Services\Webhook\WebhookDispatcher;
+use App\Services\Webhook\WebhookPayload;
+use App\Support\WebhookEvent;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -18,10 +21,13 @@ use Illuminate\Support\Facades\Mail;
  * slot_full, already_booked, reservation_past, cancel_deadline.
  */
 class ReservationService {
+    public function __construct(private SiteNotifier $notifier, private WebhookDispatcher $webhooks) {}
+
     public function create(User $user, int $slotId, string $date): array {
         $result = DB::transaction(fn () => $this->book($user, $slotId, $date));
         if ($result['ok']) {
             $this->notify($user, new ReservationConfirmed($result['reservation']));
+            $this->webhooks->dispatch(WebhookEvent::RESERVATION_CREATED, WebhookPayload::reservation($result['reservation']));
         }
         return $result;
     }
@@ -114,15 +120,43 @@ class ReservationService {
         return ['ok'=>true];
     }
 
-    /** Annulation par un administrateur : aucune regle de delai, l'eleve est prevenu comme pour une annulation normale. */
-    public function cancelByAdmin(Reservation $reservation): void {
-        $this->remove($reservation);
+    /** Annulation par un administrateur : aucune regle de delai. L'eleve est prevenu (cloche et e-mail), avec le motif s'il y en a un. */
+    public function cancelByAdmin(Reservation $reservation, ?string $reason = null): void {
+        $this->remove($reservation, true, $reason);
     }
 
-    private function remove(Reservation $reservation): void {
-        $reservation->load('slot.resource','user');
+    /**
+     * Annule les reservations a venir de ces creneaux, quand l'administrateur supprime un creneau ou une ressource.
+     * Les reservations passees restent dans l'historique. Renvoie le nombre de reservations annulees.
+     */
+    public function cancelUpcomingForSlots(iterable $slotIds, string $reason): int {
+        $reservations = Reservation::whereIn('slot_id', collect($slotIds))->whereDate('reservation_date', '>=', Carbon::today())->get();
+        foreach ($reservations as $reservation) {
+            $this->remove($reservation, true, $reason);
+        }
+        return $reservations->count();
+    }
+
+    private function remove(Reservation $reservation, bool $byAdmin = false, ?string $reason = null): void {
+        $reservation->load('slot.resource','user.role');
         $reservation->delete();
-        $this->notify($reservation->user, new ReservationCancelled($reservation));
+        $this->notify($reservation->user, new ReservationCancelled($reservation, $byAdmin, $reason));
+        $this->webhooks->dispatch(WebhookEvent::RESERVATION_CANCELLED, WebhookPayload::reservation($reservation) + ['cancelled_by' => $byAdmin ? 'admin' : 'user']);
+
+        if ($byAdmin) {
+            $this->notifier->send($reservation->user, 'Réservation annulée par un administrateur', $this->describe($reservation, $reason), 'warning');
+        }
+    }
+
+    private function describe(Reservation $reservation, ?string $reason): string {
+        $lines = [
+            "{$reservation->slot->resource->name}, {$reservation->slot->name}",
+            $reservation->reservation_date->isoFormat('dddd D MMMM YYYY'),
+        ];
+        if ($reason !== null && $reason !== '') {
+            $lines[] = "Motif : {$reason}";
+        }
+        return implode("\n", $lines);
     }
 
     /** Un e-mail qui echoue ne doit pas annuler l'operation, mais l'echec est journalise. */

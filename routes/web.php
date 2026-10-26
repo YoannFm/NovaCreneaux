@@ -59,6 +59,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'read'])->whereNumber('notification')->name('notifications.read');
+    Route::delete('/notifications/{notification}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->whereNumber('notification')->name('notifications.destroy');
     Route::post('/profile/api-tokens', [\App\Http\Controllers\ProfileApiTokenController::class, 'store'])->middleware('throttle:10,1')->name('profile.api-tokens.store');
     Route::delete('/profile/api-tokens/{token}', [\App\Http\Controllers\ProfileApiTokenController::class, 'destroy'])->whereNumber('token')->name('profile.api-tokens.destroy');
 
@@ -202,6 +206,13 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
         Route::post('/logs/purge', [LogController::class, 'purge'])->name('logs.purge');
         Route::get('/api-tokens', [\App\Http\Controllers\Admin\ApiTokenController::class, 'index'])->name('api-tokens.index');
         Route::post('/api-tokens', [\App\Http\Controllers\Admin\ApiTokenController::class, 'store'])->name('api-tokens.store');
+        Route::resource('webhooks', \App\Http\Controllers\Admin\WebhookController::class)->except(['show'])->names([
+            'index'=>'webhooks.index','create'=>'webhooks.create','store'=>'webhooks.store',
+            'edit'=>'webhooks.edit','update'=>'webhooks.update','destroy'=>'webhooks.destroy',
+        ]);
+        Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Admin\WebhookController::class, 'test'])->middleware('throttle:10,1')->name('webhooks.test');
+        Route::post('/webhooks/{webhook}/secret', [\App\Http\Controllers\Admin\WebhookController::class, 'regenerateSecret'])->name('webhooks.secret');
+        Route::put('/api-tokens/status', [\App\Http\Controllers\Admin\ApiTokenController::class, 'updateStatus'])->name('api-tokens.status');
         Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Admin\ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
         Route::prefix('update')->name('update.')->group(function () {
             Route::get('/', [UpdateController::class, 'index'])->name('index');

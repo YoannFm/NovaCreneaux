@@ -72,6 +72,17 @@
                 </div>
             </div>
 
+            <div class="mb-4 pb-4 border-bottom">
+                <h6 class="fw-semibold mb-3">Suppression de comptes</h6>
+                <input type="hidden" name="notify_account_deletion" value="0">
+                <div class="form-check form-switch">
+                    <input type="checkbox" class="form-check-input" id="notify_account_deletion" name="notify_account_deletion" value="1"
+                           @checked(old('notify_account_deletion', $s['notify_account_deletion'] ?? '1') == '1')>
+                    <label class="form-check-label" for="notify_account_deletion">Prévenir par e-mail les comptes supprimés par un administrateur</label>
+                </div>
+                <div class="form-text">Décochez avant une suppression en masse (fin d'année) pour ne pas envoyer un e-mail à chaque élève. Un utilisateur qui supprime lui-même son compte est toujours prévenu.</div>
+            </div>
+
             <div class="d-flex gap-2 align-items-center flex-wrap">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save me-1"></i> Enregistrer

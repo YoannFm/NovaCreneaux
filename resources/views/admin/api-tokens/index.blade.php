@@ -24,6 +24,27 @@
 </div>
 
 <div class="card mb-4">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <strong>État de l'API :</strong>
+            @if(\App\Services\ApiTokenService::enabled())
+                <span class="badge bg-success">Activée</span>
+            @else
+                <span class="badge bg-danger">Désactivée</span>
+            @endif
+            <div class="small text-body-secondary">Désactivée, l'API répond par une erreur 503 à tout le monde et les élèves ne voient plus la section des jetons. Les jetons sont conservés.</div>
+        </div>
+        <form method="POST" action="{{ route('admin.api-tokens.status') }}">
+            @csrf @method('PUT')
+            <input type="hidden" name="enabled" value="{{ \App\Services\ApiTokenService::enabled() ? '0' : '1' }}">
+            <button type="submit" class="btn btn-sm {{ \App\Services\ApiTokenService::enabled() ? 'btn-outline-danger' : 'btn-outline-success' }}">
+                {{ \App\Services\ApiTokenService::enabled() ? "Désactiver l'API" : "Activer l'API" }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-4">
     <div class="card-header">Nouveau jeton</div>
     <div class="card-body">
         <form method="POST" action="{{ route('admin.api-tokens.store') }}">

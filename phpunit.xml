@@ -33,6 +33,7 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="NOVA_BACKUPS_ON_REQUEST" value="false"/>
+        <env name="NOVA_WEBHOOKS_ON_REQUEST" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
     </php>

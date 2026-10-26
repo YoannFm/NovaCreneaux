@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AccountDeletionNotice;
 use App\Services\ActivityLogger;
 use App\Services\UserExporter;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ class UserBulkController extends Controller
 {
     private const ACTIONS = ['activate', 'deactivate', 'reset_password', 'export', 'delete'];
 
-    public function __construct(private UserExporter $exporter) {}
+    public function __construct(private UserExporter $exporter, private AccountDeletionNotice $deletionNotice) {}
 
     public function __invoke(Request $request)
     {
@@ -47,7 +48,10 @@ class UserBulkController extends Controller
         match ($action) {
             'activate' => User::whereIn('id', $others->modelKeys())->update(['is_active' => true]),
             'deactivate' => User::whereIn('id', $others->modelKeys())->update(['is_active' => false]),
-            'delete' => $others->each->delete(),
+            'delete' => $others->each(function (User $user) {
+                $this->deletionNotice->send($user, true);
+                $user->delete();
+            }),
         };
 
         $label = ['activate' => 'activé(s)', 'deactivate' => 'désactivé(s)', 'delete' => 'supprimé(s)'][$action];

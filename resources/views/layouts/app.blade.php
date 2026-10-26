@@ -221,6 +221,7 @@
 <body>
 
 {{-- ── Menu mobile ── --}}
+@php $unread = auth()->check() ? auth()->user()->unreadNotificationCount() : 0; @endphp
 <div id="mobile-menu" role="dialog" aria-modal="true">
     <button id="mobile-menu-close" aria-label="Fermer">&#x2715;</button>
 
@@ -253,6 +254,7 @@
             <div class="user-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
             <span style="font-weight:700;color:var(--text-primary);font-size:.95rem;text-transform:uppercase;letter-spacing:.5px;">{{ auth()->user()->name }}</span>
         </div>
+        <a href="{{ route('notifications.index') }}" class="mobile-user-link"><i class="bi bi-bell"></i> Notifications @if($unread > 0)<span class="badge bg-danger">{{ $unread }}</span>@endif</a>
         <a href="{{ route('profile.edit') }}" class="mobile-user-link"><i class="bi bi-person-circle"></i> Mon profil</a>
         @if(auth()->user()->isAdmin())
         <a href="{{ route('admin.dashboard') }}" class="mobile-user-link" style="color:var(--accent-text);"><i class="bi bi-shield-check"></i> Panel administrateur</a>
@@ -315,6 +317,17 @@
 
             <div class="ms-auto d-flex align-items-center gap-1">
                 @auth
+                {{-- Notifications --}}
+                @auth
+                <a href="{{ route('notifications.index') }}" class="position-relative d-flex align-items-center"
+                   style="color:var(--text-muted);font-size:1.05rem;padding:0 .6rem;height:56px;text-decoration:none;" title="Notifications" aria-label="Notifications{{ $unread ? ' (' . $unread . ' non lues)' : '' }}">
+                    <i class="bi {{ $unread ? 'bi-bell-fill' : 'bi-bell' }}"></i>
+                    @if($unread)
+                        <span class="badge rounded-pill bg-danger position-absolute" style="top:10px;right:0;font-size:.6rem;">{{ $unread > 9 ? '9+' : $unread }}</span>
+                    @endif
+                </a>
+                @endauth
+
                 {{-- Toggle theme --}}
                 <button id="theme-toggle"
                         style="background:none;border:none;color:var(--text-muted);font-size:1.05rem;cursor:pointer;padding:0 .6rem;height:56px;"
@@ -390,9 +403,8 @@
 
 <footer id="main-footer">
     <div>
-        &copy; Copyright {{ date('Y') }} -
-        Tous droits réservés
-        <a href="https://wiki.novadev.ovh"
+        &copy; Copyright 2026 -
+        <a href="https://github.com/{{ config('nova.repo') }}"
            target="_blank" rel="noopener"
            style="color:var(--accent-text);text-decoration:none;font-weight:600;">
             NovaCreneaux
@@ -400,7 +412,7 @@
         -
         <button onclick="document.getElementById('licence-modal').style.display='flex'"
                 style="background:none;border:none;padding:0;color:var(--text-muted);font-size:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">
-            Licence
+            Licence MIT
         </button>
     </div>
     <div style="margin-top:.2rem;">
@@ -428,20 +440,7 @@
                            color:var(--text-muted);line-height:1;">&times;</button>
         </div>
         <div style="padding:1.4rem;overflow-y:auto;font-family:monospace;font-size:.78rem;
-                    line-height:1.7;color:var(--text-primary);white-space:pre-wrap;">NovaCreneaux - Licence Propriétaire
-Copyright (c) {{ date('Y') }} LE BORGNE Yoann. Tous droits réservés.
-
-Ce logiciel, son code source et la documentation associée (le « Logiciel ») sont la
-propriété exclusive de LE BORGNE Yoann. Toute reproduction, redistribution, modification
-ou exploitation commerciale du Logiciel est strictement interdite sans autorisation écrite
-préalable de l'auteur.
-
-LIMITATION DE RESPONSABILITÉ
-
-LE LOGICIEL EST FOURNI « EN L'ÉTAT », SANS GARANTIE D'AUCUNE SORTE, EXPRESSE OU
-IMPLICITE. EN AUCUN CAS L'AUTEUR NE SAURAIT ÊTRE TENU RESPONSABLE DE TOUT DOMMAGE
-DIRECT, INDIRECT, ACCESSOIRE OU CONSÉCUTIF RÉSULTANT DE L'UTILISATION OU DE
-L'IMPOSSIBILITÉ D'UTILISER CE LOGICIEL.</div>
+                    line-height:1.7;color:var(--text-primary);white-space:pre-wrap;">@if(file_exists(base_path('LICENSE'))){{ file_get_contents(base_path('LICENSE')) }}@endif</div>
     </div>
 </div>
 

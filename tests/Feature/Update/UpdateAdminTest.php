@@ -65,7 +65,7 @@ class UpdateAdminTest extends TestCase
         $this->publish(['body' => '<script>alert(1)</script> Nouveautes']);
 
         $this->actingAs($this->admin())->get(route('admin.update.index'))->assertOk()
-            ->assertSee('Version 1.1.0 disponible')->assertSee('sauvegarde de la base de données')
+            ->assertSee('Version 1.1.0 disponible')->assertSee("la base l'est aussi juste avant", false)
             ->assertSee('Télécharger la version 1.1.0')
             ->assertSee('&lt;script&gt;alert(1)&lt;/script&gt; Nouveautes', false)->assertDontSee('<script>alert(1)</script>', false);
     }

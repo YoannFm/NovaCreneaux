@@ -2,6 +2,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Services\ApiTokenService;
+use App\Services\Webhook\WebhookDispatcher;
+use App\Services\Webhook\WebhookPayload;
+use App\Support\WebhookEvent;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -84,6 +88,21 @@ class User extends Authenticatable
 
     public function role()         { return $this->belongsTo(Role::class); }
     public function reservations() { return $this->hasMany(Reservation::class); }
+    protected static function booted(): void
+    {
+        static::created(fn (self $user) => app(WebhookDispatcher::class)->dispatch(WebhookEvent::USER_CREATED, ['user' => WebhookPayload::user($user)]));
+        static::deleted(fn (self $user) => app(WebhookDispatcher::class)->dispatch(WebhookEvent::USER_DELETED, [
+            'user' => WebhookPayload::user($user),
+            // Qui a supprime le compte : lui-meme, un administrateur, ou le systeme (commande, nettoyage)
+            'deleted_by' => auth()->check() ? (auth()->id() === $user->id ? 'self' : 'admin') : 'system',
+        ]));
+    }
+
+    /** Notifications affichees sur le site (`notifications()` est deja pris par le trait Notifiable de Laravel). */
+    public function siteNotifications() { return $this->hasMany(UserNotification::class)->latest('id'); }
+
+    public function unreadNotificationCount(): int { return $this->siteNotifications()->unread()->count(); }
+
     public function sanctions()    { return $this->hasMany(Sanction::class)->latest(); }
 
     public function isAdmin(): bool
@@ -113,10 +132,10 @@ class User extends Authenticatable
         return $this->isAdmin() || ! $role->grantsAdminAccess();
     }
 
-    /** Le role du compte autorise l'API : jetons personnels et utilisation des jetons existants. Sans role, autorise. */
+    /** L'API est activee et le role du compte l'autorise (sans role : autorise). */
     public function canUseApi(): bool
     {
-        return $this->role?->api_access ?? true;
+        return ApiTokenService::enabled() && ($this->role?->api_access ?? true);
     }
 
     public function roleName(): string

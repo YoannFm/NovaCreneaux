@@ -2,7 +2,7 @@
 
 return [
     // Version installee. A modifier uniquement au moment d'une release (voir DEVELOPPEMENT.md, "Publier une version").
-    'version' => '1.2.0',
+    'version' => '1.3.0',
 
     // Depot GitHub dont les releases servent de source aux mises a jour (Admin > Mise a jour).
     'repo' => 'YoannFm/NovaCreneaux',
@@ -19,5 +19,14 @@ return [
         // Sans tache cron (`php artisan schedule:run` chaque minute), une sauvegarde due se lance
         // a la premiere visite apres l'heure prevue.
         'on_request' => env('NOVA_BACKUPS_ON_REQUEST', true),
+    ],
+
+    'webhooks' => [
+        // Sans tache cron, les webhooks en attente partent apres la reponse de la requete suivante.
+        'on_request' => env('NOVA_WEBHOOKS_ON_REQUEST', true),
+
+        // Par defaut, une adresse de webhook doit etre en https et ne jamais viser le reseau interne du serveur.
+        // A mettre a true seulement pour un service interne de confiance (http et adresses privees acceptes).
+        'allow_private_targets' => env('NOVA_WEBHOOKS_ALLOW_PRIVATE', false),
     ],
 ];

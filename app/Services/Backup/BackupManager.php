@@ -8,10 +8,14 @@ use Illuminate\Support\Facades\Cache;
 class BackupManager {
     public const MANUAL = 'manual';
     public const AUTOMATIC = 'auto';
+    public const BEFORE_UPDATE = 'update';
+
+    /** Sauvegardes faites juste avant l'installation d'une mise a jour : on garde les dernieres seulement. */
+    private const KEPT_BEFORE_UPDATE = 3;
 
     // Le nom porte toutes les metadonnees : pas de table, la base ne se sauvegarde pas elle-meme.
     // Les 16 caracteres aleatoires rendent le nom impossible a deviner, meme si le dossier etait expose par erreur.
-    private const NAME_PATTERN = '/^nova-(\d{8}-\d{6})-(auto|manual)-[a-f0-9]{16}\.sql\.gz$/';
+    private const NAME_PATTERN = '/^nova-(\d{8}-\d{6})-(auto|manual|update)-[a-f0-9]{16}\.sql\.gz$/';
 
     public function __construct(
         private DatabaseDumper $dumper,
@@ -22,7 +26,7 @@ class BackupManager {
 
     /** @return array{name: string, size: int, created_at: CarbonImmutable, trigger: string} */
     public function create(string $trigger): array {
-        if (!in_array($trigger, [self::MANUAL, self::AUTOMATIC], true)) {
+        if (!in_array($trigger, [self::MANUAL, self::AUTOMATIC, self::BEFORE_UPDATE], true)) {
             throw new \InvalidArgumentException("Type de sauvegarde inconnu : {$trigger}");
         }
 
@@ -87,8 +91,16 @@ class BackupManager {
 
     /** Ne garde que les $keep sauvegardes automatiques les plus recentes ; les manuelles ne sont jamais supprimees seules. */
     public function pruneAutomatic(int $keep): int {
-        $automatic = array_values(array_filter($this->list(), fn ($b) => $b['trigger'] === self::AUTOMATIC));
-        $excess = array_slice($automatic, max($keep, 0));
+        return $this->prune(self::AUTOMATIC, $keep);
+    }
+
+    public function pruneBeforeUpdate(): int {
+        return $this->prune(self::BEFORE_UPDATE, self::KEPT_BEFORE_UPDATE);
+    }
+
+    private function prune(string $trigger, int $keep): int {
+        $matching = array_values(array_filter($this->list(), fn ($b) => $b['trigger'] === $trigger));
+        $excess = array_slice($matching, max($keep, 0));
         foreach ($excess as $backup) {
             $this->delete($backup['name']);
         }

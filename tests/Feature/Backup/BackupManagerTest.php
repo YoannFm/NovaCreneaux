@@ -167,6 +167,6 @@ class BackupManagerTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        $this->manager()->create('update');
+        $this->manager()->create('weekly');
     }
 }

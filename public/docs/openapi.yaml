@@ -434,7 +434,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     Maintenance:
-      description: Le site est en maintenance. Code `maintenance`.
+      description: Le site est en maintenance (`maintenance`) ou l'API est désactivée par un administrateur (`api_disabled`).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -460,6 +460,7 @@ components:
                 - validation_failed
                 - too_many_requests
                 - maintenance
+                - api_disabled
                 - server_error
                 - http_error
                 - banned

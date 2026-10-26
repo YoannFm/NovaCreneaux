@@ -116,6 +116,8 @@
                                 <td>
                                     @if($item['trigger'] === 'auto')
                                         <span class="badge bg-secondary">Automatique</span>
+                                    @elseif($item['trigger'] === 'update')
+                                        <span class="badge bg-info text-dark">Avant mise à jour</span>
                                     @else
                                         <span class="badge bg-primary">Manuelle</span>
                                     @endif

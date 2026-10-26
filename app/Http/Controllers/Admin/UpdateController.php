@@ -7,6 +7,7 @@ use App\Services\Backup\BackupOverview;
 use App\Services\Update\UpdateException;
 use App\Services\Update\UpdateManager;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class UpdateController extends Controller
 {
@@ -34,9 +35,9 @@ class UpdateController extends Controller
         return $this->run(fn () => $this->updates->download(), 'Mise à jour téléchargée et signature vérifiée.');
     }
 
-    public function install(): JsonResponse
+    public function install(Request $request): JsonResponse
     {
-        return $this->run(fn () => $this->updates->install(), 'Fichiers installés. Finalisation en cours...');
+        return $this->run(fn () => $this->updates->install($request->boolean('backup_database', true)), 'Fichiers installés. Finalisation en cours...');
     }
 
     public function finalize(): JsonResponse

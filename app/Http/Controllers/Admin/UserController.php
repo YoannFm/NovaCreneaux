@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AccountDeletionNotice;
 use App\Services\ActivityLogger;
 use App\Services\UserExporter;
 use Illuminate\Http\Request;
@@ -134,11 +135,12 @@ class UserController extends Controller {
         return back()->with('success', 'Statut mis à jour.');
     }
 
-    public function destroy(User $user) {
+    public function destroy(AccountDeletionNotice $notice, User $user) {
         $this->authorizeManage($user);
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Vous ne pouvez pas supprimer votre propre compte.');
         }
+        $notice->send($user, true);
         ActivityLogger::log('Utilisateur supprimé', "{$user->name} ({$user->email})");
         $user->delete();
         // Pas de back() : depuis la page de modification, on reviendrait sur l'adresse de l'utilisateur supprime (404)
