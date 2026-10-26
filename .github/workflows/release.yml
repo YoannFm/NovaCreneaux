@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   release:
+    # Le depot de travail prive ne publie jamais de release
+    if: github.repository == 'YoannFm/NovaCreneaux'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
