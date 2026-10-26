@@ -160,6 +160,8 @@ Ne pas remettre l'attribut `integrity` sur ce `<script>` sans vérifier d'abord 
 - Deploiement : `composer install --no-dev` (laravel/sanctum) puis `php artisan migrate --force` (table `personal_access_tokens`).
 - Ecriture : `POST /reservations` et `DELETE /reservations/{id}` (droit `reservations:write`, quota 30/min), toujours pour le compte du jeton. Codes de refus : 403 banni, 409 conflit d'etat, 422 regle non respectee (`ApiError::fromReservationFailure`).
 - Administration des jetons : Admin > Integrations API (`Admin\ApiTokenController`), logique commune dans `ApiTokenService`.
+- **Acces par role** : `roles.api_access` (defaut vrai, reglage "Acces a l'API" dans Admin > Roles). `User::canUseApi()` (vrai sans role). Un role sans acces : plus de section de jetons dans le profil, creation refusee (profil, administration et `api:token:create`), et les jetons existants de ses comptes recoivent `403 api_access_denied` (middleware `EnsureApiAccess`) sans etre supprimes : ils refonctionnent si l'acces revient.
+- **Jetons personnels** (profil, `ProfileApiTokenController`, partial `profile/partials/api-tokens`) : mot de passe actuel exige, validite 30, 90 ou 365 jours (`ApiTokenService::PERSONAL_DURATIONS`), 5 jetons non expires au plus, revocation de ses seuls jetons (404 sinon), 10 creations par minute. Le jeton appartient au compte : l'API ne renvoie et ne modifie que ses propres reservations. Le secret n'est affiche qu'une fois (session flash).
 
 ## Permissions, menu et journal
 

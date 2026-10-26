@@ -394,12 +394,12 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     Forbidden:
-      description: Le jeton n'a pas le droit requis. Code `forbidden`, ou `account_disabled` si le compte est désactivé.
+      description: Le jeton n'a pas le droit requis. Code `forbidden`, `account_disabled` si le compte est désactivé, ou `api_access_denied` si le rôle du compte n'a pas accès à l'API.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     AccountDisabled:
-      description: Le compte du jeton est désactivé. Code `account_disabled`.
+      description: Le compte du jeton est désactivé (`account_disabled`) ou son rôle n'a pas accès à l'API (`api_access_denied`).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -454,6 +454,7 @@ components:
                 - unauthenticated
                 - forbidden
                 - account_disabled
+                - api_access_denied
                 - not_found
                 - method_not_allowed
                 - validation_failed

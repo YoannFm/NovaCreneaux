@@ -72,6 +72,20 @@ document.addEventListener('DOMContentLoaded', function () {
     </small>
 </div>
 
+<div class="mb-3">
+    <input type="hidden" name="api_access" value="0">
+    <div class="form-check form-switch">
+        <input type="checkbox" class="form-check-input" id="apiAccessSwitch" name="api_access" value="1"
+               @checked(old('api_access', $role->api_access ?? true))
+               style="width:2.2rem;height:1.1rem;cursor:pointer;">
+        <label class="form-check-label" for="apiAccessSwitch">Accès à l'API</label>
+    </div>
+    <small class="form-text text-info">
+        Permet aux comptes de ce rôle de créer leurs propres jetons d'API depuis leur profil.
+        Sans cet accès, les jetons existants de ces comptes cessent de fonctionner.
+    </small>
+</div>
+
 {{-- Limites (collapsées quand admin est actif) --}}
 <div id="permissionsGroup" class="{{ (old('is_admin', $role->is_admin ?? false)) ? 'collapse' : '' }}">
     <div class="card card-body mb-3">

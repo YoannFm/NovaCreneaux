@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1;
 use App\Http\Middleware\EnforceMaintenanceMode;
+use App\Http\Middleware\EnsureApiAccess;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->name('api.v1.')->middleware('throttle:api-ip')->group(function () {
     Route::get('meta', [V1\MetaController::class, 'show'])->name('meta');
 
-    Route::middleware(['auth:sanctum', EnsureUserIsActive::class, EnforceMaintenanceMode::class, 'throttle:api'])->group(function () {
+    Route::middleware(['auth:sanctum', EnsureUserIsActive::class, EnsureApiAccess::class, EnforceMaintenanceMode::class, 'throttle:api'])->group(function () {
         Route::get('me', [V1\MetaController::class, 'me'])->name('me');
 
         Route::middleware('abilities:resources:read')->group(function () {

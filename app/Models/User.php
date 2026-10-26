@@ -113,6 +113,12 @@ class User extends Authenticatable
         return $this->isAdmin() || ! $role->grantsAdminAccess();
     }
 
+    /** Le role du compte autorise l'API : jetons personnels et utilisation des jetons existants. Sans role, autorise. */
+    public function canUseApi(): bool
+    {
+        return $this->role?->api_access ?? true;
+    }
+
     public function roleName(): string
     {
         return $this->role?->label ?? 'Utilisateur';

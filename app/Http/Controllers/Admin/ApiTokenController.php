@@ -16,7 +16,7 @@ class ApiTokenController extends Controller
     {
         return view('admin.api-tokens.index', [
             'tokens' => PersonalAccessToken::with('tokenable')->latest('id')->get(),
-            'users' => User::where('is_active', true)->with('role')->orderBy('name')->get(),
+            'users' => User::where('is_active', true)->with('role')->orderBy('name')->get()->filter->canUseApi()->values(),
             'abilities' => ApiTokenService::ABILITIES,
         ]);
     }

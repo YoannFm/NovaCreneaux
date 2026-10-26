@@ -59,6 +59,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('/profile/api-tokens', [\App\Http\Controllers\ProfileApiTokenController::class, 'store'])->middleware('throttle:10,1')->name('profile.api-tokens.store');
+    Route::delete('/profile/api-tokens/{token}', [\App\Http\Controllers\ProfileApiTokenController::class, 'destroy'])->whereNumber('token')->name('profile.api-tokens.destroy');
 
     // MFA — TOTP
     Route::get('/profile/mfa/totp/enable', [\App\Http\Controllers\MfaController::class, 'totpEnableForm'])->name('mfa.totp.enable.form');

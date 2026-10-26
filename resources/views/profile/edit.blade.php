@@ -115,6 +115,10 @@
             </div>
         </div>
 
+        @if($user->canUseApi())
+            @include('profile.partials.api-tokens')
+        @endif
+
         {{-- Double authentification (MFA) --}}
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">

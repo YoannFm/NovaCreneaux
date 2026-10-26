@@ -68,6 +68,9 @@ saveBtn.addEventListener('click', function () {
                             @if($role->locked)
                                 <i class="bi bi-star text-info" title="Rôle par défaut" data-bs-toggle="tooltip"></i>
                             @endif
+                            @unless($role->api_access)
+                                <span class="badge text-bg-secondary" title="Les comptes de ce rôle n'ont pas accès à l'API" data-bs-toggle="tooltip">Sans API</span>
+                            @endunless
                             @if($role->is_admin)
                                 <i class="bi bi-trophy text-warning" title="Administrateur" data-bs-toggle="tooltip"></i>
                             @endif

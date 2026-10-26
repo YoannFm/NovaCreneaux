@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
 {
-    protected $fillable = ['name', 'label', 'icon', 'description', 'color', 'is_admin', 'permissions', 'locked', 'power',
+    protected $fillable = ['name', 'label', 'icon', 'description', 'color', 'is_admin', 'permissions', 'api_access', 'locked', 'power',
         'max_reservations_day', 'max_reservations_week', 'cancel_deadline_minutes', 'advance_days'];
     protected $casts = [
-        'is_admin' => 'boolean', 'locked' => 'boolean', 'permissions' => 'array',
+        'is_admin' => 'boolean', 'locked' => 'boolean', 'permissions' => 'array', 'api_access' => 'boolean',
         'max_reservations_day' => 'integer', 'max_reservations_week' => 'integer',
         'cancel_deadline_minutes' => 'integer', 'advance_days' => 'integer',
     ];

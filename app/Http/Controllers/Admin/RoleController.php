@@ -27,6 +27,7 @@ class RoleController extends Controller
             'icon'                    => 'nullable|string|max:60',
             'color'                   => 'required|string|regex:/^#[0-9a-fA-F]{6}$/',
             'is_admin'                => 'boolean',
+            'api_access'              => 'boolean',
             'permissions'             => 'nullable|array',
             'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
             'max_reservations_day'    => 'required|integer|min:1|max:99',
@@ -42,6 +43,7 @@ class RoleController extends Controller
             'color'                   => $data['color'],
             'is_admin'                => $request->boolean('is_admin'),
             'permissions'             => $this->permissions($request),
+            'api_access'              => $request->boolean('api_access', true),
             'locked'                  => false,
             'power'                   => 0,
             'max_reservations_day'    => $data['max_reservations_day'],
@@ -65,6 +67,7 @@ class RoleController extends Controller
             'icon'                    => 'nullable|string|max:60',
             'color'                   => 'required|string|regex:/^#[0-9a-fA-F]{6}$/',
             'is_admin'                => 'boolean',
+            'api_access'              => 'boolean',
             'permissions'             => 'nullable|array',
             'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
             'max_reservations_day'    => 'required|integer|min:1|max:99',
@@ -82,6 +85,9 @@ class RoleController extends Controller
             'cancel_deadline_minutes' => $data['cancel_deadline_minutes'],
             'advance_days'            => $data['advance_days'],
         ];
+        if ($request->has('api_access')) {
+            $update['api_access'] = $request->boolean('api_access');
+        }
         if (!$role->locked) {
             $update['is_admin'] = $request->boolean('is_admin');
         }
