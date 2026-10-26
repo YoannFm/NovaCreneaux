@@ -95,17 +95,22 @@ document.addEventListener('DOMContentLoaded', function () {
             sauvegardes et jetons d'API restent réservés aux administrateurs, de même que la gestion des comptes administrateurs.
         </p>
         @php $granted = old('permissions', $role->permissions ?? []); @endphp
-        <div class="row">
-            @foreach(\App\Support\Permission::all() as $key => $label)
-                <div class="col-md-6">
-                    <div class="form-check mb-2">
-                        <input type="checkbox" class="form-check-input" id="perm-{{ $key }}"
-                               name="permissions[]" value="{{ $key }}" @checked(in_array($key, $granted, true))>
-                        <label class="form-check-label" for="perm-{{ $key }}">{{ $label }}</label>
+        @foreach(\App\Support\Permission::groups() as $group)
+            @if(! $loop->first)
+                <h6 class="mt-3 mb-2" style="font-size:.85rem;"><i class="bi bi-puzzle me-1"></i> Extension : {{ $group['label'] }}</h6>
+            @endif
+            <div class="row">
+                @foreach($group['permissions'] as $key => $label)
+                    <div class="col-md-6">
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="perm-{{ $key }}"
+                                   name="permissions[]" value="{{ $key }}" @checked(in_array($key, $granted, true))>
+                            <label class="form-check-label" for="perm-{{ $key }}">{{ $label }}</label>
+                        </div>
                     </div>
-                </div>
-            @endforeach
-        </div>
+                @endforeach
+            </div>
+        @endforeach
         @error('permissions.*')<span class="text-danger small">{{ $message }}</span>@enderror
     </div>
     <div class="card card-body mb-3 pb-0">

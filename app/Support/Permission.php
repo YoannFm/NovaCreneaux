@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Plugins\PluginManager;
+
 /**
  * Permissions que l'on peut donner a un role non administrateur.
  * Un administrateur les a toutes. Reglages, mises a jour, sauvegardes, jetons d'API et roles ne sont pas delegables :
@@ -19,8 +21,25 @@ final class Permission
     public const APPEARANCE = 'appearance.manage';
     public const LOGS = 'logs.view';
 
-    /** @return array<string, string> cle => libelle */
+    /** @return array<string, string> cle => libelle, y compris les permissions des extensions chargees (`id.cle`) */
     public static function all(): array
+    {
+        return self::core() + app(PluginManager::class)->permissions();
+    }
+
+    /** @return list<array{label: string, permissions: array<string, string>}> permissions du site, puis une liste par extension */
+    public static function groups(): array
+    {
+        $groups = [['label' => 'Site', 'permissions' => self::core()]];
+        foreach (app(PluginManager::class)->permissionGroups() as $group) {
+            $groups[] = $group;
+        }
+
+        return $groups;
+    }
+
+    /** @return array<string, string> */
+    private static function core(): array
     {
         return [
             self::RESOURCES => 'Ressources et créneaux',

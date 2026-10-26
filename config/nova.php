@@ -2,7 +2,7 @@
 
 return [
     // Version installee. A modifier uniquement au moment d'une release (voir DEVELOPPEMENT.md, "Publier une version").
-    'version' => '1.5.0',
+    'version' => '1.6.0',
 
     // Depot GitHub dont les releases servent de source aux mises a jour (Admin > Mise a jour).
     'repo' => 'YoannFm/NovaCreneaux',
@@ -11,6 +11,23 @@ return [
     // `php scripts/release/keys.php` ; la cle secrete reste uniquement dans les secrets GitHub.
     // Vide : les mises a jour sont refusees.
     'update_public_key' => 'ijaZgVcmX/35Asi/stoZtg26Py820QpjJ6gR7HtWPIM=',
+
+    'plugins' => [
+        // Dossier des extensions et fichier d'etat (extensions actives ou en echec). Hors de la base : lisible meme si elle plante.
+        'path' => base_path('plugins'),
+        'state' => storage_path('app/plugins.json'),
+
+        // Catalogue : depot GitHub public qui publie index.json (signe) et les archives des extensions.
+        'catalog_repo' => env('NOVA_PLUGINS_CATALOG_REPO', 'YoannFm/NovaCreneaux-plugins'),
+
+        // Cle publique ed25519 (base64) des extensions, distincte de celle des mises a jour. Generee par
+        // `php scripts/release/keys.php` ; la cle secrete reste chez l'editeur du catalogue.
+        // Vide : l'installation d'extensions est refusee.
+        'public_key' => '',
+
+        // Developpement seulement : accepte une extension copiee a la main, sans archive signee.
+        'allow_unsigned' => env('NOVA_PLUGINS_ALLOW_UNSIGNED', false),
+    ],
 
     'backups' => [
         // Sauvegardes de la base (Admin > Mise a jour). Hors de public/ : jamais servies directement.

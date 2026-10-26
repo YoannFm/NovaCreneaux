@@ -177,6 +177,14 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
     });
 
     Route::middleware('admin')->group(function () {
+        Route::prefix('plugins')->name('plugins.')->controller(\App\Http\Controllers\Admin\PluginController::class)->where(['plugin' => '[a-z][a-z0-9-]*'])->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/refresh', 'refresh')->name('refresh');
+            Route::post('/{plugin}/install', 'install')->name('install');
+            Route::post('/{plugin}/enable', 'enable')->name('enable');
+            Route::post('/{plugin}/disable', 'disable')->name('disable');
+            Route::delete('/{plugin}', 'destroy')->name('destroy');
+        });
         Route::resource('roles', RoleController::class)->names([
             'index'=>'roles.index','create'=>'roles.create','store'=>'roles.store',
             'edit'=>'roles.edit','update'=>'roles.update','destroy'=>'roles.destroy','show'=>'roles.show',

@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Loggable;
+use App\Support\Permission;
 use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
@@ -23,13 +24,14 @@ class Role extends Model
 
     public function hasPermission(string $permission): bool
     {
-        return $this->is_admin || in_array($permission, $this->permissions ?? [], true);
+        // Une permission d'extension desactivee n'accorde plus rien (elle reste enregistree : elle revient avec l'extension)
+        return $this->is_admin || (in_array($permission, $this->permissions ?? [], true) && array_key_exists($permission, Permission::all()));
     }
 
     /** Un compte avec ce role entre dans l'administration (tous les droits ou au moins une permission). */
     public function grantsAdminAccess(): bool
     {
-        return $this->is_admin || ! empty($this->permissions);
+        return $this->is_admin || Permission::only($this->permissions ?? []) !== [];
     }
 
     protected function activityContext(): string

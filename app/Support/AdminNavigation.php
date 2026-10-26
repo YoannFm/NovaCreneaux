@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Models\User;
+use App\Plugins\Manifest;
+use App\Plugins\PluginManager;
 use App\Services\Update\UpdateManager;
 
 /**
@@ -14,7 +16,7 @@ class AdminNavigation
 {
     public const ADMIN_ONLY = 'admin';
 
-    public function __construct(private UpdateManager $updates) {}
+    public function __construct(private UpdateManager $updates, private PluginManager $plugins) {}
 
     /** @return list<array{header: ?string, items: list<array>}> sections non vides, entrees resolues (url, active, badge) */
     public function for(User $user): array
@@ -67,6 +69,7 @@ class AdminNavigation
                 $this->link('Ressources', 'bi-collection', 'admin.resources.index', Permission::RESOURCES, 'admin.resources.*', 'admin.slots.*'),
                 $this->link('Réservations', 'bi-calendar-check', 'admin.reservations.index', Permission::RESERVATIONS, 'admin.reservations.*'),
             ]],
+            ...$this->pluginSection(),
             ['header' => 'Utilisateurs', 'items' => [
                 $this->link('Utilisateurs', 'bi-people', 'admin.users.index', Permission::USERS, 'admin.users.*'),
                 $this->link('Rôles', 'bi-shield-check', 'admin.roles.index', self::ADMIN_ONLY, 'admin.roles.*'),
@@ -77,11 +80,24 @@ class AdminNavigation
                 $this->link('Activité', 'bi-journal-text', 'admin.logs.index', Permission::LOGS, 'admin.logs.*'),
                 $this->link('Intégrations API', 'bi-plug', 'admin.api-tokens.index', self::ADMIN_ONLY, 'admin.api-tokens.*'),
                 $this->link('Webhooks', 'bi-broadcast', 'admin.webhooks.index', self::ADMIN_ONLY, 'admin.webhooks.*'),
+                $this->link('Extensions', 'bi-puzzle', 'admin.plugins.index', self::ADMIN_ONLY, 'admin.plugins.*'),
                 $this->link('Mise à jour', 'bi-cloud-download', 'admin.update.index', self::ADMIN_ONLY, 'admin.update.*') + [
                     'badge' => fn () => $this->updates->cachedHasUpdate() ? 'Une nouvelle version est disponible' : null,
                 ],
             ]],
         ];
+    }
+
+    /** Entrees des extensions chargees : chacune porte la permission que son plugin.json a declaree. */
+    private function pluginSection(): array
+    {
+        $items = array_map(fn (array $item) => $this->link(
+            $item['label'], $item['icon'], $item['route'],
+            $item['permission'] === Manifest::ADMIN_ONLY ? self::ADMIN_ONLY : "{$item['id']}.{$item['permission']}",
+            "admin.plugin.{$item['id']}.*",
+        ), $this->plugins->menu());
+
+        return $items === [] ? [] : [['header' => 'Extensions', 'items' => $items]];
     }
 
     /** `$active` : motifs de routes qui marquent l'entree comme courante (par defaut, sa propre route). */

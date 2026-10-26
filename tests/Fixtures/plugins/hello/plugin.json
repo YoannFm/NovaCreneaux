@@ -1,0 +1,13 @@
+{
+  "id": "hello",
+  "name": "Bonjour",
+  "description": "Extension d'exemple : une page d'administration protégée par une permission.",
+  "version": "1.0.0",
+  "api": 1,
+  "requires_nova": "1.6.0",
+  "authors": ["NovaCreneaux"],
+  "autoload": {"NovaPlugin\\Hello\\": "src/"},
+  "providers": ["NovaPlugin\\Hello\\HelloProvider"],
+  "permissions": {"voir": "Voir la page Bonjour"},
+  "menu": [{"label": "Bonjour", "icon": "bi-emoji-smile", "route": "admin.plugin.hello.index", "permission": "voir"}]
+}
