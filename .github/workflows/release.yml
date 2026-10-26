@@ -1,0 +1,47 @@
+name: Release
+
+# Publier une version : voir DEVELOPPEMENT.md ("Publier une version"). Declenche par une etiquette vX.Y.Z.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
+        with:
+          php-version: '8.3'
+          extensions: sodium, zip
+      - name: Version de l'etiquette
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Dependances de production
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+      - name: Fichiers supprimes depuis la version precedente
+        run: |
+          previous=$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          if [ -n "$previous" ]; then
+            git diff --name-only --diff-filter=D "$previous" "$GITHUB_REF_NAME" > deleted.txt
+          else
+            : > deleted.txt
+          fi
+      - name: Construire l'archive
+        run: php scripts/release/build.php --version="$VERSION" --output=dist --deleted-file=deleted.txt
+      - name: Signer l'archive
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: php scripts/release/sign.php "dist/novacreneaux-$VERSION.zip"
+      - name: Verifier la signature avec la cle publique du depot
+        run: php scripts/release/verify.php "dist/novacreneaux-$VERSION.zip"
+      - name: Publier la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/novacreneaux-$VERSION.zip" "dist/novacreneaux-$VERSION.zip.sig" \
+            --title "NovaCreneaux $VERSION" --generate-notes

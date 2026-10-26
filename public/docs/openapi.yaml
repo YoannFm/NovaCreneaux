@@ -1,0 +1,651 @@
+openapi: 3.1.0
+
+info:
+  title: NovaCreneaux API
+  version: 1.0.0
+  description: |
+    API de réservation de créneaux du CDI. Elle permet de consulter les ressources, les créneaux, les
+    disponibilités et les règles, puis de créer, consulter et annuler **les réservations du compte auquel appartient
+    le jeton** (jamais celles d'un autre utilisateur).
+
+    ## Authentification
+    Chaque requête (sauf `GET /meta`) porte un jeton, tel qu'il a été affiché à sa création : `Authorization: Bearer 12|ncr_...`.
+    Un jeton appartient à un compte de service, ne donne que les droits (`ability`) choisis à sa création
+    et expire au bout d'un an. Il se crée et se révoque dans Administration > Intégrations API, ou avec `php artisan api:token:create`,
+    `api:token:list` et `api:token:revoke`. Le secret n'est affiché qu'une fois.
+
+    Droits : `resources:read` (ressources, créneaux, disponibilités, règles), `reservations:read` (consulter
+    ses réservations) et `reservations:write` (les créer et les annuler).
+
+    ## Règles de réservation
+    Les règles (limites par rôle, créneau complet, ressource fermée, ban...) sont celles du site. Le champ
+    `bookable` de `GET /availability` donne le verdict pour le compte du jeton, et `reason_code` la raison.
+
+    Un refus de `POST /reservations` ou de `DELETE /reservations/{id}` renvoie le même code : `403` si le compte
+    est suspendu (`banned`), `409` pour un conflit d'état (`slot_full`, `already_booked`, `slot_started`,
+    `reservation_past`, `cancel_deadline`) et `422` pour une règle non respectée (`daily_limit`, `weekly_limit`,
+    `advance_limit`, `date_past`, `resource_closed_day`, `resource_closed_today`, `slot_unavailable`).
+    Renvoyer deux fois la même demande de réservation donne `409 already_booked` : aucun doublon n'est possible.
+
+    ## Dates et fuseau horaire
+    Les dates sont au format `YYYY-MM-DD` et les heures `HH:MM`, dans le fuseau du site (`timezone` de
+    `GET /meta`). Les horodatages (`created_at`) sont en ISO 8601 avec décalage.
+
+    ## Limitation de débit
+    120 requêtes par minute et par adresse IP, puis 60 par minute et par jeton (30 pour les écritures). Au-delà : `429` avec l'en-tête
+    `Retry-After`.
+
+    ## Pagination
+    Les listes acceptent `per_page` (1 à 100, 25 par défaut) et `page`. La réponse contient `data`, `links` et `meta`.
+
+    ## Erreurs
+    Toutes les erreurs ont le même format : `{"error": {"code", "message", "details"?}}`. Le `code` est stable
+    et sert aux programmes ; le `message` est destiné à une personne et peut changer.
+
+    ## Versionnement
+    La version est dans l'adresse (`/api/v1`). Dans une même version on peut ajouter des champs, des
+    paramètres optionnels et de nouveaux endpoints, jamais retirer ni changer le sens d'un champ : un client
+    doit ignorer les champs inconnus. Un changement incompatible sera publié sous `/api/v2`, avec une période
+    de cohabitation annoncée.
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Général
+  - name: Ressources
+  - name: Disponibilités
+  - name: Réservations
+
+security:
+  - bearerAuth: []
+
+paths:
+  /meta:
+    get:
+      tags: [Général]
+      summary: Informations publiques de l'API
+      description: Ne demande pas de jeton.
+      security: []
+      responses:
+        '200':
+          description: Version, fuseau horaire et heure du serveur.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Meta' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /me:
+    get:
+      tags: [Général]
+      summary: Compte auquel appartient le jeton
+      responses:
+        '200':
+          description: Le compte et les droits du jeton.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AccountDisabled' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+  /resources:
+    get:
+      tags: [Ressources]
+      summary: Liste des ressources actives
+      x-required-ability: resources:read
+      parameters:
+        - name: search
+          in: query
+          description: Filtre sur le nom.
+          schema: { type: string, maxLength: 100 }
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Page de ressources, triées par nom.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Resource' }
+                  links: { $ref: '#/components/schemas/PaginationLinks' }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+  /resources/{resource}:
+    get:
+      tags: [Ressources]
+      summary: Une ressource et ses créneaux actifs
+      x-required-ability: resources:read
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: La ressource, avec la liste de ses créneaux dans `slots`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+  /resources/{resource}/slots:
+    get:
+      tags: [Ressources]
+      summary: Créneaux actifs d'une ressource
+      x-required-ability: resources:read
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Créneaux triées par heure de début.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Slot' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+  /availability:
+    get:
+      tags: [Disponibilités]
+      summary: Places libres d'une date
+      description: |
+        Pour chaque créneau actif : places libres et verdict de réservation pour le compte du jeton
+        (mêmes règles que le site).
+      x-required-ability: resources:read
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: Date demandee, `YYYY-MM-DD`.
+          schema: { type: string, format: date }
+        - name: resource_id
+          in: query
+          description: Limite la réponse à une ressource.
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Disponibilités par ressource.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Availability' }
+              example:
+                data:
+                  date: '2026-10-26'
+                  resources:
+                    - id: 1
+                      name: Salle CDI
+                      slots:
+                        - id: 3
+                          name: Recre matin
+                          start_time: '10:00'
+                          end_time: '10:15'
+                          capacity: 40
+                          free_spots: 12
+                          bookable: true
+                          reason_code: null
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+  /rules:
+    get:
+      tags: [Disponibilités]
+      summary: Règles de réservation du compte du jeton
+      description: Limites de son role. `null` signifie illimite.
+      x-required-ability: resources:read
+      responses:
+        '200':
+          description: Les limites applicables.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Rules' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+  /reservations:
+    get:
+      tags: [Réservations]
+      summary: Réservations du compte du jeton
+      description: Jamais celles d'un autre utilisateur.
+      x-required-ability: reservations:read
+      parameters:
+        - name: from
+          in: query
+          description: Date de début incluse, `YYYY-MM-DD`.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Date de fin incluse, `YYYY-MM-DD`, postérieure ou égale à `from`.
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Page de réservations, de la plus récente à la plus ancienne.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Reservation' }
+                  links: { $ref: '#/components/schemas/PaginationLinks' }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+    post:
+      tags: [Réservations]
+      summary: Réserver un créneau
+      description: Applique toutes les règles du site pour le compte du jeton. Un e-mail de confirmation est envoyé à ce compte.
+      x-required-ability: reservations:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReservationInput' }
+            example:
+              slot_id: 3
+              date: '2026-10-27'
+      responses:
+        '201':
+          description: Réservation créée. L'en-tête `Location` donne son adresse.
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Reservation' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+  /reservations/{reservation}:
+    get:
+      tags: [Réservations]
+      summary: Une réservation du compte du jeton
+      description: Une réservation d'un autre utilisateur répond `404`, comme si elle n'existait pas.
+      x-required-ability: reservations:read
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        '200':
+          description: La réservation.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Reservation' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+    delete:
+      tags: [Réservations]
+      summary: Annuler une réservation
+      description: Mêmes règles que sur le site (créneau non commencé, délai d'annulation du rôle). Un e-mail d'annulation est envoyé.
+      x-required-ability: reservations:write
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        '204':
+          description: Réservation annulée.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Maintenance' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Jeton créé dans Administration > Intégrations API ou avec `php artisan api:token:create`.
+
+  parameters:
+    ResourceId:
+      name: resource
+      in: path
+      required: true
+      description: Identifiant de la ressource.
+      schema: { type: integer }
+    PerPage:
+      name: per_page
+      in: query
+      description: Nombre d'elements par page.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    ReservationId:
+      name: reservation
+      in: path
+      required: true
+      description: Identifiant de la réservation.
+      schema: { type: integer }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+
+  responses:
+    Unauthenticated:
+      description: Jeton manquant, invalide, expiré ou révoqué. Code `unauthenticated`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Le jeton n'a pas le droit requis. Code `forbidden`, ou `account_disabled` si le compte est désactivé.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    AccountDisabled:
+      description: Le compte du jeton est désactivé. Code `account_disabled`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflit d'état (créneau complet, déjà réservé, créneau commencé, délai d'annulation dépassé). Le `code` précise la raison.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Ressource introuvable ou désactivée. Code `not_found`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationFailed:
+      description: Paramètres invalides. Code `validation_failed`, `details` donne les messages par champ.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: validation_failed
+              message: Les données envoyées sont invalides.
+              details:
+                date: ['Le champ date ne correspond pas au format Y-m-d.']
+    TooManyRequests:
+      description: Limite de débit atteinte. Code `too_many_requests`. Voir l'en-tête `Retry-After`.
+      headers:
+        Retry-After:
+          description: Secondes à attendre avant de réessayer.
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Maintenance:
+      description: Le site est en maintenance. Code `maintenance`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - unauthenticated
+                - forbidden
+                - account_disabled
+                - not_found
+                - method_not_allowed
+                - validation_failed
+                - too_many_requests
+                - maintenance
+                - server_error
+                - http_error
+                - banned
+                - slot_unavailable
+                - date_past
+                - resource_closed_day
+                - resource_closed_today
+                - slot_started
+                - daily_limit
+                - weekly_limit
+                - advance_limit
+                - slot_full
+                - already_booked
+                - reservation_past
+                - cancel_deadline
+            message: { type: string }
+            details:
+              type: object
+              description: "Présent pour `validation_failed` : liste de messages par champ."
+              additionalProperties:
+                type: array
+                items: { type: string }
+
+    Meta:
+      type: object
+      required: [api_version, app_name, timezone, server_time]
+      properties:
+        api_version: { type: string, example: v1 }
+        app_name: { type: string }
+        timezone: { type: string, example: Europe/Paris }
+        server_time: { type: string, format: date-time }
+
+    Me:
+      type: object
+      required: [id, name, classe, role, abilities]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        classe: { type: [string, 'null'] }
+        role:
+          type: [object, 'null']
+          required: [name, label]
+          properties:
+            name: { type: string }
+            label: { type: string }
+        abilities:
+          type: array
+          items: { type: string, enum: [resources:read, reservations:read, reservations:write] }
+
+    Slot:
+      type: object
+      required: [id, resource_id, name, start_time, end_time, capacity]
+      properties:
+        id: { type: integer }
+        resource_id: { type: integer }
+        name: { type: string }
+        start_time: { type: string, example: '10:00' }
+        end_time: { type: string, example: '10:15' }
+        capacity: { type: integer, description: Nombre de places par date. }
+
+    Resource:
+      type: object
+      required: [id, name, description, open_time, close_time, closed_days]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        open_time: { type: string, example: '08:00' }
+        close_time: { type: string, example: '18:00' }
+        closed_days:
+          type: array
+          description: Jours de fermeture hebdomadaire, ISO 8601 (1 = lundi, 7 = dimanche).
+          items: { type: integer, minimum: 1, maximum: 7 }
+        slots:
+          type: array
+          description: Présent uniquement sur `GET /resources/{resource}`.
+          items: { $ref: '#/components/schemas/Slot' }
+
+    Availability:
+      type: object
+      required: [date, resources]
+      properties:
+        date: { type: string, format: date }
+        resources:
+          type: array
+          items:
+            type: object
+            required: [id, name, slots]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              slots:
+                type: array
+                items: { $ref: '#/components/schemas/AvailabilitySlot' }
+
+    AvailabilitySlot:
+      type: object
+      required: [id, name, start_time, end_time, capacity, free_spots, bookable, reason_code]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        start_time: { type: string }
+        end_time: { type: string }
+        capacity: { type: integer }
+        free_spots: { type: integer, minimum: 0 }
+        bookable:
+          type: boolean
+          description: Vrai si le compte du jeton peut réserver ce créneau à cette date.
+        reason_code:
+          type: [string, 'null']
+          description: Raison du refus quand `bookable` est faux, sinon null.
+          enum:
+            - banned
+            - slot_unavailable
+            - date_past
+            - resource_closed_day
+            - resource_closed_today
+            - slot_started
+            - daily_limit
+            - weekly_limit
+            - advance_limit
+            - slot_full
+            - already_booked
+            - null
+
+    Rules:
+      type: object
+      required: [role, max_reservations_per_day, max_reservations_per_week, cancel_deadline_minutes, advance_days]
+      properties:
+        role:
+          type: [object, 'null']
+          required: [name, label]
+          properties:
+            name: { type: string }
+            label: { type: string }
+        max_reservations_per_day: { type: [integer, 'null'], description: null = illimité. }
+        max_reservations_per_week: { type: [integer, 'null'], description: null = illimité. }
+        cancel_deadline_minutes:
+          type: [integer, 'null']
+          description: Délai minimum avant le créneau pour annuler. null = annulation toujours possible.
+        advance_days: { type: integer, description: Nombre de jours à l'avance où l'on peut réserver. }
+
+    ReservationInput:
+      type: object
+      required: [slot_id, date]
+      properties:
+        slot_id:
+          type: integer
+          description: "Identifiant du créneau (voir `GET /resources/{resource}/slots`)."
+        date:
+          type: string
+          format: date
+          description: "Date de la réservation, `YYYY-MM-DD`."
+
+    Reservation:
+      type: object
+      required: [id, date, created_at, slot, resource]
+      properties:
+        id: { type: integer }
+        date: { type: string, format: date }
+        created_at: { type: string, format: date-time }
+        slot: { $ref: '#/components/schemas/Slot' }
+        resource:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+
+    PaginationLinks:
+      type: object
+      required: [first, last, prev, next]
+      properties:
+        first: { type: [string, 'null'] }
+        last: { type: [string, 'null'] }
+        prev: { type: [string, 'null'] }
+        next: { type: [string, 'null'] }
+
+    PaginationMeta:
+      type: object
+      required: [current_page, from, last_page, links, path, per_page, to, total]
+      properties:
+        current_page: { type: integer }
+        from: { type: [integer, 'null'] }
+        last_page: { type: integer }
+        links: { type: array, items: { type: object } }
+        path: { type: string }
+        per_page: { type: integer }
+        to: { type: [integer, 'null'] }
+        total: { type: integer }
