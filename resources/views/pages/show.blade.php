@@ -6,7 +6,7 @@
     <h1 class="mb-4">{{ $page->title }}</h1>
     <div class="card shadow">
         <div class="card-body prose">
-            {!! $page->content !!}
+            {!! \App\Support\HtmlSanitizer::clean($page->content) !!}
         </div>
     </div>
 </div>

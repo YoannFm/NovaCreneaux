@@ -106,7 +106,7 @@
 <div class="home-hero">
     <h1>Bonjour, {{ auth()->user()->name }} !</h1>
     @if(setting('home_message') && !empty(strip_tags(setting('home_message'))))
-        <div style="opacity:.9;">{!! setting('home_message') !!}</div>
+        <div style="opacity:.9;">{!! \App\Support\HtmlSanitizer::clean(setting('home_message')) !!}</div>
     @else
         <p>Bienvenue sur {{ setting('app_name','NovaCreneaux') }}. Reservez vos creneaux en quelques clics.</p>
     @endif

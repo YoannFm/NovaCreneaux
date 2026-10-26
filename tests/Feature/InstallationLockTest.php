@@ -62,4 +62,39 @@ class InstallationLockTest extends TestCase
             'db_host' => 'attacker.example', 'db_port' => 3306, 'db_database' => 'x', 'db_username' => 'x',
         ])->assertRedirect('/');
     }
+
+    public function test_an_existing_administrator_keeps_the_site_installed_when_the_lock_and_the_row_are_gone(): void
+    {
+        $state = app(InstallationState::class);
+        \App\Models\User::factory()->create(['is_admin' => true]);
+
+        $this->assertTrue($state->isInstalled());
+        $this->assertFileExists($state->lockPath(), 'le verrou est recree');
+    }
+
+    public function test_pupils_alone_do_not_mean_installed(): void
+    {
+        \App\Models\User::factory()->count(3)->create(['is_admin' => false]);
+
+        $this->assertFalse(app(InstallationState::class)->isInstalled());
+    }
+
+    public function test_the_environment_flag_keeps_the_site_installed_without_lock_and_without_asking_the_database(): void
+    {
+        config(['app.installed' => true]);
+        DB::shouldReceive('table')->never();
+
+        $this->assertTrue(app(InstallationState::class)->isInstalled());
+    }
+
+    public function test_a_deleted_lock_with_the_database_reachable_is_rebuilt_from_the_installation_row(): void
+    {
+        $state = app(InstallationState::class);
+        DB::table('installation')->insert(['completed' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $this->assertTrue($state->isInstalled());
+        unlink($state->lockPath());
+
+        $this->assertTrue($state->isInstalled());
+        $this->assertFileExists($state->lockPath());
+    }
 }

@@ -33,6 +33,10 @@ class FileInstaller {
         $zip = $this->open($zipPath);
         $entries = $this->validatedEntries($zip);
         $deleted = array_values(array_filter($deleted, fn ($path) => is_string($path) && PathPolicy::allows($path)));
+        // Avant d'ecrire quoi que ce soit : aucun dossier ni fichier de destination ne doit etre un lien symbolique
+        foreach (array_merge(array_keys($entries), $deleted) as $path) {
+            $this->assertNoSymlink($basePath, $path);
+        }
 
         $existing = array_values(array_filter(array_merge(array_keys($entries), $deleted), fn ($path) => is_file("{$basePath}/{$path}")));
         $added = array_values(array_diff(array_keys($entries), $existing));
@@ -44,6 +48,7 @@ class FileInstaller {
             }
             foreach ($deleted as $path) {
                 if (is_file("{$basePath}/{$path}")) {
+                    $this->assertNoSymlink($basePath, $path);
                     unlink("{$basePath}/{$path}");
                 }
             }
@@ -67,6 +72,7 @@ class FileInstaller {
 
         foreach ($meta['added'] ?? [] as $path) {
             if (PathPolicy::allows($path) && is_file("{$basePath}/{$path}")) {
+                $this->assertNoSymlink($basePath, $path);
                 unlink("{$basePath}/{$path}");
             }
         }
@@ -111,6 +117,24 @@ class FileInstaller {
         return $entries;
     }
 
+    /**
+     * Refuse un chemin dont un dossier ou le fichier lui-meme est un lien symbolique sur le serveur : une ecriture
+     * suivrait le lien et sortirait du dossier de l'application. Le dossier de base peut, lui, etre un lien (deploiements
+     * par dossier "current"). Les dossiers qui n'existent pas encore ne sont pas des liens.
+     */
+    private function assertNoSymlink(string $basePath, string $path): void {
+        $current = rtrim($basePath, '/');
+        foreach (explode('/', $path) as $part) {
+            $current .= '/' . $part;
+            if (is_link($current)) {
+                throw new UpdateException("Installation refusée : « {$path} » passe par un lien symbolique sur le serveur (« {$part} »).");
+            }
+            if (!file_exists($current)) {
+                return;
+            }
+        }
+    }
+
     private function isSymlink(ZipArchive $zip, int $index): bool {
         $zip->getExternalAttributesIndex($index, $opsys, $attributes);
 
@@ -134,6 +158,7 @@ class FileInstaller {
 
     /** Ecriture atomique : fichier temporaire dans le meme dossier, puis renommage. */
     private function write(string $basePath, string $path, $stream): void {
+        $this->assertNoSymlink($basePath, $path);
         $target = "{$basePath}/{$path}";
         if (!is_dir(dirname($target)) && !mkdir(dirname($target), 0755, true) && !is_dir(dirname($target))) {
             throw new UpdateException("Impossible de créer le dossier de {$path}.");

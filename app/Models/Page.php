@@ -2,6 +2,8 @@
 namespace App\Models;
 
 use App\Models\Concerns\Loggable;
+use App\Support\HtmlSanitizer;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class Page extends Model
@@ -24,6 +26,12 @@ class Page extends Model
             'is_enabled'    => 'boolean',
             'is_restricted' => 'boolean',
         ];
+    }
+
+    /** Le HTML de l'editeur est nettoye des l'enregistrement (et encore a l'affichage). */
+    protected function content(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => HtmlSanitizer::clean($value));
     }
 
     public function roles()

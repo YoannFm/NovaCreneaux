@@ -19,7 +19,7 @@
                 @if(!empty(strip_tags($terms ?? '')))
                 <div class="mb-3">
                     <div class="border rounded p-3 mb-2" style="max-height:160px;overflow-y:auto;font-size:.85rem;">
-                        {!! $terms !!}
+                        {!! \App\Support\HtmlSanitizer::clean($terms) !!}
                     </div>
                     <div class="form-check">
                         <input class="form-check-input @error('terms_accepted') is-invalid @enderror"

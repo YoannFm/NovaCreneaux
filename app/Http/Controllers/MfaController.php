@@ -388,18 +388,20 @@ class MfaController extends Controller
         $userId = $request->session()->get('mfa_user_id');
         if (!$userId) return redirect()->route('login');
 
-        $user      = User::findOrFail($userId);
-        $challenge = $request->session()->get('webauthn_assert_challenge');
+        if ($locked = $this->mfaLockout($userId)) return $locked;
+
+        // Le defi est a usage unique : il est consomme des cette tentative, reussie ou non (un nouveau est emis a chaque affichage du formulaire)
+        $challenge = $request->session()->pull('webauthn_assert_challenge');
         if (!$challenge) return back()->withErrors(['key' => 'Session expirée.']);
 
+        $user      = User::findOrFail($userId);
         $assertion = json_decode($request->input('assertion', ''), true);
-        if (!$assertion) return back()->withErrors(['key' => 'Données invalides.']);
 
-        if (!$this->webAuthn->verifyAssertion($user, $assertion, $challenge)) {
+        if (!is_array($assertion) || !$this->webAuthn->verifyAssertion($user, $assertion, $challenge)) {
+            RateLimiter::hit($this->mfaAttemptKey($userId), self::MFA_DECAY_SECONDS);
             return back()->withErrors(['key' => 'Authentification par clé physique échouée.']);
         }
 
-        $request->session()->forget('webauthn_assert_challenge');
         $this->completeMfaLogin($request, $user);
 
         return redirect()->intended(route('reservations.index'));

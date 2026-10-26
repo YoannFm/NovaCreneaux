@@ -3,13 +3,14 @@ namespace App\Http\Controllers;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\InstallationState;
+use App\Support\EnvFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class InstallController extends Controller {
-    public function __construct(private InstallationState $installation) {}
+    public function __construct(private InstallationState $installation, private EnvFile $env) {}
 
     public function index() {
         if ($this->isInstalled()) return redirect('/');
@@ -58,7 +59,7 @@ class InstallController extends Controller {
             return back()->withInput()->withErrors(['error' => 'Connexion échouée : ' . $e->getMessage()]);
         }
 
-        $this->writeEnv([
+        $this->env->set([
             'DB_HOST'     => $data['db_host'],
             'DB_PORT'     => $data['db_port'],
             'DB_DATABASE' => $data['db_database'],
@@ -117,7 +118,7 @@ class InstallController extends Controller {
             'registration_open'        => 'required|in:0,1',
         ]);
 
-        $this->writeEnv(['APP_NAME' => $data['app_name'], 'APP_URL' => $data['app_url']]);
+        $this->env->set(['APP_NAME' => $data['app_name'], 'APP_URL' => $data['app_url']]);
 
         // Update settings table
         $settings = [
@@ -142,7 +143,8 @@ class InstallController extends Controller {
     }
 
     public function storeAdmin(Request $request) {
-        if ($this->isInstalled()) return redirect('/');
+        // Un administrateur existe deja : l'installation est terminee, ou l'a ete a une etape pres. On n'en cree pas un second.
+        if ($this->isInstalled() || User::where('is_admin', true)->exists()) return redirect('/');
         $data = $request->validate([
             'name'=>'required|string|max:255',
             'email'=>'required|email|max:255|unique:users',
@@ -154,14 +156,23 @@ class InstallController extends Controller {
             'is_admin'=>true,'is_active'=>true,
             'role_id'=>\App\Models\Role::where('name','admin')->value('id'),
         ]);
-        return redirect()->route('install.complete');
+
+        // L'installation est verrouillee des la creation de l'administrateur : fermer le navigateur ici ne laisse pas /install ouvert
+        return $this->finish();
     }
 
+    /** Ancienne derniere etape : garde pour les liens existants, l'installation est deja verrouillee a l'etape precedente. */
     public function complete() {
-        if ($this->isInstalled()) return redirect('/');
+        if ($this->isInstalled()) return redirect()->route('login');
+        // Sans administrateur, verrouiller l'installation laisserait un site inutilisable
+        if (!User::where('is_admin', true)->exists()) return redirect()->route('install.admin');
+        return $this->finish();
+    }
+
+    private function finish() {
         try {
             $this->installation->markInstalled();
-            $this->writeEnv(['APP_INSTALLED' => 'true']);
+            $this->env->set(['APP_INSTALLED' => 'true']);
         } catch (\Exception $e) {
             return back()->withErrors(['error'=>'Erreur : '.$e->getMessage()]);
         }
@@ -170,20 +181,5 @@ class InstallController extends Controller {
 
     private function isInstalled(): bool {
         return $this->installation->isInstalled();
-    }
-
-    /** Met a jour le .env en echappant les valeurs (guillemets, antislash, dollar). */
-    private function writeEnv(array $values): void {
-        $envPath = base_path('.env');
-        $env = file_get_contents($envPath);
-        foreach ($values as $key => $value) {
-            $line = $key . '="' . addcslashes((string) $value, "\"\\$") . '"';
-            if (preg_match("/^{$key}=/m", $env)) {
-                $env = preg_replace_callback("/^{$key}=.*/m", fn () => $line, $env);
-            } else {
-                $env .= "\n{$line}";
-            }
-        }
-        file_put_contents($envPath, $env);
     }
 }

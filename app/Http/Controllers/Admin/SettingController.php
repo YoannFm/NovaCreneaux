@@ -7,6 +7,7 @@ use App\Mail\TestMail;
 use App\Models\Role;
 use App\Rules\TrustedProxyList;
 use App\Services\ActivityLogger;
+use App\Support\HtmlSanitizer;
 use App\Services\SettingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -75,7 +76,7 @@ class SettingController extends Controller
     public function updateHome(Request $request)
     {
         $data = $request->validate(['home_message' => 'nullable|string']);
-        $this->settings->set('home_message', $data['home_message'] ?? '');
+        $this->settings->set('home_message', HtmlSanitizer::clean($data['home_message'] ?? ''));
         return back()->with('success', 'Message d\'accueil enregistré.');
     }
 
@@ -105,7 +106,7 @@ class SettingController extends Controller
         )));
         $this->settings->set('allowed_email_domain', implode(',', $domains));
 
-        $this->settings->set('registration_terms',     $request->input('registration_terms', ''));
+        $this->settings->set('registration_terms',     HtmlSanitizer::clean($request->input('registration_terms', '')));
         $this->settings->set('registration_open',      $request->boolean('registration_open') ? '1' : '0');
         $this->settings->set('allow_name_change',      $request->boolean('allow_name_change') ? '1' : '0');
         $this->settings->set('allow_account_deletion', $request->boolean('allow_account_deletion') ? '1' : '0');
