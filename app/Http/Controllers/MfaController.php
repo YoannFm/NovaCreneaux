@@ -194,6 +194,10 @@ class MfaController extends Controller
             : preg_replace('/[\s\-]/', '', $request->input('contact'));
 
         $user = $request->user();
+        // Un SMS par minute et par compte : sans cela, n'importe quel compte pourrait faire envoyer des SMS en boucle a un numero quelconque
+        if (!$this->otp->canResend($user, 'sms')) {
+            return back()->withErrors(['contact' => 'Attendez 60 secondes avant de demander un nouveau code.']);
+        }
         $code = $this->otp->generate($user, 'sms');
 
         $sent = $this->sms->send($contact, 'Votre code ' . config('app.name') . ' : ' . $code);

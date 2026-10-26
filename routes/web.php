@@ -75,14 +75,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/mfa/recovery-codes/regenerate', [\App\Http\Controllers\MfaController::class, 'recoveryCodesRegenerate'])->name('mfa.recovery-codes.regenerate');
 
     // MFA — Email OTP
-    Route::post('/profile/mfa/email/enable', [\App\Http\Controllers\MfaController::class, 'emailEnable'])->name('mfa.email.enable');
+    Route::post('/profile/mfa/email/enable', [\App\Http\Controllers\MfaController::class, 'emailEnable'])->middleware('throttle:5,1')->name('mfa.email.enable');
     Route::get('/profile/mfa/email/confirm', [\App\Http\Controllers\MfaController::class, 'emailConfirmForm'])->name('mfa.email.confirm');
     Route::post('/profile/mfa/email/confirm', [\App\Http\Controllers\MfaController::class, 'emailConfirm'])->name('mfa.email.confirm.post');
     Route::delete('/profile/mfa/email', [\App\Http\Controllers\MfaController::class, 'emailDisable'])->name('mfa.email.disable');
 
     // MFA — SMS OTP
     Route::get('/profile/mfa/sms/setup', [\App\Http\Controllers\MfaController::class, 'smsSetupForm'])->name('mfa.sms.setup');
-    Route::post('/profile/mfa/sms/setup', [\App\Http\Controllers\MfaController::class, 'smsSetup'])->name('mfa.sms.setup.post');
+    Route::post('/profile/mfa/sms/setup', [\App\Http\Controllers\MfaController::class, 'smsSetup'])->middleware('throttle:5,1')->name('mfa.sms.setup.post');
     Route::get('/profile/mfa/sms/confirm', [\App\Http\Controllers\MfaController::class, 'smsConfirmForm'])->name('mfa.sms.confirm');
     Route::post('/profile/mfa/sms/confirm', [\App\Http\Controllers\MfaController::class, 'smsConfirm'])->name('mfa.sms.confirm.post');
     Route::delete('/profile/mfa/sms', [\App\Http\Controllers\MfaController::class, 'smsDisable'])->name('mfa.sms.disable');

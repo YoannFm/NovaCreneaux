@@ -25,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
         ]);
         $middleware->appendToGroup('web', \App\Http\Middleware\CheckInstallation::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\SecurityHeaders::class);
+        // Un changement de mot de passe deconnecte les autres sessions du compte
+        $middleware->appendToGroup('web', \App\Http\Middleware\EndSessionsOnPasswordChange::class);
         $middleware->appendToGroup('web', [
             \App\Http\Middleware\EnsureUserIsActive::class,
             \App\Http\Middleware\EnforceMaintenanceMode::class,

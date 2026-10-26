@@ -92,7 +92,7 @@
                     @if($user->id !== auth()->id())
                     {{-- Le formulaire de suppression est plus bas, hors de celui-ci : deux formulaires ne s'imbriquent pas --}}
                     <button type="submit" form="delete-user" class="btn btn-danger ms-1"
-                            onclick="return confirm('Supprimer définitivement {{ addslashes($user->name) }} ?')">
+                            onclick="return confirm({{ \Illuminate\Support\Js::from('Supprimer définitivement ' . $user->name . ' ?') }})">
                         <i class="bi bi-trash me-1"></i> Supprimer
                     </button>
                     @endif
@@ -147,7 +147,7 @@
                             <form method="POST" action="{{ route('admin.users.mfa-disable', $user) }}">
                                 @csrf
                                 <button class="btn btn-outline-danger" type="submit"
-                                        onclick="return confirm('Désactiver la MFA de {{ addslashes($user->name) }} ?')">
+                                        onclick="return confirm({{ \Illuminate\Support\Js::from('Désactiver la MFA de ' . $user->name . ' ?') }})">
                                     Désactiver
                                 </button>
                             </form>

@@ -67,14 +67,18 @@ class NavController extends Controller
         $data = $request->validate([
             'label'      => 'required|string|max:60',
             'type'       => 'required|in:external,home,reservations,my_reservations,profile',
-            'url'        => $type === 'external' ? 'required|string|max:500' : 'nullable|string|max:500',
+            'url'        => [$type === 'external' ? 'required' : 'nullable', 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail) use ($type) {
+                if ($type === 'external' && ! NavItem::isSafeUrl($value)) {
+                    $fail("L'adresse doit commencer par https://, http://, mailto:, tel: ou / (chemin du site).");
+                }
+            }],
             'icon'       => 'nullable|string|max:60',
             'target'     => 'required|in:_self,_blank',
             'is_active'  => 'boolean',
             'admin_only' => 'boolean',
         ]);
 
-        $data['icon']       = $data['icon'] ?: 'bi-link-45deg';
+        $data['icon']       = ($data['icon'] ?? null) ?: 'bi-link-45deg';
         $data['is_active']  = $request->boolean('is_active', true);
         $data['admin_only'] = $request->boolean('admin_only', false);
 

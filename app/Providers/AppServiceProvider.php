@@ -7,6 +7,7 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Cache\RateLimiting\Limit;
 use App\Rules\TrustedProxyList;
+use App\Support\CanonicalUrl;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -45,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
             if ($url = setting('site_url', '')) {
                 config(['app.url' => $url]);
             }
+            CanonicalUrl::apply(config('app.url'), $this->app->environment('production') && ! $this->app->runningInConsole());
 
             $driver = setting('mail_driver', 'log');
             if ($driver === 'smtp') {

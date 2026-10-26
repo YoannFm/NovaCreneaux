@@ -115,7 +115,7 @@
                 @if($item)
                 {{-- Le formulaire de suppression est plus bas, hors de celui-ci : deux formulaires ne s'imbriquent pas --}}
                 <button type="submit" form="delete-nav" class="btn btn-danger"
-                        onclick="return confirm('Supprimer « {{ $item->label }} » ?')">
+                        onclick="return confirm({{ \Illuminate\Support\Js::from('Supprimer « ' . $item->label . ' » ?') }})">
                     <i class="bi bi-trash me-1"></i> Supprimer
                 </button>
                 @endif

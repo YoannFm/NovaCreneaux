@@ -17,7 +17,7 @@
             @if(!$role->locked)
             {{-- Le formulaire de suppression est plus bas, hors de celui-ci : deux formulaires ne s'imbriquent pas --}}
             <button type="submit" form="delete-role" class="btn btn-danger ms-1"
-                    onclick="return confirm('Supprimer le rôle \'{{ addslashes($role->label) }}\' ?')">
+                    onclick="return confirm({{ \Illuminate\Support\Js::from('Supprimer le rôle « ' . $role->label . ' » ?') }})">
                 <i class="bi bi-trash me-1"></i> Supprimer
             </button>
             @endif

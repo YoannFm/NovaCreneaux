@@ -50,6 +50,7 @@ class PersonalApiTokenTest extends TestCase
         $this->assertTrue(ActivityLog::where('action', 'Jeton API créé')->where('user_id', $pupil->id)->exists());
 
         $this->app['auth']->forgetGuards();
+        $this->flushSession();
         $this->withHeader('Authorization', 'Bearer ' . $secret)->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.id', $pupil->id);
     }
 
@@ -128,11 +129,13 @@ class PersonalApiTokenTest extends TestCase
 
         $this->denyApiTo($pupil);
         $this->app['auth']->forgetGuards();
+        $this->flushSession();
         $this->withHeader('Authorization', 'Bearer ' . $secret)->getJson('/api/v1/me')->assertForbidden()->assertJsonPath('error.code', 'api_access_denied');
         $this->assertSame(1, $pupil->tokens()->count());
 
         $pupil->role->update(['api_access' => true]);
         $this->app['auth']->forgetGuards();
+        $this->flushSession();
         $this->withHeader('Authorization', 'Bearer ' . $secret)->getJson('/api/v1/me')->assertOk();
     }
 
@@ -180,19 +183,21 @@ class PersonalApiTokenTest extends TestCase
         $secret = app(ApiTokenService::class)->create($pupil, 'appli', ['resources:read'], 30)->plainTextToken;
         $admin = $this->admin();
 
-        $this->actingAs($admin)->put(route('admin.api-tokens.status'), ['enabled' => '0'])->assertSessionHas('success');
+        $this->actingAs($admin, 'web')->put(route('admin.api-tokens.status'), ['enabled' => '0'])->assertSessionHas('success');
         $this->assertTrue(ActivityLog::where('action', 'API désactivée')->exists());
 
         $this->app['auth']->forgetGuards();
+        $this->flushSession();
         $this->withHeader('Authorization', 'Bearer ' . $secret)->getJson('/api/v1/me')->assertStatus(503)->assertJsonPath('error.code', 'api_disabled');
         $this->getJson('/api/v1/meta')->assertStatus(503)->assertJsonPath('error.code', 'api_disabled');
-        $this->actingAs($pupil)->get(route('profile.edit'))->assertDontSee("Jetons d'API", false);
+        $this->actingAs($pupil, 'web')->get(route('profile.edit'))->assertDontSee("Jetons d'API", false);
         $this->post(route('profile.api-tokens.store'), $this->payload())->assertForbidden();
-        $this->actingAs($admin)->post(route('admin.api-tokens.store'), ['user_id' => $pupil->id, 'name' => 'x', 'abilities' => ['resources:read']])->assertSessionHas('error');
+        $this->actingAs($admin, 'web')->post(route('admin.api-tokens.store'), ['user_id' => $pupil->id, 'name' => 'x', 'abilities' => ['resources:read']])->assertSessionHas('error');
         $this->get(route('admin.api-tokens.index'))->assertSee('Désactivée')->assertSee("Activer l'API");
 
         $this->put(route('admin.api-tokens.status'), ['enabled' => '1'])->assertSessionHas('success');
         $this->app['auth']->forgetGuards();
+        $this->flushSession();
         $this->withHeader('Authorization', 'Bearer ' . $secret)->getJson('/api/v1/me')->assertOk();
         $this->getJson('/api/v1/meta')->assertOk();
     }

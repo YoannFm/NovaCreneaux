@@ -84,7 +84,7 @@ saveBtn.addEventListener('click', function () {
                             <form method="POST" action="{{ route('admin.roles.destroy', $role) }}" class="d-inline">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="btn btn-link m-1 p-0 text-danger"
-                                        onclick="return confirm('Supprimer le rôle \'{{ addslashes($role->label) }}\' ?')"
+                                        onclick="return confirm({{ \Illuminate\Support\Js::from('Supprimer le rôle « ' . $role->label . ' » ?') }})"
                                         title="Supprimer" data-bs-toggle="tooltip">
                                     <i class="bi bi-trash"></i>
                                 </button>

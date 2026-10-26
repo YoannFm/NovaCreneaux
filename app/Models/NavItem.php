@@ -27,6 +27,12 @@ class NavItem extends Model
         return self::$typeLabels;
     }
 
+    /** Adresse d'un lien externe : http, https, mailto, tel, un chemin du site ou une ancre. Jamais `javascript:` ni `data:`. */
+    public static function isSafeUrl(?string $url): bool
+    {
+        return $url !== null && preg_match('#^(?:https?://[^\s]+|mailto:[^\s]+|tel:[^\s]+|/(?!/)[^\s]*|\#[^\s]*)$#i', $url) === 1;
+    }
+
     public function resolvedUrl(): string
     {
         try {
@@ -35,10 +41,16 @@ class NavItem extends Model
                 'reservations'    => route('reservations.index'),
                 'my_reservations' => route('reservations.my'),
                 'profile'         => route('profile.edit'),
-                default           => $this->url ?? '#',
+                default           => $this->safeUrl(),
             };
         } catch (\Throwable) {
-            return $this->url ?? '#';
+            return $this->safeUrl();
         }
+    }
+
+    /** Un lien enregistre avant cette verification est neutralise a l'affichage. */
+    private function safeUrl(): string
+    {
+        return self::isSafeUrl($this->url) ? $this->url : '#';
     }
 }

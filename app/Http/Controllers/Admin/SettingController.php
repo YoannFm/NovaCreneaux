@@ -45,22 +45,34 @@ class SettingController extends Controller
 
     public function uploadLogo(Request $request)
     {
-        $request->validate(['logo' => 'required|image|max:2048']);
+        $request->validate(['logo' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:2048']);
         $file = $request->file('logo');
+        // L'extension vient du contenu du fichier, jamais du nom envoye par le navigateur : un "logo.php" valide comme image resterait un script
+        $extension = $file->guessExtension();
+        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+            return back()->withErrors(['logo' => "Ce fichier n'est pas une image acceptée (JPG, PNG, GIF ou WebP)."]);
+        }
         $dir = public_path('uploads/logo');
         if (!is_dir($dir)) mkdir($dir, 0755, true);
-        $old = $this->settings->get('site_logo');
-        if ($old && file_exists(public_path($old))) @unlink(public_path($old));
-        $filename = 'logo_' . time() . '.' . $file->getClientOriginalExtension();
+        $this->removeLogoFile();
+        $filename = 'logo_' . bin2hex(random_bytes(8)) . '.' . $extension;
         $file->move($dir, $filename);
         $this->settings->set('site_logo', 'uploads/logo/' . $filename);
         return back()->with('success', 'Logo mis à jour.');
     }
 
+    /** Supprime l'ancien logo, et seulement un fichier du dossier des logos. */
+    private function removeLogoFile(): void
+    {
+        $old = (string) $this->settings->get('site_logo');
+        if (str_starts_with($old, 'uploads/logo/') && !str_contains($old, '..') && is_file(public_path($old))) {
+            @unlink(public_path($old));
+        }
+    }
+
     public function deleteLogo()
     {
-        $old = $this->settings->get('site_logo');
-        if ($old && file_exists(public_path($old))) @unlink(public_path($old));
+        $this->removeLogoFile();
         $this->settings->set('site_logo', '');
         return back()->with('success', 'Logo supprimé.');
     }

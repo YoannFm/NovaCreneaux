@@ -6,7 +6,20 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
+      with:
+        php-version: '8.3'
+    - uses: actions/checkout@v4
+    - name: Vulnerabilites connues des dependances
+      run: composer audit --no-interaction
+
   laravel-tests:
 
     runs-on: ubuntu-latest

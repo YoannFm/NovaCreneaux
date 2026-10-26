@@ -97,7 +97,7 @@
                 <form method="POST" action="{{ route('admin.nav.destroy', $item->id) }}" style="display:contents;">
                     @csrf @method('DELETE')
                     <button type="submit" class="nav-action-btn del" title="Supprimer"
-                            onclick="return confirm('Supprimer « {{ $item->label }} » ?')">
+                            onclick="return confirm({{ \Illuminate\Support\Js::from('Supprimer « ' . $item->label . ' » ?') }})">
                         <i class="bi bi-trash"></i>
                     </button>
                 </form>
