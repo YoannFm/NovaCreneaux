@@ -1,0 +1,14 @@
+{
+  "id": "mattermost",
+  "name": "Mattermost",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un canal Mattermost.",
+  "help": "Dans Mattermost : Intégrations > Webhooks entrants > Ajouter, puis copiez l'adresse.",
+  "url_example": "https://mattermost.exemple.fr/hooks/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "username": "{{app_name}}",
+    "text": "#### {{title}}\n{{text}}"
+  }
+}

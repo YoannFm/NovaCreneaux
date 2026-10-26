@@ -1,0 +1,30 @@
+{
+  "id": "telegram",
+  "name": "Telegram",
+  "category": "Messagerie d'équipe",
+  "description": "Message d'un bot Telegram vers une conversation.",
+  "help": "Créez un bot avec @BotFather (il donne le jeton), ajoutez-le à la conversation, puis relevez l'identifiant de la conversation.",
+  "hosts": [
+    "api.telegram.org"
+  ],
+  "url_template": "https://api.telegram.org/bot{{bot_token}}/sendMessage",
+  "fields": [
+    {
+      "key": "bot_token",
+      "label": "Jeton du bot",
+      "secret": true,
+      "placeholder": "123456:ABC..."
+    },
+    {
+      "key": "chat_id",
+      "label": "Identifiant de la conversation",
+      "placeholder": "-1001234567890"
+    }
+  ],
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "chat_id": "{{chat_id}}",
+    "text": "{{title}}\n{{text}}"
+  }
+}

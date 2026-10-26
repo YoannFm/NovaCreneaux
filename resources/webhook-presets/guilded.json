@@ -1,0 +1,16 @@
+{
+  "id": "guilded",
+  "name": "Guilded",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un canal Guilded.",
+  "help": "Dans Guilded : Paramètres du serveur > Webhooks > Créer, puis copiez l'adresse.",
+  "hosts": [
+    "media.guilded.gg"
+  ],
+  "url_example": "https://media.guilded.gg/webhooks/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "content": "**{{title}}**\n{{text}}"
+  }
+}

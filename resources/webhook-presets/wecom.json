@@ -1,0 +1,19 @@
+{
+  "id": "wecom",
+  "name": "WeCom (WeChat Work)",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un groupe WeCom.",
+  "help": "Dans le groupe : Ajouter un robot de groupe, puis copiez l'adresse du webhook.",
+  "hosts": [
+    "qyapi.weixin.qq.com"
+  ],
+  "url_example": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "msgtype": "text",
+    "text": {
+      "content": "{{title}}\n{{text}}"
+    }
+  }
+}

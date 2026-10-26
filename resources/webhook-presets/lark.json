@@ -1,0 +1,20 @@
+{
+  "id": "lark",
+  "name": "Lark / Feishu",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un groupe Lark ou Feishu.",
+  "help": "Dans le groupe : Paramètres > Bots > Ajouter un bot personnalisé, puis copiez l'adresse du webhook.",
+  "hosts": [
+    "open.feishu.cn",
+    "open.larksuite.com"
+  ],
+  "url_example": "https://open.feishu.cn/open-apis/bot/v2/hook/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "msg_type": "text",
+    "content": {
+      "text": "{{title}}\n{{text}}"
+    }
+  }
+}

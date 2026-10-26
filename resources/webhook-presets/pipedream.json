@@ -1,0 +1,14 @@
+{
+  "id": "pipedream",
+  "name": "Pipedream",
+  "category": "Automatisation",
+  "description": "Déclenche un workflow Pipedream.",
+  "help": "Dans Pipedream : déclencheur « HTTP / Webhook », puis copiez l'adresse. Il reçoit la charge utile standard en JSON, noms d'élèves compris.",
+  "hosts": [
+    "*.m.pipedream.net"
+  ],
+  "url_example": "https://eoxxxx.m.pipedream.net",
+  "method": "POST",
+  "content_type": "json",
+  "body": "@payload"
+}

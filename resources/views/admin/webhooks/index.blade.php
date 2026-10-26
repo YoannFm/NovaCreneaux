@@ -20,7 +20,7 @@
                 <tbody>
                 @forelse($webhooks as $webhook)
                     <tr>
-                        <td><strong>{{ $webhook->name }}</strong>@if($webhook->isDiscord()) <span class="badge bg-primary">Discord</span>@endif</td>
+                        <td><strong>{{ $webhook->name }}</strong>@if($webhook->format === 'preset') <span class="badge bg-primary">{{ $presets[$webhook->preset]['name'] ?? $webhook->preset }}</span>@elseif($webhook->format === 'custom') <span class="badge bg-primary">Personnalisé</span>@endif</td>
                         <td class="text-break"><code>{{ $webhook->url }}</code></td>
                         <td>@foreach($webhook->events as $event)<span class="badge bg-secondary me-1">{{ $event }}</span>@endforeach</td>
                         <td>

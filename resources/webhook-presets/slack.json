@@ -1,0 +1,17 @@
+{
+  "id": "slack",
+  "name": "Slack",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un canal Slack.",
+  "help": "Dans Slack : créez une application, activez « Incoming Webhooks » et ajoutez un webhook à un canal, puis copiez son adresse.",
+  "hosts": [
+    "hooks.slack.com"
+  ],
+  "url_example": "https://hooks.slack.com/services/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "text": "*{{title}}*\n{{text}}"
+  },
+  "escape": "slack"
+}

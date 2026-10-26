@@ -6,7 +6,9 @@ use App\Models\Reservation;
 use App\Models\Resource;
 use App\Models\Webhook;
 use App\Services\ReservationService;
-use App\Services\Webhook\DiscordMessage;
+use App\Models\WebhookDelivery;
+use App\Services\SettingService;
+use App\Services\Webhook\WebhookRequestBuilder;
 use App\Services\Webhook\UrlGuard;
 use App\Services\Webhook\WebhookDispatcher;
 use App\Services\Webhook\WebhookRunner;
@@ -32,7 +34,7 @@ class DiscordWebhookTest extends TestCase
     private function discordHook(bool $showNames = false): Webhook
     {
         return Webhook::create([
-            'name' => 'Discord', 'url' => self::URL, 'secret' => 'whsec_x', 'format' => 'discord', 'show_names' => $showNames,
+            'name' => 'Discord', 'url' => self::URL, 'secret' => 'whsec_x', 'format' => 'preset', 'preset' => 'discord', 'show_names' => $showNames,
             'events' => array_keys(WebhookEvent::all()), 'is_active' => true,
         ]);
     }
@@ -45,14 +47,24 @@ class DiscordWebhookTest extends TestCase
         ] + $extra];
     }
 
+    /** Message Discord construit pour une charge utile, comme il partirait vers Discord. */
+    private function message(array $payload, bool $showNames, string $appName = 'CDI'): array
+    {
+        app(SettingService::class)->set('app_name', $appName);
+        $hook = new Webhook(['url' => self::URL, 'format' => 'preset', 'preset' => 'discord', 'show_names' => $showNames]);
+        $delivery = new WebhookDelivery(['uuid' => 'u1', 'event' => $payload['event'], 'payload' => json_encode($payload)]);
+
+        return json_decode(app(WebhookRequestBuilder::class)->build($hook, $delivery)->body, true);
+    }
+
     public function test_the_message_describes_the_reservation_without_naming_the_pupil_by_default(): void
     {
-        $message = DiscordMessage::build($this->reservationPayload(), false, 'CDI Rascol');
+        $message = $this->message($this->reservationPayload(), false, 'CDI Rascol');
 
         $embed = $message['embeds'][0];
         $this->assertSame('CDI Rascol', $message['username']);
         $this->assertStringContainsString('Nouvelle réservation', $embed['title']);
-        $this->assertStringContainsString('**CDI** - 11h55 - 12h50', $embed['description']);
+        $this->assertStringContainsString('CDI - 11h55 - 12h50', $embed['description']);
         $this->assertStringContainsString('mardi 27 octobre 2026', $embed['description']);
         $this->assertStringContainsString('un élève', $embed['description']);
         $this->assertStringNotContainsString('Yoann', json_encode($message));
@@ -62,7 +74,7 @@ class DiscordWebhookTest extends TestCase
 
     public function test_names_appear_only_when_the_administrator_chooses_so(): void
     {
-        $message = DiscordMessage::build($this->reservationPayload(), true, 'CDI');
+        $message = $this->message($this->reservationPayload(), true, 'CDI');
 
         $this->assertStringContainsString('Yoann (TEST)', $message['embeds'][0]['description']);
     }
@@ -75,16 +87,16 @@ class DiscordWebhookTest extends TestCase
             [WebhookEvent::RESERVATION_CANCELLED, ['cancelled_by' => 'user'], "Annulée par l'élève"],
         ];
         foreach ($cases as [$event, $extra, $expected]) {
-            $text = DiscordMessage::build($this->reservationPayload($event, $extra), false, 'CDI')['embeds'][0];
+            $text = $this->message($this->reservationPayload($event, $extra), false, 'CDI')['embeds'][0];
             $this->assertStringContainsString('Réservation annulée', $text['title']);
             $this->assertStringContainsString($expected, $text['description']);
         }
 
-        $created = DiscordMessage::build(['id' => 'u', 'event' => 'user.created', 'created_at' => now()->toIso8601String(), 'data' => ['user' => $user]], false, 'CDI')['embeds'][0];
+        $created = $this->message(['id' => 'u', 'event' => 'user.created', 'created_at' => now()->toIso8601String(), 'data' => ['user' => $user]], false, 'CDI')['embeds'][0];
         $this->assertSame('Un compte a été créé.', $created['description']);
-        $deleted = DiscordMessage::build(['id' => 'u', 'event' => 'user.deleted', 'created_at' => now()->toIso8601String(), 'data' => ['user' => $user, 'deleted_by' => 'admin']], true, 'CDI')['embeds'][0];
+        $deleted = $this->message(['id' => 'u', 'event' => 'user.deleted', 'created_at' => now()->toIso8601String(), 'data' => ['user' => $user, 'deleted_by' => 'admin']], true, 'CDI')['embeds'][0];
         $this->assertSame('Léa', $deleted['description']);
-        $ping = DiscordMessage::build(['id' => 'u', 'event' => 'ping', 'created_at' => now()->toIso8601String(), 'data' => ['message' => 'Test']], false, 'CDI')['embeds'][0];
+        $ping = $this->message(['id' => 'u', 'event' => 'ping', 'created_at' => now()->toIso8601String(), 'data' => ['message' => 'Test']], false, 'CDI')['embeds'][0];
         $this->assertStringContainsString('Test', $ping['title']);
     }
 
@@ -93,7 +105,7 @@ class DiscordWebhookTest extends TestCase
         $payload = $this->reservationPayload();
         $payload['data']['user']['name'] = '@everyone ' . str_repeat('x', 6000);
 
-        $message = DiscordMessage::build($payload, true, str_repeat('N', 200));
+        $message = $this->message($payload, true, str_repeat('N', 200));
 
         $this->assertSame(['parse' => []], $message['allowed_mentions']);
         $this->assertLessThanOrEqual(4000, mb_strlen($message['embeds'][0]['description']));
@@ -155,7 +167,7 @@ class DiscordWebhookTest extends TestCase
         app(ReservationService::class)->create($this->student(), $slot->id, now()->addDay()->toDateString());
         app(WebhookRunner::class)->run(5);
 
-        Http::assertSent(fn (Request $request) => str_contains($request->data()['embeds'][0]['description'], '**CDI** - 11h55 - 12h50'));
+        Http::assertSent(fn (Request $request) => str_contains($request->data()['embeds'][0]['description'], 'CDI - 11h55 - 12h50'));
     }
 
     public function test_the_form_saves_the_format_and_the_names_option_and_requires_a_discord_address(): void
@@ -165,18 +177,18 @@ class DiscordWebhookTest extends TestCase
 
         $this->post(route('admin.webhooks.store'), $payload)->assertSessionHasNoErrors();
         $hook = Webhook::sole();
-        $this->assertTrue($hook->isDiscord());
+        $this->assertSame(['preset', 'discord'], [$hook->format, $hook->preset]);
         $this->assertFalse($hook->show_names, 'les noms ne sont pas envoyes par defaut');
 
         $this->put(route('admin.webhooks.update', $hook), $payload + ['show_names' => '1'])->assertSessionHasNoErrors();
         $this->assertTrue($hook->fresh()->show_names);
 
         $this->put(route('admin.webhooks.update', $hook), array_merge($payload, ['format' => 'json', 'show_names' => '1', 'url' => 'https://hooks.example.com/x']))->assertSessionHasNoErrors();
-        $this->assertFalse($hook->fresh()->show_names, "l'option n'a de sens qu'avec Discord");
+        $this->assertFalse($hook->fresh()->show_names, "l'option n'a pas de sens avec le format standard");
 
         $this->post(route('admin.webhooks.store'), array_merge($payload, ['url' => 'https://hooks.example.com/x']))->assertSessionHasErrors('url');
         $this->post(route('admin.webhooks.store'), array_merge($payload, ['url' => 'https://evil-discord.com.example.net/x']))->assertSessionHasErrors('url');
-        $this->post(route('admin.webhooks.store'), array_merge($payload, ['format' => 'slack']))->assertSessionHasErrors('format');
+        $this->post(route('admin.webhooks.store'), array_merge($payload, ['format' => 'inconnu']))->assertSessionHasErrors('format');
         $this->assertSame(1, Webhook::count());
     }
 
@@ -187,7 +199,8 @@ class DiscordWebhookTest extends TestCase
 
         $this->get(route('admin.webhooks.edit', $discord))->assertOk()->assertSee('Format des envois')->assertDontSee('Côté destinataire');
         $this->get(route('admin.webhooks.index'))->assertSee('Discord');
-        $this->get(route('admin.webhooks.create'))->assertOk()->assertSee('Afficher le nom et la classe des élèves dans Discord');
+        $this->get(route('admin.webhooks.edit', $discord))->assertDontSee('hash_hmac');
+        $this->get(route('admin.webhooks.create'))->assertOk()->assertSee('Afficher le nom et la classe des élèves dans les messages');
     }
 
     public function test_the_test_button_posts_a_discord_test_message(): void

@@ -1,0 +1,18 @@
+{
+  "id": "ifttt",
+  "name": "IFTTT",
+  "category": "Automatisation",
+  "description": "Déclenche un applet IFTTT (Webhooks).",
+  "help": "Sur ifttt.com/maker_webhooks : « Documentation » donne l'adresse https://maker.ifttt.com/trigger/NOM_EVENEMENT/with/key/VOTRE_CLE. L'applet reçoit Value1 (titre), Value2 (détail) et Value3 (événement).",
+  "hosts": [
+    "maker.ifttt.com"
+  ],
+  "url_example": "https://maker.ifttt.com/trigger/nova/with/key/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "value1": "{{title_plain}}",
+    "value2": "{{text}}",
+    "value3": "{{event}}"
+  }
+}

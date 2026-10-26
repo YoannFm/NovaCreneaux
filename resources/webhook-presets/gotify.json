@@ -1,0 +1,15 @@
+{
+  "id": "gotify",
+  "name": "Gotify",
+  "category": "Notifications sur téléphone",
+  "description": "Notification vers votre serveur Gotify.",
+  "help": "Dans Gotify : Applications > Créer une application, puis l'adresse est https://votre-serveur/message?token=JETON.",
+  "url_example": "https://gotify.exemple.fr/message?token=...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "title": "{{title_plain}}",
+    "message": "{{text}}",
+    "priority": 5
+  }
+}

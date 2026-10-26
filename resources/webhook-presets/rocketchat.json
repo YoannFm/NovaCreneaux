@@ -1,0 +1,14 @@
+{
+  "id": "rocketchat",
+  "name": "Rocket.Chat",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un canal Rocket.Chat.",
+  "help": "Dans Rocket.Chat : Administration > Intégrations > Nouvelle intégration > Webhook entrant, puis copiez l'adresse.",
+  "url_example": "https://chat.exemple.fr/hooks/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "alias": "{{app_name}}",
+    "text": "*{{title}}*\n{{text}}"
+  }
+}

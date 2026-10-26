@@ -1,0 +1,31 @@
+{
+  "id": "webex",
+  "name": "Webex",
+  "category": "Messagerie d'équipe",
+  "description": "Message d'un bot Webex dans un espace.",
+  "help": "Créez un bot sur developer.webex.com (il donne le jeton), ajoutez-le à l'espace, puis relevez l'identifiant de l'espace.",
+  "hosts": [
+    "webexapis.com"
+  ],
+  "url_template": "https://webexapis.com/v1/messages",
+  "fields": [
+    {
+      "key": "bot_token",
+      "label": "Jeton du bot",
+      "secret": true
+    },
+    {
+      "key": "room_id",
+      "label": "Identifiant de l'espace"
+    }
+  ],
+  "method": "POST",
+  "content_type": "json",
+  "headers": {
+    "Authorization": "Bearer {{bot_token}}"
+  },
+  "body": {
+    "roomId": "{{room_id}}",
+    "markdown": "**{{title}}**\n\n{{text}}"
+  }
+}

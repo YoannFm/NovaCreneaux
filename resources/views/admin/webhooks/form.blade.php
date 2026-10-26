@@ -2,6 +2,11 @@
 @php
     $isNew = ! $webhook->exists;
     $pageTitle = $isNew ? 'Nouveau webhook' : 'Webhook : ' . $webhook->name;
+    $choice = old('format', $webhook->formatChoice());
+    $custom = $webhook->settings['custom'] ?? [];
+    $savedFields = $webhook->settings['fields'] ?? [];
+    $presetList = collect($presets)->flatMap(fn ($group) => $group)->all();
+    $receivesPayload = $webhook->format === 'json' || ($presetList[$webhook->preset]['body'] ?? null) === '@payload';
 @endphp
 @section('content')
 
@@ -29,27 +34,121 @@
                            class="form-control @error('name') is-invalid @enderror" placeholder="Tableau d'affichage du CDI">
                     @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-5">
+                    <label class="form-label" for="format">Format des envois</label>
+                    <select id="format" name="format" class="form-select @error('format') is-invalid @enderror">
+                        <optgroup label="Général">
+                            <option value="json" data-names="0" @selected($choice === 'json')>Standard (JSON signé)</option>
+                            <option value="custom" data-names="1" data-url="1" @selected($choice === 'custom')>Personnalisé (modèle libre)</option>
+                        </optgroup>
+                        @foreach($presets as $category => $group)
+                            <optgroup label="{{ $category }}">
+                                @foreach($group as $id => $preset)
+                                    <option value="{{ $id }}" data-names="{{ ($preset['body'] ?? null) === '@payload' ? 0 : 1 }}"
+                                            data-url="{{ isset($preset['url_template']) ? 0 : 1 }}" data-example="{{ $preset['url_example'] ?? '' }}"
+                                            @selected($choice === $id)>{{ $preset['name'] }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
+                    @error('format')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-md-7" id="names-option">
+                    <div class="form-check form-switch mt-md-4">
+                        <input type="checkbox" class="form-check-input" id="show_names" name="show_names" value="1" @checked(old('show_names', $webhook->show_names))>
+                        <label class="form-check-label" for="show_names">Afficher le nom et la classe des élèves dans les messages</label>
+                    </div>
+                    <div class="form-text">Désactivé par défaut : le destinataire est un service tiers, les messages disent « un élève ».</div>
+                </div>
+                <div class="col-12" id="url-group">
                     <label class="form-label" for="url">Adresse qui reçoit les envois</label>
-                    <input type="url" id="url" name="url" maxlength="500" required value="{{ old('url', $webhook->url) }}"
+                    <input type="url" id="url" name="url" maxlength="500" value="{{ old('url', $webhook->url) }}"
                            class="form-control font-monospace @error('url') is-invalid @enderror" placeholder="https://exemple.fr/webhooks/nova">
                     @error('url')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     <div class="form-text">En https. Les adresses qui visent le réseau interne du serveur sont refusées.</div>
                 </div>
-                <div class="col-md-5">
-                    <label class="form-label" for="format">Format des envois</label>
-                    <select id="format" name="format" class="form-select @error('format') is-invalid @enderror">
-                        <option value="json" @selected(old('format', $webhook->format ?? 'json') === 'json')>Standard (JSON signé)</option>
-                        <option value="discord" @selected(old('format', $webhook->format ?? 'json') === 'discord')>Discord (message dans un salon)</option>
-                    </select>
-                    @error('format')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-                <div class="col-md-7" id="discord-options">
-                    <div class="form-check form-switch mt-md-4">
-                        <input type="checkbox" class="form-check-input" id="show_names" name="show_names" value="1" @checked(old('show_names', $webhook->show_names))>
-                        <label class="form-check-label" for="show_names">Afficher le nom et la classe des élèves dans Discord</label>
+
+                @foreach($presets as $group)
+                    @foreach($group as $id => $preset)
+                        <div class="col-12 format-section" data-format="{{ $id }}">
+                            <div class="border rounded p-3">
+                                <p class="mb-2"><strong>{{ $preset['name'] }}</strong> : {{ $preset['description'] }}</p>
+                                <p class="small mb-2" style="color:var(--muted-text)">{{ $preset['help'] ?? '' }}</p>
+                                @if(($preset['body'] ?? null) === '@payload')
+                                    <p class="small mb-2">Ce service reçoit la charge utile standard (JSON signé) : les noms des élèves y figurent.</p>
+                                @endif
+                                <div class="row g-3">
+                                    @foreach($preset['fields'] ?? [] as $field)
+                                        @php $key = $field['key']; $secret = $field['secret'] ?? false; $has = $webhook->preset === $id && ($savedFields[$key] ?? '') !== ''; @endphp
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="field-{{ $id }}-{{ $key }}">{{ $field['label'] }}</label>
+                                            <input type="{{ $secret ? 'password' : 'text' }}" id="field-{{ $id }}-{{ $key }}" name="fields[{{ $key }}]" maxlength="500" disabled autocomplete="off"
+                                                   value="{{ $secret ? '' : old("fields.{$key}", $webhook->preset === $id ? ($savedFields[$key] ?? '') : '') }}"
+                                                   placeholder="{{ $secret && $has ? '(inchangé)' : ($field['placeholder'] ?? '') }}"
+                                                   class="form-control font-monospace @error("fields.{$key}") is-invalid @enderror">
+                                            @error("fields.{$key}")<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                @endforeach
+                @error('fields')<div class="col-12 text-danger small">{{ $message }}</div>@enderror
+
+                <div class="col-12 format-section" data-format="custom">
+                    <div class="border rounded p-3">
+                        <p class="small mb-3" style="color:var(--muted-text)">Pour un service absent de la liste : choisissez la requête que le service attend. Le corps est un modèle où chaque <code>@{{ variable }}</code> est remplacée par la valeur de l'événement.</p>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label" for="custom_method">Méthode</label>
+                                <select id="custom_method" name="custom_method" class="form-select" disabled>
+                                    @foreach(['POST', 'PUT'] as $method)
+                                        <option @selected(old('custom_method', $custom['method'] ?? 'POST') === $method)>{{ $method }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="custom_content_type">Type de contenu</label>
+                                <select id="custom_content_type" name="custom_content_type" class="form-select" disabled>
+                                    @foreach(['json' => 'JSON', 'form' => 'Formulaire (clé=valeur)', 'text' => 'Texte brut'] as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('custom_content_type', $custom['content_type'] ?? 'json') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="custom_body">Corps du message</label>
+                                <textarea id="custom_body" name="custom_body" rows="6" maxlength="5000" disabled spellcheck="false"
+                                          class="form-control font-monospace @error('custom_body') is-invalid @enderror"
+                                          placeholder='{"text": "@{{ title }} : @{{ text }}"}'>{{ old('custom_body', $custom['body'] ?? '') }}</textarea>
+                                @error('custom_body')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                <div class="form-text">JSON : un objet, par exemple <code>{"text": "@{{ summary }}"}</code>. Une valeur ne peut pas casser le JSON : elle est toujours encodée.</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">En-têtes (jeton d'accès, clé d'API...)</label>
+                                @php $headerRows = old('header_names') ? array_values(array_filter(old('header_names'))) : array_keys($custom['headers'] ?? []); @endphp
+                                @for($i = 0; $i < min(10, count($headerRows) + 2); $i++)
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-md-4"><input type="text" name="header_names[]" class="form-control font-monospace" maxlength="64" disabled placeholder="Authorization" value="{{ $headerRows[$i] ?? '' }}"></div>
+                                        <div class="col-md-8"><input type="password" name="header_values[]" class="form-control font-monospace" maxlength="500" disabled autocomplete="off"
+                                                   placeholder="{{ isset($headerRows[$i]) && isset($custom['headers'][$headerRows[$i]]) ? '(inchangé)' : 'Bearer ...' }}"></div>
+                                    </div>
+                                @endfor
+                                @error('headers')<div class="text-danger small">{{ $message }}</div>@enderror
+                                <div class="form-text">Les valeurs sont chiffrées et ne sont plus réaffichées : laissez vide pour les garder.</div>
+                            </div>
+                            <div class="col-12">
+                                <details>
+                                    <summary class="small">Variables disponibles</summary>
+                                    <table class="table table-sm small mt-2 mb-0">
+                                        @foreach(\App\Services\Webhook\EventMessage::VARIABLES as $variable => $meaning)
+                                            <tr><td><code>{{ '{' . '{ ' . $variable . ' }' . '}' }}</code></td><td>{{ $meaning }}</td></tr>
+                                        @endforeach
+                                    </table>
+                                </details>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-text">Désactivé par défaut : Discord est un service tiers, les messages disent « un élève ». Le secret n'est pas utilisé avec Discord.</div>
                 </div>
                 <div class="col-12">
                     <label class="form-label">Événements</label>
@@ -135,7 +234,7 @@
     </div>
 </div>
 
-@if(! $webhook->isDiscord())
+@if($receivesPayload)
 <div class="card">
     <div class="card-header">Côté destinataire</div>
     <div class="card-body small">
@@ -162,8 +261,21 @@ $valid = hash_equals($expected, $_SERVER['HTTP_X_NOVA_SIGNATURE'])
 <script>
 (function () {
     var format = document.getElementById('format');
-    var options = document.getElementById('discord-options');
-    function sync() { options.style.display = format.value === 'discord' ? '' : 'none'; }
+    var url = document.getElementById('url');
+    var defaultPlaceholder = url.placeholder;
+    function sync() {
+        var option = format.options[format.selectedIndex];
+        document.getElementById('names-option').style.display = option.dataset.names === '1' ? '' : 'none';
+        var needsUrl = option.dataset.url !== '0';
+        document.getElementById('url-group').style.display = needsUrl ? '' : 'none';
+        url.required = needsUrl;
+        url.placeholder = option.dataset.example || defaultPlaceholder;
+        document.querySelectorAll('.format-section').forEach(function (section) {
+            var active = section.dataset.format === format.value;
+            section.style.display = active ? '' : 'none';
+            section.querySelectorAll('input, select, textarea').forEach(function (field) { field.disabled = !active; });
+        });
+    }
     format.addEventListener('change', sync);
     sync();
 })();

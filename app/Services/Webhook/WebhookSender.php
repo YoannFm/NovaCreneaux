@@ -20,7 +20,7 @@ class WebhookSender
     /** Echecs definitifs consecutifs apres lesquels le webhook est desactive. */
     private const DISABLE_AFTER = 10;
 
-    public function __construct(private UrlGuard $guard) {}
+    public function __construct(private UrlGuard $guard, private WebhookRequestBuilder $builder) {}
 
     public static function signature(string $secret, int $timestamp, string $body): string
     {
@@ -39,9 +39,10 @@ class WebhookSender
 
         $started = microtime(true);
         try {
-            $target = $this->guard->check($hook->url);
+            $request = $this->builder->build($hook, $delivery);
+            $target = $this->guard->check($request->url);
         } catch (WebhookException $e) {
-            // Adresse devenue interdite (le DNS a change) : inutile de reessayer
+            // Adresse devenue interdite (le DNS a change) ou format disparu : inutile de reessayer
             $this->finish($delivery, WebhookDelivery::FAILED, null, $e->getMessage(), 0);
             $this->recordOutcome($hook, false);
             $this->logAbandoned($hook, $delivery, $retry);
@@ -50,7 +51,7 @@ class WebhookSender
         }
 
         try {
-            $response = $this->post($hook, $delivery, $target);
+            $response = $this->post($hook, $delivery, $request, $target);
             $ms = (int) ((microtime(true) - $started) * 1000);
             $response->successful() ? $this->succeed($delivery, $hook, $response->status(), $ms) : $this->fail($delivery, $hook, $response->status(), 'Réponse HTTP ' . $response->status(), $ms, $retry);
         } catch (\Throwable $e) {
@@ -58,33 +59,21 @@ class WebhookSender
         }
     }
 
-    private function post(Webhook $hook, WebhookDelivery $delivery, array $target)
+    private function post(Webhook $hook, WebhookDelivery $delivery, WebhookRequest $request, array $target)
     {
         $timestamp = time();
-        $body = $this->body($hook, $delivery);
         $resolve = $target['host'] . ':' . $target['port'] . ':' . (str_contains($target['ip'], ':') ? "[{$target['ip']}]" : $target['ip']);
 
         return Http::withOptions(['allow_redirects' => false, 'curl' => [CURLOPT_RESOLVE => [$resolve]]])
             ->connectTimeout(3)->timeout(7)
-            ->withHeaders([
-                'User-Agent' => 'NovaCreneaux-Webhook',
+            ->withHeaders(['User-Agent' => 'NovaCreneaux-Webhook'] + $request->headers + [
                 'X-Nova-Event' => $delivery->event,
                 'X-Nova-Delivery' => $delivery->uuid,
                 'X-Nova-Timestamp' => (string) $timestamp,
-                'X-Nova-Signature' => self::signature($hook->secret, $timestamp, $body),
+                'X-Nova-Signature' => self::signature($hook->secret, $timestamp, $request->body),
             ])
-            ->withBody($body, 'application/json')
-            ->post($hook->url);
-    }
-
-    /** Corps tel qu'envoye : la charge utile standard, ou le message Discord construit a partir d'elle. */
-    private function body(Webhook $hook, WebhookDelivery $delivery): string
-    {
-        if (! $hook->isDiscord()) {
-            return $delivery->payload;
-        }
-
-        return json_encode(DiscordMessage::build(json_decode($delivery->payload, true), $hook->show_names, setting('app_name', 'NovaCreneaux')), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            ->withBody($request->body, $request->contentType)
+            ->send($request->method, $request->url);
     }
 
     private function succeed(WebhookDelivery $delivery, Webhook $hook, int $status, int $ms): void
@@ -139,7 +128,7 @@ class WebhookSender
         $query->increment('consecutive_failures');
         if ($query->value('consecutive_failures') >= self::DISABLE_AFTER && $hook->is_active) {
             $query->update(['is_active' => false]);
-            ActivityLogger::log('Webhook désactivé après des échecs répétés', "{$hook->name} ({$hook->url})");
+            ActivityLogger::log('Webhook désactivé après des échecs répétés', $hook->name);
         }
     }
 }

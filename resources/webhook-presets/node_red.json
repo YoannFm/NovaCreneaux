@@ -1,0 +1,11 @@
+{
+  "id": "node_red",
+  "name": "Node-RED",
+  "category": "Automatisation",
+  "description": "Envoie les événements à un flux Node-RED.",
+  "help": "Dans Node-RED : nœud « http in » (méthode POST), puis l'adresse est celle de votre serveur et du chemin choisi. Il reçoit la charge utile standard en JSON, noms d'élèves compris.",
+  "url_example": "https://nodered.exemple.fr/nova",
+  "method": "POST",
+  "content_type": "json",
+  "body": "@payload"
+}

@@ -18,7 +18,7 @@ jobs:
         php-version: '8.3'
     - uses: actions/checkout@v4
     - name: Vulnerabilites connues des dependances
-      run: composer audit --no-interaction
+      run: composer audit --locked --no-interaction
 
   laravel-tests:
 

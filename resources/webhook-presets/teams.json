@@ -1,0 +1,37 @@
+{
+  "id": "teams",
+  "name": "Microsoft Teams",
+  "category": "Messagerie d'équipe",
+  "description": "Carte dans un canal Teams.",
+  "help": "Dans Teams : canal > Workflows > « Publier dans un canal quand une demande de webhook est reçue », puis copiez l'adresse du flux.",
+  "url_example": "https://prod-00.westeurope.logic.azure.com/workflows/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "type": "message",
+    "attachments": [
+      {
+        "contentType": "application/vnd.microsoft.card.adaptive",
+        "content": {
+          "type": "AdaptiveCard",
+          "version": "1.4",
+          "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": "{{title}}",
+              "weight": "Bolder",
+              "size": "Medium",
+              "wrap": true
+            },
+            {
+              "type": "TextBlock",
+              "text": "{{text}}",
+              "wrap": true
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "make",
+  "name": "Make",
+  "category": "Automatisation",
+  "description": "Déclenche un scénario Make avec les données de l'événement.",
+  "help": "Dans Make : module « Webhooks > Custom webhook », puis copiez l'adresse. Il reçoit la charge utile standard en JSON, noms d'élèves compris.",
+  "hosts": [
+    "*.make.com",
+    "*.integromat.com"
+  ],
+  "url_example": "https://hook.eu1.make.com/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": "@payload"
+}

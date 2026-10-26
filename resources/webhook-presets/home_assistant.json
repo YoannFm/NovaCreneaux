@@ -1,0 +1,11 @@
+{
+  "id": "home_assistant",
+  "name": "Home Assistant",
+  "category": "Domotique",
+  "description": "Déclenche une automatisation Home Assistant.",
+  "help": "Dans Home Assistant : automatisation avec le déclencheur « Webhook », puis l'adresse est https://votre-instance/api/webhook/IDENTIFIANT. Il reçoit la charge utile standard en JSON, noms d'élèves compris.",
+  "url_example": "https://ha.exemple.fr/api/webhook/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": "@payload"
+}
