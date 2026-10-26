@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Support\Permission;
 use Illuminate\Http\Request;
 
 class RoleController extends Controller
@@ -26,6 +27,8 @@ class RoleController extends Controller
             'icon'                    => 'nullable|string|max:60',
             'color'                   => 'required|string|regex:/^#[0-9a-fA-F]{6}$/',
             'is_admin'                => 'boolean',
+            'permissions'             => 'nullable|array',
+            'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
             'max_reservations_day'    => 'required|integer|min:1|max:99',
             'max_reservations_week'   => 'required|integer|min:1|max:99',
             'cancel_deadline_minutes' => 'required|integer|min:0|max:1440',
@@ -35,9 +38,10 @@ class RoleController extends Controller
         Role::create([
             'name'                    => $data['name'],
             'label'                   => $data['label'],
-            'icon'                    => $data['icon'] ?: 'bi bi-star',
+            'icon'                    => ($data['icon'] ?? null) ?: 'bi bi-star',
             'color'                   => $data['color'],
             'is_admin'                => $request->boolean('is_admin'),
+            'permissions'             => $this->permissions($request),
             'locked'                  => false,
             'power'                   => 0,
             'max_reservations_day'    => $data['max_reservations_day'],
@@ -61,6 +65,8 @@ class RoleController extends Controller
             'icon'                    => 'nullable|string|max:60',
             'color'                   => 'required|string|regex:/^#[0-9a-fA-F]{6}$/',
             'is_admin'                => 'boolean',
+            'permissions'             => 'nullable|array',
+            'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
             'max_reservations_day'    => 'required|integer|min:1|max:99',
             'max_reservations_week'   => 'required|integer|min:1|max:99',
             'cancel_deadline_minutes' => 'required|integer|min:0|max:1440',
@@ -69,7 +75,7 @@ class RoleController extends Controller
 
         $update = [
             'label'                   => $data['label'],
-            'icon'                    => $data['icon'] ?: 'bi bi-star',
+            'icon'                    => ($data['icon'] ?? null) ?: 'bi bi-star',
             'color'                   => $data['color'],
             'max_reservations_day'    => $data['max_reservations_day'],
             'max_reservations_week'   => $data['max_reservations_week'],
@@ -79,9 +85,20 @@ class RoleController extends Controller
         if (!$role->locked) {
             $update['is_admin'] = $request->boolean('is_admin');
         }
+        $update['permissions'] = $this->permissions($request, $update['is_admin'] ?? $role->is_admin);
         $role->update($update);
 
         return redirect()->route('admin.roles.index')->with('success', "Rôle \"{$role->label}\" mis à jour.");
+    }
+
+    /** Un role administrateur a deja tous les droits : ses permissions detaillees ne servent a rien. */
+    private function permissions(Request $request, ?bool $isAdmin = null): ?array
+    {
+        if ($isAdmin ?? $request->boolean('is_admin')) {
+            return null;
+        }
+
+        return Permission::only($request->input('permissions', []));
     }
 
     public function destroy(Role $role)

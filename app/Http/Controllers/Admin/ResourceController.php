@@ -2,7 +2,6 @@
 namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Resource;
-use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 class ResourceController extends Controller {
     public function index() {
@@ -13,7 +12,6 @@ class ResourceController extends Controller {
     }
     public function store(Request $request) {
         Resource::create($this->validated($request));
-        ActivityLogger::log('Ressource créée', $request->name);
         return redirect()->route('admin.resources.index')->with('success','Ressource créée.');
     }
     public function edit(Resource $resource) {
@@ -21,11 +19,9 @@ class ResourceController extends Controller {
     }
     public function update(Request $request, Resource $resource) {
         $resource->update($this->validated($request));
-        ActivityLogger::log('Ressource modifiée', $resource->name);
         return redirect()->route('admin.resources.index')->with('success','Ressource mise à jour.');
     }
     public function destroy(Resource $resource) {
-        ActivityLogger::log('Ressource supprimée', $resource->name);
         $resource->delete();
         return redirect()->route('admin.resources.index')->with('success','Ressource supprimée.');
     }

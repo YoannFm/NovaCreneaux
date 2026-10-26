@@ -15,7 +15,7 @@ class EnforceMaintenanceMode
     {
         if (setting('maintenance_mode', '0') !== '1'
             || $request->is(...self::ALWAYS_OPEN)
-            || $request->user()?->isAdmin()) {
+            || $request->user()?->hasAdminAccess()) {
             return $next($request);
         }
 

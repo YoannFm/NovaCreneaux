@@ -1,9 +1,19 @@
 <?php
 namespace App\Models;
+use App\Models\Concerns\Loggable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Slot extends Model {
-    use HasFactory;
+    use HasFactory, Loggable;
+
+    protected const ACTIVITY_NOUN = 'Créneau';
+    protected const ACTIVITY_FEMININE = false;
+
+    protected function activityContext(): string
+    {
+        return $this->resource?->name . ' - ' . $this->name;
+    }
+
     protected $fillable = ['resource_id','name','start_time','end_time','max_capacity','is_active'];
     protected function casts(): array { return ['is_active'=>'boolean','max_capacity'=>'integer']; }
     public function resource() { return $this->belongsTo(Resource::class); }

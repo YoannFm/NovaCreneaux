@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'staff' => \App\Http\Middleware\EnsureStaff::class,
+            'permission' => \App\Http\Middleware\RequirePermission::class,
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
         ]);
         $middleware->appendToGroup('web', \App\Http\Middleware\CheckInstallation::class);

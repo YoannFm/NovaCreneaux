@@ -18,7 +18,7 @@ class EnforceAdminTwoFactor
         $user = $request->user();
 
         if (setting('require_2fa_admin', '0') === '1'
-            && $user?->isAdmin()
+            && $user?->hasAdminAccess()
             && !$user->hasAnyMfa()
             && !$request->is(...self::ALWAYS_OPEN)) {
             return redirect()->route('profile.edit')

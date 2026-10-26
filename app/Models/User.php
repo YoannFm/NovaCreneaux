@@ -91,6 +91,28 @@ class User extends Authenticatable
         return ($this->role && $this->role->is_admin) || $this->is_admin;
     }
 
+    public function hasPermission(string $permission): bool
+    {
+        return $this->isAdmin() || ($this->role?->hasPermission($permission) ?? false);
+    }
+
+    /** Entre dans l'administration : administrateur, ou role avec au moins une permission. */
+    public function hasAdminAccess(): bool
+    {
+        return $this->isAdmin() || ($this->role?->grantsAdminAccess() ?? false);
+    }
+
+    /** Le personnel delegue ne gere que les comptes ordinaires : jamais un administrateur ni un autre membre du personnel. */
+    public function canManage(self $target): bool
+    {
+        return $this->isAdmin() || ! $target->hasAdminAccess();
+    }
+
+    public function canAssign(Role $role): bool
+    {
+        return $this->isAdmin() || ! $role->grantsAdminAccess();
+    }
+
     public function roleName(): string
     {
         return $this->role?->label ?? 'Utilisateur';

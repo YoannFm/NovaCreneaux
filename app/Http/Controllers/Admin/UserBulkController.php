@@ -25,7 +25,11 @@ class UserBulkController extends Controller
             'ids.*' => ['integer', 'exists:users,id'],
         ], ['ids.required' => 'Sélectionnez au moins un utilisateur.', 'ids.min' => 'Sélectionnez au moins un utilisateur.']);
 
-        $users = User::with('role')->withCount('reservations')->whereIn('id', $data['ids'])->orderBy('name')->get();
+        $users = User::with('role')->withCount('reservations')->whereIn('id', $data['ids'])->orderBy('name')->get()
+            ->filter(fn (User $user) => $request->user()->canManage($user));
+        if ($users->isEmpty()) {
+            return back()->with('error', "Vous ne pouvez pas agir sur les comptes sélectionnés.");
+        }
 
         return match ($data['action']) {
             'export' => $this->export($users),

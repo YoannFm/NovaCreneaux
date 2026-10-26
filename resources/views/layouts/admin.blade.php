@@ -24,19 +24,19 @@
 
     <style>
         :root {
-            --accent:       {{ auth()->check() && auth()->user()->accent_color ? auth()->user()->accent_color : (setting('theme_accent') ?: '#efb703') }};
+            --accent:       {{ auth()->check() && auth()->user()->accent_color ? auth()->user()->accent_color : (\App\Support\ThemeSettings::value('theme_accent')) }};
             --accent-text:  var(--accent);
-            --body-bg:      {{ setting('theme_body_bg')       ?: '#111113' }};
-            --card-bg:      {{ setting('theme_card_bg')       ?: '#212227' }};
-            --header-bg:    {{ setting('theme_header_bg')     ?: '#1a1b1f' }};
-            --text-primary: {{ setting('theme_text_color')    ?: '#e2e8f0' }};
+            --body-bg:      {{ \App\Support\ThemeSettings::value('theme_body_bg') }};
+            --card-bg:      {{ \App\Support\ThemeSettings::value('theme_card_bg') }};
+            --header-bg:    {{ \App\Support\ThemeSettings::value('theme_header_bg') }};
+            --text-primary: {{ \App\Support\ThemeSettings::value('theme_text_color') }};
         }
         [data-bs-theme="light"] {
             --accent-text:  color-mix(in srgb, var(--accent) 55%, black);
-            --body-bg:      {{ setting('theme_light_body_bg')    ?: '#f4f5f7' }};
-            --card-bg:      {{ setting('theme_light_card_bg')    ?: '#ffffff' }};
-            --header-bg:    {{ setting('theme_light_header_bg')  ?: '#ffffff' }};
-            --text-primary: {{ setting('theme_light_text_color') ?: '#1a1a2e' }};
+            --body-bg:      {{ \App\Support\ThemeSettings::value('theme_light_body_bg') }};
+            --card-bg:      {{ \App\Support\ThemeSettings::value('theme_light_card_bg') }};
+            --header-bg:    {{ \App\Support\ThemeSettings::value('theme_light_header_bg') }};
+            --text-primary: {{ \App\Support\ThemeSettings::value('theme_light_text_color') }};
         }
         .sidebar-brand small { display:block; font-size:.72rem; opacity:.65; font-weight:400; margin-top:.1rem; }
         .sidebar-toggle { background:none; border:none; cursor:pointer; padding:.25rem .5rem; }
@@ -81,122 +81,7 @@
                 <small>Administration</small>
             </a>
 
-            <ul class="sidebar-nav">
-
-                <li class="sidebar-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.dashboard') }}">
-                        <i class="bi bi-speedometer2"></i> <span>Tableau de bord</span>
-                    </a>
-                </li>
-
-                <li class="sidebar-item {{ request()->routeIs('admin.nav.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.nav.index') }}">
-                        <i class="bi bi-list-ul"></i> <span>Navigation</span>
-                    </a>
-                </li>
-
-                <li class="sidebar-header">Parametres</li>
-
-                @php $onSettings = request()->routeIs('admin.settings.*') || request()->routeIs('admin.themes.*'); @endphp
-                <li class="sidebar-item {{ $onSettings ? 'active' : '' }}">
-                    <a class="sidebar-link {{ $onSettings ? '' : 'collapsed' }}"
-                       href="#" data-bs-toggle="collapse" data-bs-target="#collapseSettings"
-                       aria-expanded="{{ $onSettings ? 'true' : 'false' }}">
-                        <i class="bi bi-gear"></i> <span>Parametres</span>
-                    </a>
-                    <ul id="collapseSettings"
-                        class="sidebar-dropdown list-unstyled collapse {{ $onSettings ? 'show' : '' }}">
-                        <li class="sidebar-item {{ request()->routeIs('admin.settings.general') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.settings.general') }}">General</a>
-                        </li>
-                        <li class="sidebar-item {{ request()->routeIs('admin.settings.home') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.settings.home') }}">Accueil</a>
-                        </li>
-                        <li class="sidebar-item {{ request()->routeIs('admin.themes.*') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.themes.index') }}">Apparence</a>
-                        </li>
-                        <li class="sidebar-item {{ request()->routeIs('admin.settings.auth') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.settings.auth') }}">Authentification</a>
-                        </li>
-                        <li class="sidebar-item {{ request()->routeIs('admin.settings.security') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.settings.security') }}">Securite</a>
-                        </li>
-                        <li class="sidebar-item {{ request()->routeIs('admin.settings.mail') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.settings.mail') }}">E-mail</a>
-                        </li>
-                        <li class="sidebar-item {{ request()->routeIs('admin.settings.maintenance') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.settings.maintenance') }}">Maintenance</a>
-                        </li>
-                        <li class="sidebar-item {{ request()->routeIs('admin.settings.reservations') ? 'active' : '' }}">
-                            <a class="sidebar-link" href="{{ route('admin.settings.reservations') }}">Reservations</a>
-                        </li>
-                    </ul>
-                </li>
-
-                <li class="sidebar-header">Gestion</li>
-
-                <li class="sidebar-item {{ request()->routeIs('admin.pages.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.pages.index') }}">
-                        <i class="bi bi-file-earmark-text"></i> <span>Pages</span>
-                    </a>
-                </li>
-
-                <li class="sidebar-item {{ request()->routeIs('admin.resources.*','admin.slots.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.resources.index') }}">
-                        <i class="bi bi-collection"></i> <span>Ressources</span>
-                    </a>
-                </li>
-                <li class="sidebar-item {{ request()->routeIs('admin.reservations.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.reservations.index') }}">
-                        <i class="bi bi-calendar-check"></i> <span>Reservations</span>
-                    </a>
-                </li>
-
-                <li class="sidebar-header">Utilisateurs</li>
-
-                <li class="sidebar-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.users.index') }}">
-                        <i class="bi bi-people"></i> <span>Utilisateurs</span>
-                    </a>
-                </li>
-                <li class="sidebar-item {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.roles.index') }}">
-                        <i class="bi bi-shield-check"></i> <span>Roles</span>
-                    </a>
-                </li>
-                <li class="sidebar-item {{ request()->routeIs('admin.sanctions.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.sanctions.index') }}">
-                        <i class="bi bi-exclamation-triangle"></i> <span>Sanctions</span>
-                    </a>
-                </li>
-
-                <li class="sidebar-item {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.notifications.index') }}">
-                        <i class="bi bi-bell"></i> <span>Notifications</span>
-                    </a>
-                </li>
-
-                <li class="sidebar-header">Systeme</li>
-                <li class="sidebar-item {{ request()->routeIs('admin.logs.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.logs.index') }}">
-                        <i class="bi bi-journal-text"></i> <span>Activité</span>
-                    </a>
-                </li>
-                <li class="sidebar-item {{ request()->routeIs('admin.api-tokens.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.api-tokens.index') }}">
-                        <i class="bi bi-plug"></i> <span>Intégrations API</span>
-                    </a>
-                </li>
-                <li class="sidebar-item {{ request()->routeIs('admin.update.*') ? 'active' : '' }}">
-                    <a class="sidebar-link" href="{{ route('admin.update.index') }}">
-                        <i class="bi bi-cloud-download"></i> <span>Mise à jour</span>
-                        @if(app(\App\Services\Update\UpdateManager::class)->cachedHasUpdate())
-                            <span class="badge bg-warning text-dark ms-1" title="Une nouvelle version est disponible">!</span>
-                        @endif
-                    </a>
-                </li>
-
-            </ul>
+            @include('layouts._admin_sidebar')
         </div>
     </nav>
 

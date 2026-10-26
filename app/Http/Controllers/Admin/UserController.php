@@ -32,7 +32,7 @@ class UserController extends Controller {
 
     public function create() {
         return view('admin.users.create', [
-            'roles' => Role::orderBy('id')->get(),
+            'roles' => $this->assignableRoles(),
             // Le role propose par defaut est le moins privilegie, jamais le premier de la liste (administrateur)
             'defaultRoleId' => Role::defaultUser()?->id,
         ]);
@@ -48,7 +48,7 @@ class UserController extends Controller {
             'is_active'=> 'boolean',
         ]);
 
-        $role = Role::findOrFail($data['role_id']);
+        $role = $this->assignableRole($data['role_id']);
         User::create([
             'name'              => $data['name'],
             'email'             => $data['email'],
@@ -65,17 +65,19 @@ class UserController extends Controller {
     }
 
     public function edit(User $user) {
+        $this->authorizeManage($user);
         $logs = \App\Models\ActivityLog::where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->paginate(15);
         return view('admin.users.edit', [
             'user'  => $user,
-            'roles' => Role::orderBy('id')->get(),
+            'roles' => $this->assignableRoles(),
             'logs'  => $logs,
         ]);
     }
 
     public function update(Request $request, User $user) {
+        $this->authorizeManage($user);
         $data = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => ['required','email', Rule::unique('users')->ignore($user->id)],
@@ -85,7 +87,7 @@ class UserController extends Controller {
             'is_active'=> 'boolean',
         ]);
 
-        $role = Role::findOrFail($data['role_id']);
+        $role = $this->assignableRole($data['role_id']);
         $update = [
             'name'     => $data['name'],
             'email'    => $data['email'],
@@ -104,12 +106,14 @@ class UserController extends Controller {
     }
 
     public function verifyEmail(User $user) {
+        $this->authorizeManage($user);
         $user->markEmailAsVerified();
         ActivityLogger::log('Email vérifié (admin)', $user->name);
         return back()->with('success', "Email de {$user->name} marqué comme vérifié.");
     }
 
     public function mfaDisable(User $user) {
+        $this->authorizeManage($user);
         $user->update([
             'two_factor_secret'       => null,
             'two_factor_confirmed_at' => null,
@@ -124,12 +128,14 @@ class UserController extends Controller {
     }
 
     public function toggle(User $user) {
+        $this->authorizeManage($user);
         $user->update(['is_active' => !$user->is_active]);
         ActivityLogger::log($user->is_active ? 'Utilisateur activé' : 'Utilisateur désactivé', $user->name);
         return back()->with('success', 'Statut mis à jour.');
     }
 
     public function destroy(User $user) {
+        $this->authorizeManage($user);
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Vous ne pouvez pas supprimer votre propre compte.');
         }
@@ -184,5 +190,20 @@ class UserController extends Controller {
         ActivityLogger::log('Import CSV utilisateurs', "{$created} créé(s), {$skipped} ignoré(s)");
         return redirect()->route('admin.users.index')
             ->with('success', "{$created} utilisateur(s) importé(s), {$skipped} ignoré(s).");
+    }
+
+    /** Le personnel delegue ne touche ni aux administrateurs ni aux autres membres du personnel. */
+    private function authorizeManage(User $user): void {
+        abort_unless(auth()->user()->canManage($user), 403);
+    }
+
+    private function assignableRoles() {
+        return Role::orderBy('id')->get()->filter(fn (Role $role) => auth()->user()->canAssign($role))->values();
+    }
+
+    private function assignableRole(int|string $id): Role {
+        $role = Role::findOrFail($id);
+        abort_unless(auth()->user()->canAssign($role), 403);
+        return $role;
     }
 }

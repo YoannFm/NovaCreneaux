@@ -17,6 +17,8 @@ class SanctionController extends Controller
 
     public function store(Request $request, User $user)
     {
+        abort_unless(auth()->user()->canManage($user), 403);
+
         $data = $request->validate([
             'type'        => 'required|in:warning,ban',
             'reason'      => 'required|string|max:1000',
@@ -43,6 +45,8 @@ class SanctionController extends Controller
 
     public function destroy(Sanction $sanction)
     {
+        abort_unless(auth()->user()->canManage($sanction->user), 403);
+
         $sanction->delete();
         return back()->with('success', 'Sanction levée.');
     }

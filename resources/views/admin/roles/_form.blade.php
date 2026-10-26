@@ -74,6 +74,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {{-- Limites (collapsées quand admin est actif) --}}
 <div id="permissionsGroup" class="{{ (old('is_admin', $role->is_admin ?? false)) ? 'collapse' : '' }}">
+    <div class="card card-body mb-3">
+        <h5 class="mb-1" style="font-size:1rem;font-weight:600;">Accès à l'administration</h5>
+        <p class="text-body-secondary small">
+            Les comptes de ce rôle peuvent gérer les sections cochées. Les réglages, rôles, mises à jour,
+            sauvegardes et jetons d'API restent réservés aux administrateurs, de même que la gestion des comptes administrateurs.
+        </p>
+        @php $granted = old('permissions', $role->permissions ?? []); @endphp
+        <div class="row">
+            @foreach(\App\Support\Permission::all() as $key => $label)
+                <div class="col-md-6">
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" id="perm-{{ $key }}"
+                               name="permissions[]" value="{{ $key }}" @checked(in_array($key, $granted, true))>
+                        <label class="form-check-label" for="perm-{{ $key }}">{{ $label }}</label>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        @error('permissions.*')<span class="text-danger small">{{ $message }}</span>@enderror
+    </div>
     <div class="card card-body mb-3 pb-0">
         <h5 class="mb-3" style="font-size:1rem;font-weight:600;">Limites de réservation</h5>
         <div class="row gx-3">

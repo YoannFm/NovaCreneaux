@@ -1,9 +1,19 @@
 <?php
 namespace App\Models;
+use App\Models\Concerns\Loggable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Resource extends Model {
-    use HasFactory;
+    use HasFactory, Loggable;
+
+    protected const ACTIVITY_NOUN = 'Ressource';
+    protected const ACTIVITY_FEMININE = true;
+
+    protected function activityContext(): string
+    {
+        return $this->name;
+    }
+
     protected $fillable = ['name','description','is_active','open_time','close_time','closed_days'];
     protected function casts(): array {
         return ['is_active'=>'boolean','closed_days'=>'array'];

@@ -25,24 +25,24 @@
 
     <style>
         :root {
-            --accent:        {{ auth()->check() && auth()->user()->accent_color ? auth()->user()->accent_color : (setting('theme_accent') ?: '#efb703') }};
+            --accent:        {{ auth()->check() && auth()->user()->accent_color ? auth()->user()->accent_color : (\App\Support\ThemeSettings::value('theme_accent')) }};
             --accent-hover:  color-mix(in srgb, var(--accent) 85%, black);
             --accent-light:  color-mix(in srgb, var(--accent) 15%, transparent);
             --accent-text:   var(--accent);
-            --body-bg:       {{ setting('theme_body_bg')       ?: '#111113' }};
-            --card-bg:       {{ setting('theme_card_bg')       ?: '#212227' }};
-            --card-border:   {{ setting('theme_card_bg')       ?: '#2e2e34' }};
-            --header-bg:     {{ setting('theme_header_bg')     ?: '#1a1b1f' }};
-            --text-primary:  {{ setting('theme_text_color')    ?: '#e2e8f0' }};
+            --body-bg:       {{ \App\Support\ThemeSettings::value('theme_body_bg') }};
+            --card-bg:       {{ \App\Support\ThemeSettings::value('theme_card_bg') }};
+            --card-border:   {{ \App\Support\ThemeSettings::value('theme_card_bg') }};
+            --header-bg:     {{ \App\Support\ThemeSettings::value('theme_header_bg') }};
+            --text-primary:  {{ \App\Support\ThemeSettings::value('theme_text_color') }};
             --text-muted:    #9ca3af;
         }
         [data-bs-theme="light"] {
             --accent-text:   color-mix(in srgb, var(--accent) 55%, black);
-            --body-bg:       {{ setting('theme_light_body_bg')    ?: '#f4f5f7' }};
-            --card-bg:       {{ setting('theme_light_card_bg')    ?: '#ffffff' }};
-            --card-border:   {{ setting('theme_light_card_bg')    ?: '#e9ecef' }};
-            --header-bg:     {{ setting('theme_light_header_bg')  ?: '#ffffff' }};
-            --text-primary:  {{ setting('theme_light_text_color') ?: '#1a1a2e' }};
+            --body-bg:       {{ \App\Support\ThemeSettings::value('theme_light_body_bg') }};
+            --card-bg:       {{ \App\Support\ThemeSettings::value('theme_light_card_bg') }};
+            --card-border:   {{ \App\Support\ThemeSettings::value('theme_light_card_bg') }};
+            --header-bg:     {{ \App\Support\ThemeSettings::value('theme_light_header_bg') }};
+            --text-primary:  {{ \App\Support\ThemeSettings::value('theme_light_text_color') }};
             --text-muted:    #6c757d;
         }
 

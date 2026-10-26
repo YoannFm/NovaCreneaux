@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\SanctionController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\UpdateController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Support\Permission;
 use Illuminate\Support\Facades\Route;
 
 // Install wizard (no auth required)
@@ -92,111 +93,133 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile/mfa', [\App\Http\Controllers\MfaController::class, 'totpDisable'])->name('mfa.disable');
 });
 
-Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/nav', [\App\Http\Controllers\Admin\NavController::class, 'index'])->name('nav.index');
-    Route::get('/nav/create', [\App\Http\Controllers\Admin\NavController::class, 'create'])->name('nav.create');
-    Route::post('/nav', [\App\Http\Controllers\Admin\NavController::class, 'store'])->name('nav.store');
-    Route::post('/nav/reorder', [\App\Http\Controllers\Admin\NavController::class, 'reorder'])->name('nav.reorder');
-    Route::get('/nav/{nav}/edit', [\App\Http\Controllers\Admin\NavController::class, 'edit'])->name('nav.edit');
-    Route::put('/nav/{nav}', [\App\Http\Controllers\Admin\NavController::class, 'update'])->name('nav.update');
-    Route::delete('/nav/{nav}', [\App\Http\Controllers\Admin\NavController::class, 'destroy'])->name('nav.destroy');
-    Route::resource('resources', \App\Http\Controllers\Admin\ResourceController::class)->names([
-        'index'=>'resources.index','create'=>'resources.create','store'=>'resources.store',
-        'edit'=>'resources.edit','update'=>'resources.update','destroy'=>'resources.destroy','show'=>'resources.show',
-    ]);
-    Route::prefix('resources/{resource}/slots')->name('slots.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Admin\SlotController::class, 'index'])->name('index');
-        Route::get('/create', [\App\Http\Controllers\Admin\SlotController::class, 'create'])->name('create');
-        Route::post('/', [\App\Http\Controllers\Admin\SlotController::class, 'store'])->name('store');
-        Route::get('/{slot}/edit', [\App\Http\Controllers\Admin\SlotController::class, 'edit'])->name('edit');
-        Route::put('/{slot}', [\App\Http\Controllers\Admin\SlotController::class, 'update'])->name('update');
-        Route::delete('/{slot}', [\App\Http\Controllers\Admin\SlotController::class, 'destroy'])->name('destroy');
-    });
-    Route::resource('roles', RoleController::class)->names([
-        'index'=>'roles.index','create'=>'roles.create','store'=>'roles.store',
-        'edit'=>'roles.edit','update'=>'roles.update','destroy'=>'roles.destroy','show'=>'roles.show',
-    ])->except(['show']);
-    Route::post('/roles/reorder', [\App\Http\Controllers\Admin\RoleController::class, 'reorder'])->name('roles.reorder');
 
-    Route::post('/users/bulk', \App\Http\Controllers\Admin\UserBulkController::class)->name('users.bulk');
-    Route::get('/users/export-zip', [\App\Http\Controllers\Admin\UserController::class, 'exportZip'])->name('users.export-zip');
-    Route::get('/users/import', [\App\Http\Controllers\Admin\UserController::class, 'importForm'])->name('users.import');
-    Route::post('/users/import', [\App\Http\Controllers\Admin\UserController::class, 'import'])->name('users.import.store');
-    Route::get('/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
-    Route::get('/users/create', [\App\Http\Controllers\Admin\UserController::class, 'create'])->name('users.create');
-    Route::post('/users', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
-    Route::get('/users/{user}/edit', [\App\Http\Controllers\Admin\UserController::class, 'edit'])->name('users.edit');
-    Route::put('/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
-    Route::patch('/users/{user}/toggle', [\App\Http\Controllers\Admin\UserController::class, 'toggle'])->name('users.toggle');
-    Route::post('/users/{user}/verify', [\App\Http\Controllers\Admin\UserController::class, 'verifyEmail'])->name('users.verify');
-    Route::post('/users/{user}/mfa-disable', [\App\Http\Controllers\Admin\UserController::class, 'mfaDisable'])->name('users.mfa-disable');
-    Route::delete('/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
-    Route::get('/reservations', [\App\Http\Controllers\Admin\ReservationController::class, 'index'])->name('reservations.index');
-    Route::delete('/reservations/{reservation}', [\App\Http\Controllers\Admin\ReservationController::class, 'destroy'])->name('reservations.destroy');
-    Route::get('/themes', [\App\Http\Controllers\Admin\ThemeController::class, 'index'])->name('themes.index');
-    Route::put('/themes', [\App\Http\Controllers\Admin\ThemeController::class, 'update'])->name('themes.update');
-    Route::get('/settings', fn() => redirect()->route('admin.settings.general'))->name('settings.index');
-    Route::prefix('settings')->name('settings.')->group(function () {
-        Route::get('/general',     [\App\Http\Controllers\Admin\SettingController::class, 'general'])->name('general');
-        Route::post('/general',    [\App\Http\Controllers\Admin\SettingController::class, 'updateGeneral'])->name('general.update');
-        Route::post('/logo',       [\App\Http\Controllers\Admin\SettingController::class, 'uploadLogo'])->name('logo.upload');
-        Route::delete('/logo',     [\App\Http\Controllers\Admin\SettingController::class, 'deleteLogo'])->name('logo.delete');
-        Route::get('/home',        [\App\Http\Controllers\Admin\SettingController::class, 'home'])->name('home');
-        Route::post('/home',       [\App\Http\Controllers\Admin\SettingController::class, 'updateHome'])->name('home.update');
-        Route::get('/auth',        [\App\Http\Controllers\Admin\SettingController::class, 'auth'])->name('auth');
-        Route::post('/auth',       [\App\Http\Controllers\Admin\SettingController::class, 'updateAuth'])->name('auth.update');
-        Route::get('/security',    [\App\Http\Controllers\Admin\SettingController::class, 'security'])->name('security');
-        Route::post('/security',   [\App\Http\Controllers\Admin\SettingController::class, 'updateSecurity'])->name('security.update');
-        Route::post('/security/proxies', [\App\Http\Controllers\Admin\SettingController::class, 'updateProxies'])->name('security.proxies');
-        Route::get('/mail',        [\App\Http\Controllers\Admin\SettingController::class, 'mail'])->name('mail');
-        Route::post('/mail',       [\App\Http\Controllers\Admin\SettingController::class, 'updateMail'])->name('mail.update');
-        Route::post('/mail/test',  [\App\Http\Controllers\Admin\SettingController::class, 'testMail'])->name('mail.test');
-        Route::get('/maintenance', [\App\Http\Controllers\Admin\SettingController::class, 'maintenance'])->name('maintenance');
-        Route::post('/maintenance',[\App\Http\Controllers\Admin\SettingController::class, 'updateMaintenance'])->name('maintenance.update');
-        Route::get('/reservations',[\App\Http\Controllers\Admin\SettingController::class, 'reservations'])->name('reservations');
-        Route::post('/reservations',[\App\Http\Controllers\Admin\SettingController::class, 'updateReservations'])->name('reservations.update');
+    Route::middleware('permission:'.Permission::NAVIGATION)->group(function () {
+        Route::get('/nav', [\App\Http\Controllers\Admin\NavController::class, 'index'])->name('nav.index');
+        Route::get('/nav/create', [\App\Http\Controllers\Admin\NavController::class, 'create'])->name('nav.create');
+        Route::post('/nav', [\App\Http\Controllers\Admin\NavController::class, 'store'])->name('nav.store');
+        Route::post('/nav/reorder', [\App\Http\Controllers\Admin\NavController::class, 'reorder'])->name('nav.reorder');
+        Route::get('/nav/{nav}/edit', [\App\Http\Controllers\Admin\NavController::class, 'edit'])->name('nav.edit');
+        Route::put('/nav/{nav}', [\App\Http\Controllers\Admin\NavController::class, 'update'])->name('nav.update');
+        Route::delete('/nav/{nav}', [\App\Http\Controllers\Admin\NavController::class, 'destroy'])->name('nav.destroy');
     });
 
-    Route::get('/sanctions', [SanctionController::class, 'index'])->name('sanctions.index');
-    Route::post('/users/{user}/sanctions', [SanctionController::class, 'store'])->name('sanctions.store');
-    Route::delete('/sanctions/{sanction}', [SanctionController::class, 'destroy'])->name('sanctions.destroy');
-
-    Route::resource('pages', \App\Http\Controllers\Admin\PageController::class)
-        ->except(['show'])
-        ->names(['index'=>'pages.index','create'=>'pages.create','store'=>'pages.store','edit'=>'pages.edit','update'=>'pages.update','destroy'=>'pages.destroy']);
-
-    Route::get('/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'index'])->name('notifications.index');
-    Route::get('/notifications/create', [\App\Http\Controllers\Admin\NotificationController::class, 'create'])->name('notifications.create');
-    Route::post('/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'store'])->name('notifications.store');
-    Route::delete('/notifications/{notification}', [\App\Http\Controllers\Admin\NotificationController::class, 'destroy'])->name('notifications.destroy');
-
-    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
-    Route::post('/logs/purge', [LogController::class, 'purge'])->name('logs.purge');
-
-    Route::get('/api-tokens', [\App\Http\Controllers\Admin\ApiTokenController::class, 'index'])->name('api-tokens.index');
-    Route::post('/api-tokens', [\App\Http\Controllers\Admin\ApiTokenController::class, 'store'])->name('api-tokens.store');
-    Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Admin\ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
-
-    Route::prefix('update')->name('update.')->group(function () {
-        Route::get('/', [UpdateController::class, 'index'])->name('index');
-        Route::post('/check', [UpdateController::class, 'check'])->name('check');
-        Route::middleware('throttle:10,1')->group(function () {
-            Route::post('/download', [UpdateController::class, 'download'])->name('download');
-            Route::post('/install', [UpdateController::class, 'install'])->name('install');
-            Route::post('/finalize', [UpdateController::class, 'finalize'])->name('finalize');
-            Route::post('/restore', [UpdateController::class, 'restore'])->name('restore');
+    Route::middleware('permission:'.Permission::RESOURCES)->group(function () {
+        Route::resource('resources', \App\Http\Controllers\Admin\ResourceController::class)->names([
+            'index'=>'resources.index','create'=>'resources.create','store'=>'resources.store',
+            'edit'=>'resources.edit','update'=>'resources.update','destroy'=>'resources.destroy','show'=>'resources.show',
+        ]);
+        Route::prefix('resources/{resource}/slots')->name('slots.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\SlotController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\Admin\SlotController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\Admin\SlotController::class, 'store'])->name('store');
+            Route::get('/{slot}/edit', [\App\Http\Controllers\Admin\SlotController::class, 'edit'])->name('edit');
+            Route::put('/{slot}', [\App\Http\Controllers\Admin\SlotController::class, 'update'])->name('update');
+            Route::delete('/{slot}', [\App\Http\Controllers\Admin\SlotController::class, 'destroy'])->name('destroy');
         });
     });
 
-    Route::prefix('backups')->name('backups.')->group(function () {
-        $backupController = \App\Http\Controllers\Admin\BackupController::class;
-        Route::post('/', [$backupController, 'store'])->name('store');
-        Route::put('/schedule', [$backupController, 'updateSchedule'])->name('schedule');
-        // Telechargement et suppression : mot de passe exige, essais limites
-        Route::middleware('throttle:6,1')->group(function () use ($backupController) {
-            Route::post('/{name}/download', [$backupController, 'download'])->name('download');
-            Route::delete('/{name}', [$backupController, 'destroy'])->name('destroy');
+    Route::middleware('permission:'.Permission::USERS)->group(function () {
+        Route::post('/users/bulk', \App\Http\Controllers\Admin\UserBulkController::class)->name('users.bulk');
+        Route::get('/users/export-zip', [\App\Http\Controllers\Admin\UserController::class, 'exportZip'])->name('users.export-zip');
+        Route::get('/users/import', [\App\Http\Controllers\Admin\UserController::class, 'importForm'])->name('users.import');
+        Route::post('/users/import', [\App\Http\Controllers\Admin\UserController::class, 'import'])->name('users.import.store');
+        Route::get('/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
+        Route::get('/users/create', [\App\Http\Controllers\Admin\UserController::class, 'create'])->name('users.create');
+        Route::post('/users', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/edit', [\App\Http\Controllers\Admin\UserController::class, 'edit'])->name('users.edit');
+        Route::put('/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
+        Route::patch('/users/{user}/toggle', [\App\Http\Controllers\Admin\UserController::class, 'toggle'])->name('users.toggle');
+        Route::post('/users/{user}/verify', [\App\Http\Controllers\Admin\UserController::class, 'verifyEmail'])->name('users.verify');
+        Route::post('/users/{user}/mfa-disable', [\App\Http\Controllers\Admin\UserController::class, 'mfaDisable'])->name('users.mfa-disable');
+        Route::delete('/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
+    });
+
+    Route::middleware('permission:'.Permission::RESERVATIONS)->group(function () {
+        Route::get('/reservations', [\App\Http\Controllers\Admin\ReservationController::class, 'index'])->name('reservations.index');
+        Route::delete('/reservations/{reservation}', [\App\Http\Controllers\Admin\ReservationController::class, 'destroy'])->name('reservations.destroy');
+    });
+
+    Route::middleware('permission:'.Permission::APPEARANCE)->group(function () {
+        Route::get('/themes', [\App\Http\Controllers\Admin\ThemeController::class, 'index'])->name('themes.index');
+        Route::put('/themes', [\App\Http\Controllers\Admin\ThemeController::class, 'update'])->name('themes.update');
+    });
+
+    Route::middleware('permission:'.Permission::SANCTIONS)->group(function () {
+        Route::get('/sanctions', [SanctionController::class, 'index'])->name('sanctions.index');
+        Route::post('/users/{user}/sanctions', [SanctionController::class, 'store'])->name('sanctions.store');
+        Route::delete('/sanctions/{sanction}', [SanctionController::class, 'destroy'])->name('sanctions.destroy');
+    });
+
+    Route::middleware('permission:'.Permission::PAGES)->group(function () {
+        Route::resource('pages', \App\Http\Controllers\Admin\PageController::class)
+            ->except(['show'])
+            ->names(['index'=>'pages.index','create'=>'pages.create','store'=>'pages.store','edit'=>'pages.edit','update'=>'pages.update','destroy'=>'pages.destroy']);
+    });
+
+    Route::middleware('permission:'.Permission::NOTIFICATIONS)->group(function () {
+        Route::get('/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/create', [\App\Http\Controllers\Admin\NotificationController::class, 'create'])->name('notifications.create');
+        Route::post('/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'store'])->name('notifications.store');
+        Route::delete('/notifications/{notification}', [\App\Http\Controllers\Admin\NotificationController::class, 'destroy'])->name('notifications.destroy');
+    });
+
+    Route::middleware('permission:'.Permission::LOGS)->group(function () {
+        Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+    });
+
+    Route::middleware('admin')->group(function () {
+        Route::resource('roles', RoleController::class)->names([
+            'index'=>'roles.index','create'=>'roles.create','store'=>'roles.store',
+            'edit'=>'roles.edit','update'=>'roles.update','destroy'=>'roles.destroy','show'=>'roles.show',
+        ])->except(['show']);
+        Route::post('/roles/reorder', [\App\Http\Controllers\Admin\RoleController::class, 'reorder'])->name('roles.reorder');
+        Route::get('/settings', fn() => redirect()->route('admin.settings.general'))->name('settings.index');
+        Route::prefix('settings')->name('settings.')->group(function () {
+            Route::get('/general',     [\App\Http\Controllers\Admin\SettingController::class, 'general'])->name('general');
+            Route::post('/general',    [\App\Http\Controllers\Admin\SettingController::class, 'updateGeneral'])->name('general.update');
+            Route::post('/logo',       [\App\Http\Controllers\Admin\SettingController::class, 'uploadLogo'])->name('logo.upload');
+            Route::delete('/logo',     [\App\Http\Controllers\Admin\SettingController::class, 'deleteLogo'])->name('logo.delete');
+            Route::get('/home',        [\App\Http\Controllers\Admin\SettingController::class, 'home'])->name('home');
+            Route::post('/home',       [\App\Http\Controllers\Admin\SettingController::class, 'updateHome'])->name('home.update');
+            Route::get('/auth',        [\App\Http\Controllers\Admin\SettingController::class, 'auth'])->name('auth');
+            Route::post('/auth',       [\App\Http\Controllers\Admin\SettingController::class, 'updateAuth'])->name('auth.update');
+            Route::get('/security',    [\App\Http\Controllers\Admin\SettingController::class, 'security'])->name('security');
+            Route::post('/security',   [\App\Http\Controllers\Admin\SettingController::class, 'updateSecurity'])->name('security.update');
+            Route::post('/security/proxies', [\App\Http\Controllers\Admin\SettingController::class, 'updateProxies'])->name('security.proxies');
+            Route::get('/mail',        [\App\Http\Controllers\Admin\SettingController::class, 'mail'])->name('mail');
+            Route::post('/mail',       [\App\Http\Controllers\Admin\SettingController::class, 'updateMail'])->name('mail.update');
+            Route::post('/mail/test',  [\App\Http\Controllers\Admin\SettingController::class, 'testMail'])->name('mail.test');
+            Route::get('/maintenance', [\App\Http\Controllers\Admin\SettingController::class, 'maintenance'])->name('maintenance');
+            Route::post('/maintenance',[\App\Http\Controllers\Admin\SettingController::class, 'updateMaintenance'])->name('maintenance.update');
+            Route::get('/reservations',[\App\Http\Controllers\Admin\SettingController::class, 'reservations'])->name('reservations');
+            Route::post('/reservations',[\App\Http\Controllers\Admin\SettingController::class, 'updateReservations'])->name('reservations.update');
+        });
+        Route::post('/logs/purge', [LogController::class, 'purge'])->name('logs.purge');
+        Route::get('/api-tokens', [\App\Http\Controllers\Admin\ApiTokenController::class, 'index'])->name('api-tokens.index');
+        Route::post('/api-tokens', [\App\Http\Controllers\Admin\ApiTokenController::class, 'store'])->name('api-tokens.store');
+        Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Admin\ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
+        Route::prefix('update')->name('update.')->group(function () {
+            Route::get('/', [UpdateController::class, 'index'])->name('index');
+            Route::post('/check', [UpdateController::class, 'check'])->name('check');
+            Route::middleware('throttle:10,1')->group(function () {
+                Route::post('/download', [UpdateController::class, 'download'])->name('download');
+                Route::post('/install', [UpdateController::class, 'install'])->name('install');
+                Route::post('/finalize', [UpdateController::class, 'finalize'])->name('finalize');
+                Route::post('/restore', [UpdateController::class, 'restore'])->name('restore');
+            });
+        });
+        Route::prefix('backups')->name('backups.')->group(function () {
+            $backupController = \App\Http\Controllers\Admin\BackupController::class;
+            Route::post('/', [$backupController, 'store'])->name('store');
+            Route::put('/schedule', [$backupController, 'updateSchedule'])->name('schedule');
+            // Telechargement et suppression : mot de passe exige, essais limites
+            Route::middleware('throttle:6,1')->group(function () use ($backupController) {
+                Route::post('/{name}/download', [$backupController, 'download'])->name('download');
+                Route::delete('/{name}', [$backupController, 'destroy'])->name('destroy');
+            });
         });
     });
 });

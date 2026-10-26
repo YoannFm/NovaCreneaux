@@ -97,7 +97,7 @@ app/
       InstallController       - assistant d'installation
       ProfileController       - profil utilisateur (Breeze)
   Http/Middleware/
-    CheckInstallation, AdminMiddleware
+    CheckInstallation, AdminMiddleware (administrateurs), EnsureStaff (entree de l'admin), RequirePermission (permission:<cle>)
     EnsureUserIsActive       - deconnecte un compte desactive a chaque requete
     EnforceMaintenanceMode   - Parametres > Maintenance : 503 pour tout sauf admins et connexion
     EnforceAdminTwoFactor    - Parametres > Securite : admin sans MFA redirige vers son profil
@@ -111,8 +111,10 @@ app/
     ApiTokenService (jetons d'API), InstallationState (verrou d'installation)
   Support/
     CsvCell                  - neutralise les formules dans les exports CSV
+    Permission, AdminNavigation, ThemeSettings - permissions delegables, menu admin, couleurs du theme
   Models/
     User, Role, Sanction, Reservation, Resource, Slot, Setting
+    Concerns/Loggable        - journal d'activite automatique (ressources, creneaux, roles, pages)
   Mail/
     ReservationConfirmed, ReservationCancelled
 
@@ -158,6 +160,16 @@ Ne pas remettre l'attribut `integrity` sur ce `<script>` sans vérifier d'abord 
 - Deploiement : `composer install --no-dev` (laravel/sanctum) puis `php artisan migrate --force` (table `personal_access_tokens`).
 - Ecriture : `POST /reservations` et `DELETE /reservations/{id}` (droit `reservations:write`, quota 30/min), toujours pour le compte du jeton. Codes de refus : 403 banni, 409 conflit d'etat, 422 regle non respectee (`ApiError::fromReservationFailure`).
 - Administration des jetons : Admin > Integrations API (`Admin\ApiTokenController`), logique commune dans `ApiTokenService`.
+
+## Permissions, menu et journal
+
+- **Permissions par rôle** : `roles.permissions` (JSON) liste des clés de `App\Support\Permission` (ressources, réservations, utilisateurs, sanctions, notifications, pages, navigation, apparence, lecture du journal). Un administrateur (`role.is_admin`) a tout. Un rôle avec au moins une permission entre dans l'administration (`User::hasAdminAccess()`), sans aucune il n'y entre pas. `User::hasPermission($cle)` est la seule question à poser.
+- **Non délégable** : réglages, rôles, mises à jour, sauvegardes, jetons d'API, purge du journal. Ces routes sont sous le middleware `admin` (administrateurs seulement). Raison : celui qui les tient pourrait s'attribuer tous les droits.
+- **Personnel délégué** : ne voit, ne modifie, ne désactive, ne supprime ni ne sanctionne les administrateurs ni les autres membres du personnel, et ne peut attribuer que des rôles sans accès à l'administration (`User::canManage()`, `User::canAssign()`, appliqués par `Admin\UserController`, `UserBulkController` et `SanctionController`).
+- **Routes** (`routes/web.php`) : groupe `auth` + `staff` (`EnsureStaff`), puis un sous-groupe `permission:<cle>` (`RequirePermission`) ou `admin` par section. Un refus renvoie au tableau de bord avec un message.
+- **Menu** : une seule description dans `App\Support\AdminNavigation::definition()` (libellé, icône, route, permission), filtrée selon l'utilisateur et rendue par `layouts/_admin_sidebar`. Pour ajouter une page d'administration : sa route sous le bon middleware, puis son entrée dans le menu avec la même permission. `tests/Feature/Admin/PermissionsTest::test_every_menu_entry_matches_the_access_of_its_route` vérifie l'accord entre les deux pour chaque permission.
+- **Journal d'activité** : le trait `Models\Concerns\Loggable` inscrit création, modification et suppression (ressources, créneaux, rôles, pages). Le modèle déclare `ACTIVITY_NOUN`, `ACTIVITY_FEMININE` et `activityContext()`. Ne pas ajouter d'appel `ActivityLogger::log` pour ces opérations dans les contrôleurs. Les actions qui ne sont pas un simple enregistrement (export, téléchargement, import, action groupée, réglages) restent journalisées à la main. Les suppressions en cascade faites par la base ne sont pas journalisées.
+- **Apparence** : `App\Support\ThemeSettings` décrit les couleurs (libellé, icône, valeur par défaut) ; le formulaire, la validation et les mises en page l'utilisent. Pour ajouter une couleur : l'ajouter dans `ThemeSettings::MODES`, puis l'utiliser avec `ThemeSettings::value('cle')`.
 
 ## Formulaires admin
 

@@ -29,6 +29,10 @@
                     @csrf
                     @method('PUT')
 
+                    @if($errors->any())
+                        <div class="alert alert-danger">Une couleur est invalide : utilisez le format #rrggbb.</div>
+                    @endif
+
                     {{-- Couleur principale (partagee) --}}
                     <div class="row mb-4">
                         <div class="col-md-6">
@@ -39,10 +43,10 @@
                             <div class="d-flex align-items-center gap-3">
                                 <input type="color" name="theme_accent" id="theme_accent"
                                        class="form-control form-control-color"
-                                       value="{{ setting('theme_accent', '#efb703') }}"
+                                       value="{{ old('theme_accent', \App\Support\ThemeSettings::value(\App\Support\ThemeSettings::ACCENT)) }}"
                                        style="width:60px;height:38px;cursor:pointer;">
                                 <input type="text" class="form-control font-monospace" id="theme_accent_hex"
-                                       value="{{ setting('theme_accent', '#efb703') }}"
+                                       value="{{ old('theme_accent', \App\Support\ThemeSettings::value(\App\Support\ThemeSettings::ACCENT)) }}"
                                        placeholder="#efb703" maxlength="7" style="max-width:120px;">
                                 <small class="text-muted">Boutons, liens actifs, surbrillance</small>
                             </div>
@@ -53,38 +57,16 @@
                         {{-- MODE SOMBRE --}}
                         <div class="tab-pane fade show active" id="tab-dark" role="tabpanel">
                             <div class="row g-3">
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_body_bg',
-                                        'label' => 'Fond general',
-                                        'icon'  => 'bi-app',
-                                        'value' => setting('theme_body_bg', '#111113'),
-                                    ])
-                                </div>
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_card_bg',
-                                        'label' => 'Fond des cartes',
-                                        'icon'  => 'bi-card-text',
-                                        'value' => setting('theme_card_bg', '#212227'),
-                                    ])
-                                </div>
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_header_bg',
-                                        'label' => 'Fond topbar',
-                                        'icon'  => 'bi-layout-sidebar-reverse',
-                                        'value' => setting('theme_header_bg', '#1a1b1f'),
-                                    ])
-                                </div>
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_text_color',
-                                        'label' => 'Couleur du texte',
-                                        'icon'  => 'bi-fonts',
-                                        'value' => setting('theme_text_color', '#e2e8f0'),
-                                    ])
-                                </div>
+                                @foreach($dark as $name => $field)
+                                    <div class="col-md-6 col-lg-3">
+                                        @include('admin.themes._color_field', [
+                                            'name'  => $name,
+                                            'label' => $field['label'],
+                                            'icon'  => $field['icon'],
+                                            'value' => old($name, setting($name, $field['default'])),
+                                        ])
+                                    </div>
+                                @endforeach
                             </div>
 
                             <div class="mt-3">
@@ -97,38 +79,16 @@
                         {{-- MODE CLAIR --}}
                         <div class="tab-pane fade" id="tab-light" role="tabpanel">
                             <div class="row g-3">
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_light_body_bg',
-                                        'label' => 'Fond general',
-                                        'icon'  => 'bi-app',
-                                        'value' => setting('theme_light_body_bg', '#f4f5f7'),
-                                    ])
-                                </div>
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_light_card_bg',
-                                        'label' => 'Fond des cartes',
-                                        'icon'  => 'bi-card-text',
-                                        'value' => setting('theme_light_card_bg', '#ffffff'),
-                                    ])
-                                </div>
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_light_header_bg',
-                                        'label' => 'Fond topbar',
-                                        'icon'  => 'bi-layout-sidebar-reverse',
-                                        'value' => setting('theme_light_header_bg', '#ffffff'),
-                                    ])
-                                </div>
-                                <div class="col-md-6 col-lg-3">
-                                    @include('admin.themes._color_field', [
-                                        'name'  => 'theme_light_text_color',
-                                        'label' => 'Couleur du texte',
-                                        'icon'  => 'bi-fonts',
-                                        'value' => setting('theme_light_text_color', '#1a1a2e'),
-                                    ])
-                                </div>
+                                @foreach($light as $name => $field)
+                                    <div class="col-md-6 col-lg-3">
+                                        @include('admin.themes._color_field', [
+                                            'name'  => $name,
+                                            'label' => $field['label'],
+                                            'icon'  => $field['icon'],
+                                            'value' => old($name, setting($name, $field['default'])),
+                                        ])
+                                    </div>
+                                @endforeach
                             </div>
                         </div>
                     </div>
