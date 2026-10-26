@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Backup\BackupOverview;
 use App\Services\Update\UpdateException;
 use App\Services\Update\UpdateManager;
 use Illuminate\Http\JsonResponse;
 
 class UpdateController extends Controller
 {
-    public function __construct(private UpdateManager $updates) {}
+    public function __construct(private UpdateManager $updates, private BackupOverview $backups) {}
 
     public function index()
     {
-        return view('admin.update.index', ['status' => $this->updates->status()]);
+        return view('admin.update.index', ['status' => $this->updates->status(), 'backup' => $this->backups->get()]);
     }
 
     /** Force une nouvelle lecture des releases GitHub. */

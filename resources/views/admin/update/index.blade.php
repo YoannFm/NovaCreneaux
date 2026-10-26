@@ -106,7 +106,7 @@
 
             <div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle me-1"></i>
-                <strong>Avant de continuer :</strong> faites une sauvegarde de la base de données. Les fichiers remplacés sont
+                <strong>Avant de continuer :</strong> faites une sauvegarde de la base de données (section <a href="#sauvegardes">Sauvegardes</a> plus bas). Les fichiers remplacés sont
                 sauvegardés automatiquement, mais pas la base, et les migrations ne sont pas réversibles.
                 Le site passera en maintenance quelques instants pour les visiteurs.
             </div>
@@ -154,4 +154,6 @@
         </p>
     </div>
 </div>
+
+@include('admin.update._backups')
 @endsection

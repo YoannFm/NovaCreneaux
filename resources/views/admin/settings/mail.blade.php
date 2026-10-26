@@ -67,9 +67,7 @@
                     </div>
                     <div class="mb-3 col-md-4">
                         <label class="form-label">Mot de passe</label>
-                        <input type="password" name="mail_smtp_password" class="form-control"
-                               value="{{ old('mail_smtp_password', $s['mail_smtp_password'] ?? '') }}"
-                               autocomplete="new-password">
+                        @include('admin.settings._secret_input', ['name' => 'mail_smtp_password'])
                     </div>
                 </div>
             </div>

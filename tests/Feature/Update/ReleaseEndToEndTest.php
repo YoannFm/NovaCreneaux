@@ -3,6 +3,7 @@
 namespace Tests\Feature\Update;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\Process\Process;
 use Tests\Support\BuildsReleases;
 use Tests\TestCase;
 
@@ -71,5 +72,42 @@ class ReleaseEndToEndTest extends TestCase
         $this->expectException(\RuntimeException::class);
 
         release_build($this->sourceDir, "{$this->workDir}/dist", '2.0.0');
+    }
+
+    public function test_the_release_scripts_run_in_a_plain_php_process_with_the_real_config_file(): void
+    {
+        // Reproduit le workflow : build, sign et verify en PHP seul (sans Laravel), avec les vrais scripts,
+        // le vrai PathPolicy et le vrai config/nova.php (qui utilise env() et storage_path()).
+        $real = require base_path('config/nova.php');
+        $project = "{$this->workDir}/project";
+        foreach (['scripts/release', 'app/Services/Update', 'config'] as $dir) {
+            mkdir("{$project}/{$dir}", 0755, true);
+        }
+        foreach (glob(base_path('scripts/release/*.php')) as $script) {
+            copy($script, "{$project}/scripts/release/" . basename($script));
+        }
+        copy(base_path('app/Services/Update/PathPolicy.php'), "{$project}/app/Services/Update/PathPolicy.php");
+        file_put_contents("{$project}/composer.json", '{"require": {"php": "^8.3"}}');
+        file_put_contents("{$project}/config/nova.php", str_replace($real['update_public_key'], $this->publicKey, file_get_contents(base_path('config/nova.php'))));
+        $zip = "dist/novacreneaux-{$real['version']}.zip";
+
+        $build = $this->runInProject($project, ['scripts/release/build.php', "--version={$real['version']}", '--output=dist']);
+        $unsigned = $this->runInProject($project, ['scripts/release/verify.php', $zip]);
+        $sign = $this->runInProject($project, ['scripts/release/sign.php', $zip], ['UPDATE_SIGNING_KEY' => $this->secretKey]);
+        $verify = $this->runInProject($project, ['scripts/release/verify.php', $zip]);
+
+        $this->assertSame(0, $build->getExitCode(), $build->getErrorOutput() . $build->getOutput());
+        $this->assertNotSame(0, $unsigned->getExitCode(), 'Une archive non signee ne doit pas etre validee.');
+        $this->assertSame(0, $sign->getExitCode(), $sign->getErrorOutput() . $sign->getOutput());
+        $this->assertSame(0, $verify->getExitCode(), $verify->getErrorOutput() . $verify->getOutput());
+        $this->assertStringContainsString('Signature valide', $verify->getOutput());
+    }
+
+    private function runInProject(string $project, array $arguments, array $environment = []): Process
+    {
+        $process = new Process([PHP_BINARY, ...$arguments], $project, $environment);
+        $process->run();
+
+        return $process;
     }
 }

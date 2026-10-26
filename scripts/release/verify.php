@@ -3,8 +3,8 @@
 require __DIR__ . '/lib.php';
 
 $zip = $argv[1] ?? '';
-$config = include __DIR__ . '/../../config/nova.php';
-if (!is_file($zip) || !release_verify($zip, $config['update_public_key'])) {
+$publicKey = release_config_string(realpath(__DIR__ . '/../..'), 'update_public_key');
+if (!is_file($zip) || !release_verify($zip, $publicKey)) {
     fwrite(STDERR, "Signature invalide : la cle secrete ne correspond pas a la cle publique de config/nova.php.\n");
     exit(1);
 }

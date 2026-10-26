@@ -29,12 +29,29 @@ function release_files(string $root): array
     return $files;
 }
 
+/**
+ * Valeur texte d'une cle de config/nova.php. Le fichier est lu, jamais execute : il utilise les fonctions
+ * de Laravel (env, storage_path) qui n'existent pas dans ces scripts.
+ */
+function release_config_string(string $root, string $key): string
+{
+    $source = (string) file_get_contents("{$root}/config/nova.php");
+    if (!preg_match("/'" . preg_quote($key, '/') . "'\\s*=>\\s*'([^']*)'/", $source, $match)) {
+        throw new RuntimeException("Cle '{$key}' introuvable dans {$root}/config/nova.php");
+    }
+
+    return $match[1];
+}
+
 /** Version declaree dans config/nova.php. */
 function release_declared_version(string $root): string
 {
-    $config = include "{$root}/config/nova.php";
+    $version = release_config_string($root, 'version');
+    if (!preg_match('/^\\d+\\.\\d+\\.\\d+$/', $version)) {
+        throw new RuntimeException("Version invalide dans config/nova.php : {$version}");
+    }
 
-    return $config['version'];
+    return $version;
 }
 
 /** Version minimale de PHP, d'apres composer.json (ex. "^8.3" donne "8.3.0"). */

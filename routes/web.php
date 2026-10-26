@@ -188,6 +188,17 @@ Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(func
             Route::post('/restore', [UpdateController::class, 'restore'])->name('restore');
         });
     });
+
+    Route::prefix('backups')->name('backups.')->group(function () {
+        $backupController = \App\Http\Controllers\Admin\BackupController::class;
+        Route::post('/', [$backupController, 'store'])->name('store');
+        Route::put('/schedule', [$backupController, 'updateSchedule'])->name('schedule');
+        // Telechargement et suppression : mot de passe exige, essais limites
+        Route::middleware('throttle:6,1')->group(function () use ($backupController) {
+            Route::post('/{name}/download', [$backupController, 'download'])->name('download');
+            Route::delete('/{name}', [$backupController, 'destroy'])->name('destroy');
+        });
+    });
 });
 
 require __DIR__.'/auth.php';

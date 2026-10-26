@@ -79,9 +79,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Token d'accès (optionnel)</label>
-                        <input type="password" name="sms_ntfy_token" class="form-control"
-                               value="{{ old('sms_ntfy_token', $s['sms_ntfy_token'] ?? '') }}"
-                               placeholder="tk_xxxxxxxx">
+                        @include('admin.settings._secret_input', ['name' => 'sms_ntfy_token', 'placeholder' => 'tk_xxxxxxxx'])
                         <div class="form-text">Uniquement si ACL activée.</div>
                     </div>
                 </div>
@@ -111,9 +109,7 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Mot de passe</label>
-                        <input type="password" name="sms_android_pass" class="form-control"
-                               value="{{ old('sms_android_pass', $s['sms_android_pass'] ?? '') }}"
-                               placeholder="••••••">
+                        @include('admin.settings._secret_input', ['name' => 'sms_android_pass', 'placeholder' => '••••••'])
                     </div>
                 </div>
             </div>
@@ -129,9 +125,7 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Clé API Free Mobile</label>
-                        <input type="password" name="sms_free_mobile_key" class="form-control"
-                               value="{{ old('sms_free_mobile_key', $s['sms_free_mobile_key'] ?? '') }}"
-                               placeholder="••••••••••••••••">
+                        @include('admin.settings._secret_input', ['name' => 'sms_free_mobile_key', 'placeholder' => '••••••••••••••••'])
                         <div class="form-text">Mon Compte → Mes Options → Notifications par SMS → Clé d'identification.</div>
                     </div>
                 </div>

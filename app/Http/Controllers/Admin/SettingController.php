@@ -10,6 +10,7 @@ use App\Services\ActivityLogger;
 use App\Services\SettingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 
 class SettingController extends Controller
 {
@@ -120,6 +121,7 @@ class SettingController extends Controller
     {
         return view('admin.settings.security', [
             's' => $this->settings->all(),
+            'secrets' => $this->settings->secretsStatus(),
             'proxy' => $this->proxyDiagnostic($request),
         ]);
     }
@@ -177,14 +179,36 @@ class SettingController extends Controller
                 'sms_webhook_url'      => 'nullable|url|max:500',
                 'sms_webhook_method'   => 'nullable|in:GET,POST',
                 'sms_webhook_body'     => 'nullable|string|max:500',
+                'clear_secrets'        => 'nullable|array',
+                'clear_secrets.*'      => Rule::in(SettingService::SECRET_KEYS),
             ]);
-            foreach ($data as $key => $value) {
-                $this->settings->set($key, $value ?? '');
-            }
+            $this->storeSettings($data);
         }
 
         ActivityLogger::log('Paramètres modifiés', 'Sécurité');
         return back()->with('success', 'Paramètres de sécurité enregistrés.');
+    }
+
+    /**
+     * Enregistre les reglages valides. Un secret laisse vide est conserve ; il n'est efface que s'il est coche dans clear_secrets.
+     */
+    private function storeSettings(array $data): void
+    {
+        $clear = $data['clear_secrets'] ?? [];
+        unset($data['clear_secrets']);
+
+        foreach ($data as $key => $value) {
+            if (SettingService::isSecret($key)) {
+                if (in_array($key, $clear, true)) {
+                    $this->settings->set($key, '');
+                    continue;
+                }
+                if ($value === null || $value === '') {
+                    continue;
+                }
+            }
+            $this->settings->set($key, $value ?? '');
+        }
     }
 
     // ---------------------------------------------------------------
@@ -192,7 +216,7 @@ class SettingController extends Controller
     // ---------------------------------------------------------------
     public function mail()
     {
-        return view('admin.settings.mail', ['s' => $this->settings->all()]);
+        return view('admin.settings.mail', ['s' => $this->settings->all(), 'secrets' => $this->settings->secretsStatus()]);
     }
 
     public function updateMail(Request $request)
@@ -205,8 +229,10 @@ class SettingController extends Controller
             'mail_smtp_encryption' => 'nullable|in:tls,ssl,starttls',
             'mail_smtp_username'   => 'nullable|string|max:255',
             'mail_smtp_password'   => 'nullable|string|max:255',
+            'clear_secrets'        => 'nullable|array',
+            'clear_secrets.*'      => Rule::in(SettingService::SECRET_KEYS),
         ]);
-        foreach ($data as $key => $value) $this->settings->set($key, $value ?? '');
+        $this->storeSettings($data);
         ActivityLogger::log('Paramètres modifiés', 'E-mail');
         return back()->with('success', 'Paramètres e-mail enregistrés.');
     }

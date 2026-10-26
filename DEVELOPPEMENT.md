@@ -91,6 +91,7 @@ app/
         ReservationController - liste + suppression réservations admin
         SettingController     - paramètres système
         LogController         - logs Laravel + effacement
+        BackupController      - sauvegardes de la base (section de la page Mise à jour)
         UpdateController      - mise à jour par archive signée (GitHub Releases)
       ReservationController   - interface élève (index, store, destroy, my)
       InstallController       - assistant d'installation
@@ -104,6 +105,7 @@ app/
   Rules/
     AllowedEmailDomain       - domaines e-mail autorises (inscription et changement d'e-mail du profil)
   Services/Update/           - PathPolicy, SignatureVerifier, ReleaseClient, FileInstaller, UpdateManager
+  Services/Backup/           - DatabaseDumper, BackupManager, BackupSchedule, BackupSettings, AutomaticBackup, BackupOverview
   Services/
     ReservationService (transaction + verrou sur le creneau, codes d'erreur), AvailabilityService (places libres),
     ApiTokenService (jetons d'API), InstallationState (verrou d'installation)
@@ -181,6 +183,23 @@ Principe : Admin > Mise à jour lit la dernière release GitHub (`config('nova.r
 5. Les fichiers supprimés depuis la version précédente sont listés dans `release.json` (`deleted`) et retirés à l'installation.
 
 Tests : `tests/Unit/PathPolicyTest`, `SignatureVerifierTest`, `tests/Feature/Update/*` (dont `ReleaseEndToEndTest`, qui enchaîne scripts de publication puis installation). Utiliser `new UpdateManager(...)` dans les tests plutôt que `make()` si le conteneur est lié à ce type.
+
+## Sauvegardes de la base
+
+- Section "Sauvegardes de la base de données" de Admin > Mise à jour (`Admin\BackupController`, partial `admin/update/_backups`). Export SQL compressé (`.sql.gz`) fait en PHP avec PDO (`DatabaseDumper`, pilotes MySQL, MariaDB et SQLite), sans `mysqldump`. Les tables `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches` et `failed_jobs` sont exportées sans leurs lignes. Un fichier n'est gardé que s'il se termine par le marqueur de fin (`DatabaseDumper::isComplete`).
+- Fichiers dans `storage/app/database-backups` (`config('nova.backups.directory')`), mode 0600, jamais servis publiquement. Le nom porte les métadonnées : `nova-AAAAMMJJ-HHMMSS-(auto|manual)-<16 hex>.sql.gz`. `BackupManager::path()` n'accepte que ce format : aucun chemin ni nom approximatif n'est résolu.
+- **Planification** (réglages `backup_enabled`, `backup_frequency` daily|weekly|monthly, `backup_time`, `backup_weekday`, `backup_keep`) : par défaut tous les jours à 03:00, 7 sauvegardes automatiques conservées (les manuelles ne sont jamais purgées). `BackupSchedule` calcule les échéances, `AutomaticBackup::isDue()` décide : une échéance est tentée une fois, puis reprise toutes les heures après un échec. État : `backup_last_attempt_at`, `backup_last_success_at`, `backup_last_error`.
+- **Déclenchement** : avec le cron du serveur (`* * * * * cd /home/rascol-cdi/htdocs && php8.5 artisan schedule:run >> /dev/null 2>&1`), la commande `backup:run-due` part chaque minute et la sauvegarde a lieu à l'heure choisie. Sans cron, le middleware `RunDueBackupOnRequest` la lance après l'envoi de la réponse, à la première visite après l'heure prévue (`NOVA_BACKUPS_ON_REQUEST=false` le désactive ; les tests le désactivent dans `phpunit.xml`).
+- **Sécurité** : télécharger ou supprimer exige le mot de passe de l'administrateur connecté (POST, 6 essais par minute), les refus et les actions sont dans le journal d'activité. Une sauvegarde contient toutes les données du site (comptes, adresses e-mail, empreintes de mots de passe) : ne la déposer que dans un endroit sûr. Les secrets des réglages y restent chiffrés avec `APP_KEY`, qui n'est pas dans la sauvegarde : conserver aussi une copie du `.env`.
+- **Restauration** (pas d'interface, volontairement) : le fichier contient `DROP TABLE` puis `CREATE TABLE` et `INSERT` de chaque table. `gunzip -c nova-....sql.gz | mysql -u UTILISATEUR -p NOM_DE_LA_BASE` remet la base dans l'état de la sauvegarde. À essayer d'abord sur une base de test.
+
+## Secrets des réglages
+
+- Quatre réglages sont chiffrés en base avec `APP_KEY` : `mail_smtp_password`, `sms_ntfy_token`, `sms_android_pass`, `sms_free_mobile_key` (liste : `SettingService::SECRET_KEYS`). Pour en ajouter un, l'ajouter à cette liste et à la migration de chiffrement correspondante.
+- Le chiffrement est transparent : `setting('cle')` et `SettingService::get()` renvoient la valeur en clair, `set()` chiffre. Une valeur chiffrée commence par `enc:v1:` ; une valeur en clair d'avant le chiffrement reste lisible jusqu'à la migration `encrypt_secret_settings`.
+- Le cache garde la valeur chiffrée, jamais la valeur en clair. `SettingService::all()` n'inclut pas les secrets (les formulaires ne les reçoivent pas) ; `secretsStatus()` dit seulement s'ils sont renseignés.
+- Formulaires : un secret n'est jamais réaffiché. Champ vide = valeur conservée ; la case `clear_secrets[]` l'efface (partial `admin/settings/_secret_input`). Enregistrement via `SettingController::storeSettings()`.
+- **`APP_KEY` ne doit jamais changer** (la sauvegarder avec le `.env`) : avec une autre clé, les secrets deviennent illisibles, `get()` renvoie la valeur par défaut demandée (donc "non renseigné") et un avertissement est écrit dans les logs. L'administrateur doit alors les ressaisir.
 
 ## Proxys de confiance
 
