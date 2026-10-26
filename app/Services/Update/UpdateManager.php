@@ -21,9 +21,9 @@ class UpdateManager {
         private SignatureVerifier $signature,
         private FileInstaller $installer,
         private SettingService $settings,
+        private BackupManager $databaseBackups,
         private ?string $basePath = null,
         private ?string $storagePath = null,
-        private ?BackupManager $databaseBackups = null,
     ) {
         $this->basePath ??= base_path();
         $this->storagePath ??= storage_path('app');
@@ -273,10 +273,6 @@ class UpdateManager {
 
     /** Sauvegarde de la base juste avant de toucher aux fichiers. Un echec arrete l'installation : mieux vaut ne rien changer. */
     private function backupDatabase(): void {
-        if ($this->databaseBackups === null) {
-            return;
-        }
-
         try {
             $backup = $this->databaseBackups->create(BackupManager::BEFORE_UPDATE);
         } catch (BackupException $e) {

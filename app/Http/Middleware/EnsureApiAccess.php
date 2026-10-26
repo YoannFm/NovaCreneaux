@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\ApiError;
+use App\Services\ApiAccessLog;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -12,6 +13,8 @@ class EnsureApiAccess
     public function handle(Request $request, Closure $next)
     {
         if (! $request->user()?->canUseApi()) {
+            ApiAccessLog::denied('api_access_denied', $request);
+
             return ApiError::response('api_access_denied', "Le rôle de ce compte n'a pas accès à l'API.", 403);
         }
 

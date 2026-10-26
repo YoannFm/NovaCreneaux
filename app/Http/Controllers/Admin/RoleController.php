@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Services\ActivityLogger;
 use App\Support\Permission;
 use Illuminate\Http\Request;
 
@@ -93,6 +94,9 @@ class RoleController extends Controller
         }
         $update['permissions'] = $this->permissions($request, $update['is_admin'] ?? $role->is_admin);
         $role->update($update);
+        if ($role->wasChanged('api_access')) {
+            ActivityLogger::log("Accès à l'API modifié", "Rôle {$role->label} : " . ($role->api_access ? 'autorisé' : 'refusé'));
+        }
 
         return redirect()->route('admin.roles.index')->with('success', "Rôle \"{$role->label}\" mis à jour.");
     }

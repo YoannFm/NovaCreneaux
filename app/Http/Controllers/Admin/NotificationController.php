@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Helpers\LogHelper;
+use App\Services\ActivityLogger;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserNotification;
@@ -57,7 +57,7 @@ class NotificationController extends Controller
 
         $count = $recipients->count();
 
-        LogHelper::log('sent_system_notification', 'notification', null, ['target' => $data['target'], 'count' => $count]);
+        ActivityLogger::log('Notification envoyée', "« {$data['title']} » : {$count} destinataire(s)");
 
         return redirect()->route('admin.notifications.index')
             ->with('success', "Notification envoyee a {$count} utilisateur(s).");
@@ -65,7 +65,7 @@ class NotificationController extends Controller
 
     public function destroy(UserNotification $notification)
     {
-        LogHelper::log('deleted_system_notification', 'notification', $notification->id, [], 'warning');
+        ActivityLogger::log('Notification supprimée', "« {$notification->title} »");
         $notification->delete();
         return back()->with('success', 'Notification supprimee.');
     }

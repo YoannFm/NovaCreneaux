@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\ApiError;
+use App\Services\ApiAccessLog;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,8 @@ class EnsureUserIsActive
 
         if ($user && !$user->is_active) {
             if ($request->is('api/*')) {
+                ApiAccessLog::denied('account_disabled', $request);
+
                 return ApiError::response('account_disabled', 'Ce compte est désactivé.', 403);
             }
 

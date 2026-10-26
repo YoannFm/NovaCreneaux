@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Webhook;
+use App\Services\ActivityLogger;
 use App\Services\Webhook\UrlGuard;
 use App\Services\Webhook\WebhookDispatcher;
 use App\Services\Webhook\WebhookException;
@@ -74,6 +75,7 @@ class WebhookController extends Controller
         $delivery = $dispatcher->enqueue($webhook, WebhookEvent::PING, ['message' => 'Test envoyé depuis ' . setting('app_name', 'NovaCreneaux')]);
         $sender->send($delivery, retry: false);
         $delivery->refresh();
+        ActivityLogger::log('Webhook testé', "{$webhook->name} : " . ($delivery->status === 'success' ? "réponse {$delivery->response_code}" : 'échec, ' . ($delivery->error ?? 'pas de réponse')));
 
         return $delivery->status === 'success'
             ? back()->with('success', "Test réussi : le destinataire a répondu {$delivery->response_code}.")
@@ -83,7 +85,9 @@ class WebhookController extends Controller
     public function regenerateSecret(Webhook $webhook): RedirectResponse
     {
         $secret = $this->newSecret();
-        $webhook->update(['secret' => $secret]);
+        $webhook->secret = $secret;
+        $webhook->saveQuietly();
+        ActivityLogger::log('Secret de webhook régénéré', $webhook->name);
 
         return back()->with('new_secret', $secret)->with('success', "Nouveau secret généré : l'ancien ne signe plus rien, mettez à jour le destinataire.");
     }

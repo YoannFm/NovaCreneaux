@@ -1,7 +1,6 @@
 <?php
 namespace App\Http\Controllers\Admin;
 
-use App\Helpers\LogHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Page;
 use App\Models\Role;
@@ -38,7 +37,6 @@ class PageController extends Controller
         $page = Page::create($data);
         $page->roles()->sync($request->input('roles', []));
 
-        LogHelper::log('created_page', 'page', $page->id, ['title' => $page->title]);
         return redirect()->route('admin.pages.index')->with('success', 'Page creee.');
     }
 
@@ -65,13 +63,11 @@ class PageController extends Controller
         $page->update($data);
         $page->roles()->sync($request->input('roles', []));
 
-        LogHelper::log('updated_page', 'page', $page->id, ['title' => $page->title]);
         return redirect()->route('admin.pages.index')->with('success', 'Page mise a jour.');
     }
 
     public function destroy(Page $page)
     {
-        LogHelper::log('deleted_page', 'page', $page->id, ['title' => $page->title]);
         $page->delete();
         return redirect()->route('admin.pages.index')->with('success', 'Page supprimee.');
     }

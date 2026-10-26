@@ -44,6 +44,7 @@ class WebhookSender
             // Adresse devenue interdite (le DNS a change) : inutile de reessayer
             $this->finish($delivery, WebhookDelivery::FAILED, null, $e->getMessage(), 0);
             $this->recordOutcome($hook, false);
+            $this->logAbandoned($hook, $delivery, $retry);
 
             return;
         }
@@ -98,6 +99,7 @@ class WebhookSender
         if (! $retry || $attempts >= self::MAX_ATTEMPTS) {
             $this->finish($delivery, WebhookDelivery::FAILED, $status, $error, $ms);
             $this->recordOutcome($hook, false);
+            $this->logAbandoned($hook, $delivery, $retry);
 
             return;
         }
@@ -106,6 +108,14 @@ class WebhookSender
             'attempts' => $attempts, 'response_code' => $status, 'error' => $error, 'duration_ms' => $ms,
             'next_attempt_at' => now()->addMinutes(self::BACKOFF_MINUTES[$attempts - 1]),
         ])->save();
+    }
+
+    /** Un envoi abandonne apres tous ses essais est visible dans Admin > Activite. Le bouton de test a son propre journal. */
+    private function logAbandoned(Webhook $hook, WebhookDelivery $delivery, bool $retry): void
+    {
+        if ($retry) {
+            ActivityLogger::log('Webhook : envoi abandonné', "{$hook->name} : {$delivery->event}, {$delivery->error}");
+        }
     }
 
     private function finish(WebhookDelivery $delivery, string $status, ?int $code, ?string $error, int $ms): void

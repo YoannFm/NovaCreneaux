@@ -60,9 +60,9 @@ trait BuildsReleases
             $this->app->make(SignatureVerifier::class),
             $this->app->make(FileInstaller::class),
             $this->app->make(SettingService::class),
+            $databaseBackups ?? $this->databaseBackups(),
             $this->siteDir,
             $this->storageDir,
-            $databaseBackups ?? $this->databaseBackups(),
         );
     }
 

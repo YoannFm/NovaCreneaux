@@ -136,4 +136,13 @@ class UpdateDatabaseBackupTest extends TestCase
 
         $this->actingAs($this->admin())->get(route('admin.update.index'))->assertSee('Avant mise à jour');
     }
+
+    /** Les autres tests construisent le gestionnaire a la main : celui-ci verifie le cablage reel du conteneur. */
+    public function test_the_real_container_wires_the_database_backups_into_the_update_manager(): void
+    {
+        $updates = $this->app->make(UpdateManager::class);
+
+        $property = new \ReflectionProperty($updates, 'databaseBackups');
+        $this->assertInstanceOf(BackupManager::class, $property->getValue($updates));
+    }
 }

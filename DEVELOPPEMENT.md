@@ -190,6 +190,17 @@ Ne pas remettre l'attribut `integrity` sur ce `<script>` sans vérifier d'abord 
 - **Securite (SSRF)** : `Services\Webhook\UrlGuard` exige https, refuse identifiants dans l'adresse et toute adresse qui resout vers le reseau interne (prive, boucle locale, lien local et metadonnees du cloud, CGNAT, IPv6 locale, IPv4 mappee). Le controle a lieu a l'enregistrement ET a chaque envoi, et la connexion est epinglee sur l'IP controlee (`CURLOPT_RESOLVE`) : pas de seconde resolution DNS. Pas de redirection suivie, delai de 3 s de connexion et 7 s au total. `NOVA_WEBHOOKS_ALLOW_PRIVATE=true` (`nova.webhooks.allow_private_targets`) leve ces interdits (http accepte) pour un service interne de confiance.
 - Pour ajouter un evenement : constante et libelle dans `WebhookEvent`, appel de `WebhookDispatcher::dispatch()` au bon endroit avec une charge utile construite par `WebhookPayload`.
 
+## Journal d'activite : API et webhooks
+
+Tout ce qui touche l'API et les webhooks est dans Admin > Activite (filtrable par action) :
+- **API** : `Jeton API créé` et `Jeton API révoqué` (par l'administrateur ou par l'élève depuis son profil), `API activée` et `API désactivée`, `Accès à l'API modifié` (réglage d'un rôle), `Réservation créée (API)` et `Réservation annulée (API)` (au nom du propriétaire du jeton), et `Requête API refusée` pour une cause de politique : `api_disabled`, `api_access_denied`, `account_disabled`, `unauthenticated` (jeton inconnu ou expiré). Cette dernière passe par `Services\ApiAccessLog::denied()` : une meme cause pour un meme jeton (ou une meme IP) n'est inscrite qu'une fois toutes les 10 minutes, et le jeton n'est jamais ecrit, seulement son numero. Les lectures normales et les refus 429 ne sont pas journalises.
+- **Webhooks** : `Webhook créé`, `modifié` et `supprimé` (trait `Loggable`), `Webhook testé` (resultat du bouton de test), `Secret de webhook régénéré`, `Webhook : envoi abandonné` (apres tous les essais, un seul par envoi), `Webhook désactivé après des échecs répétés`. Les envois reussis et les nouveaux essais ne sont que dans l'historique du webhook.
+
+## Garde-fous contre les oublis
+
+- `tests/Unit/AppImportsTest` : chaque `use App\...` de `app/` doit designer un fichier existant. Une classe importee mais absente (`App\Helpers\LogHelper`) faisait planter en 500, apres l'enregistrement, la creation de pages et l'envoi de notifications.
+- Le conteneur de Laravel ne cable pas un parametre de constructeur de type classe qui a une valeur par defaut `null` : il recoit `null` sans erreur. Ne pas ecrire `private ?Service $x = null` pour une dependance voulue (sauvegarde de la base avant mise a jour, silencieusement ignoree pendant une version). Dependance obligatoire, sans valeur par defaut. Tester le cablage reel avec `app(Classe::class)` et non avec un objet monte a la main (`UpdateDatabaseBackupTest::test_the_real_container_wires...`).
+
 ## Formulaires admin
 
 - **Jamais de `<form>` dans un `<form>`** : le navigateur ignore le second et fusionne ses champs (`_method=DELETE` ecrasait `_method=PUT` et supprimait l'element en modifiant). Pour un bouton de suppression a cote d'un bouton Sauvegarder : `<button type="submit" form="delete-xxx">` dans le formulaire de modification, et le `<form id="delete-xxx">` apres lui. `tests/Feature/Admin/UserAdminFormsTest` verifie l'absence d'imbrication sur les pages admin.

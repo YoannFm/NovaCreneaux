@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\ApiError;
+use App\Services\ApiAccessLog;
 use App\Services\ApiTokenService;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ class EnsureApiEnabled
     public function handle(Request $request, Closure $next)
     {
         if (! ApiTokenService::enabled()) {
+            ApiAccessLog::denied('api_disabled', $request);
+
             return ApiError::response('api_disabled', "L'API est désactivée par un administrateur.", 503);
         }
 

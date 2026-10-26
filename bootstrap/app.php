@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\ApiError;
+use App\Services\ApiAccessLog;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -46,7 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Laravel a deja converti les exceptions d'autorisation et de modele introuvable en erreurs HTTP
             return match (true) {
                 $e instanceof ValidationException => ApiError::response('validation_failed', 'Les données envoyées sont invalides.', 422, $e->errors()),
-                $e instanceof AuthenticationException => ApiError::response('unauthenticated', 'Jeton manquant, invalide ou expiré.', 401),
+                $e instanceof AuthenticationException => tap(ApiError::response('unauthenticated', 'Jeton manquant, invalide ou expiré.', 401), fn () => ApiAccessLog::denied('unauthenticated', $request)),
                 $e instanceof HttpExceptionInterface => ApiError::fromHttpException($e),
                 config('app.debug') => null,
                 default => ApiError::response('server_error', 'Erreur interne du serveur.', 500),
