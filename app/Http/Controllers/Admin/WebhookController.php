@@ -11,6 +11,7 @@ use App\Services\Webhook\WebhookSender;
 use App\Support\WebhookEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /** Administration des webhooks (reservee aux administrateurs : une adresse choisie ici recoit des donnees du site). */
 class WebhookController extends Controller
@@ -100,9 +101,15 @@ class WebhookController extends Controller
             }],
             'events' => ['required', 'array', 'min:1'],
             'events.*' => ['string', 'in:' . implode(',', array_keys(WebhookEvent::all()))],
+            'format' => ['sometimes', 'in:' . Webhook::FORMAT_JSON . ',' . Webhook::FORMAT_DISCORD],
         ]);
+        $data['format'] ??= Webhook::FORMAT_JSON;
+        if ($data['format'] === Webhook::FORMAT_DISCORD && ! preg_match('/^(?:[a-z0-9-]+\.)?discord(?:app)?\.com$/', strtolower((string) parse_url($data['url'], PHP_URL_HOST)))) {
+            throw ValidationException::withMessages(['url' => "Avec le format Discord, l'adresse doit être un webhook Discord (discord.com)."]);
+        }
         $data['events'] = WebhookEvent::only($data['events']);
         $data['is_active'] = $request->boolean('is_active');
+        $data['show_names'] = $data['format'] === Webhook::FORMAT_DISCORD && $request->boolean('show_names');
 
         return $data;
     }

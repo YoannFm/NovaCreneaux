@@ -13,19 +13,28 @@ class Webhook extends Model
     protected const ACTIVITY_NOUN = 'Webhook';
     protected const ACTIVITY_FEMININE = false;
 
-    protected $fillable = ['name', 'url', 'secret', 'events', 'is_active'];
+    public const FORMAT_JSON = 'json';
+    public const FORMAT_DISCORD = 'discord';
+
+    protected $fillable = ['name', 'url', 'secret', 'events', 'format', 'show_names', 'is_active'];
     protected $hidden = ['secret'];
 
     protected $casts = [
         'secret' => 'encrypted',
         'events' => 'array',
         'is_active' => 'boolean',
+        'show_names' => 'boolean',
         'last_delivery_at' => 'datetime',
     ];
 
     public function deliveries()
     {
         return $this->hasMany(WebhookDelivery::class)->latest('id');
+    }
+
+    public function isDiscord(): bool
+    {
+        return $this->format === self::FORMAT_DISCORD;
     }
 
     public function subscribesTo(string $event): bool

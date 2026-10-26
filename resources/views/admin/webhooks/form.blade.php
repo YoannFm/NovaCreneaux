@@ -36,6 +36,21 @@
                     @error('url')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     <div class="form-text">En https. Les adresses qui visent le réseau interne du serveur sont refusées.</div>
                 </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="format">Format des envois</label>
+                    <select id="format" name="format" class="form-select @error('format') is-invalid @enderror">
+                        <option value="json" @selected(old('format', $webhook->format ?? 'json') === 'json')>Standard (JSON signé)</option>
+                        <option value="discord" @selected(old('format', $webhook->format ?? 'json') === 'discord')>Discord (message dans un salon)</option>
+                    </select>
+                    @error('format')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-md-7" id="discord-options">
+                    <div class="form-check form-switch mt-md-4">
+                        <input type="checkbox" class="form-check-input" id="show_names" name="show_names" value="1" @checked(old('show_names', $webhook->show_names))>
+                        <label class="form-check-label" for="show_names">Afficher le nom et la classe des élèves dans Discord</label>
+                    </div>
+                    <div class="form-text">Désactivé par défaut : Discord est un service tiers, les messages disent « un élève ». Le secret n'est pas utilisé avec Discord.</div>
+                </div>
                 <div class="col-12">
                     <label class="form-label">Événements</label>
                     @php $selected = old('events', $webhook->events ?? []); @endphp
@@ -120,6 +135,7 @@
     </div>
 </div>
 
+@if(! $webhook->isDiscord())
 <div class="card">
     <div class="card-header">Côté destinataire</div>
     <div class="card-body small">
@@ -139,6 +155,19 @@ $valid = hash_equals($expected, $_SERVER['HTTP_X_NOVA_SIGNATURE'])
             Après 10 échecs définitifs consécutifs, le webhook est désactivé. Les données envoyées ne contiennent ni adresse e-mail ni mot de passe.</p>
     </div>
 </div>
+@endif
 @endunless
+
+@push('footer-scripts')
+<script>
+(function () {
+    var format = document.getElementById('format');
+    var options = document.getElementById('discord-options');
+    function sync() { options.style.display = format.value === 'discord' ? '' : 'none'; }
+    format.addEventListener('change', sync);
+    sync();
+})();
+</script>
+@endpush
 
 @endsection

@@ -2,7 +2,7 @@
 
 return [
     // Version installee. A modifier uniquement au moment d'une release (voir DEVELOPPEMENT.md, "Publier une version").
-    'version' => '1.3.0',
+    'version' => '1.4.0',
 
     // Depot GitHub dont les releases servent de source aux mises a jour (Admin > Mise a jour).
     'repo' => 'YoannFm/NovaCreneaux',

@@ -60,6 +60,7 @@ class WebhookSender
     private function post(Webhook $hook, WebhookDelivery $delivery, array $target)
     {
         $timestamp = time();
+        $body = $this->body($hook, $delivery);
         $resolve = $target['host'] . ':' . $target['port'] . ':' . (str_contains($target['ip'], ':') ? "[{$target['ip']}]" : $target['ip']);
 
         return Http::withOptions(['allow_redirects' => false, 'curl' => [CURLOPT_RESOLVE => [$resolve]]])
@@ -69,10 +70,20 @@ class WebhookSender
                 'X-Nova-Event' => $delivery->event,
                 'X-Nova-Delivery' => $delivery->uuid,
                 'X-Nova-Timestamp' => (string) $timestamp,
-                'X-Nova-Signature' => self::signature($hook->secret, $timestamp, $delivery->payload),
+                'X-Nova-Signature' => self::signature($hook->secret, $timestamp, $body),
             ])
-            ->withBody($delivery->payload, 'application/json')
+            ->withBody($body, 'application/json')
             ->post($hook->url);
+    }
+
+    /** Corps tel qu'envoye : la charge utile standard, ou le message Discord construit a partir d'elle. */
+    private function body(Webhook $hook, WebhookDelivery $delivery): string
+    {
+        if (! $hook->isDiscord()) {
+            return $delivery->payload;
+        }
+
+        return json_encode(DiscordMessage::build(json_decode($delivery->payload, true), $hook->show_names, setting('app_name', 'NovaCreneaux')), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private function succeed(WebhookDelivery $delivery, Webhook $hook, int $status, int $ms): void
