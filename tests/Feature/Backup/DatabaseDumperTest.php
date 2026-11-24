@@ -106,7 +106,7 @@ class DatabaseDumperTest extends TestCase
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('getDriverName')->willReturn('pgsql');
-        DB::shouldReceive('connection')->andReturn($connection);
+        DB::partialMock()->shouldReceive('connection')->andReturn($connection);
 
         $this->expectException(BackupException::class);
         $this->expectExceptionMessage('pgsql');

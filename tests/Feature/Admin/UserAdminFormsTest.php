@@ -133,6 +133,21 @@ class UserAdminFormsTest extends TestCase
             ->assertSee('Réinitialiser MDP')->assertSee('Exporter CSV')->assertSee('sélectionné(s)');
     }
 
+    public function test_the_list_shows_the_user_count_without_an_id_column(): void
+    {
+        $admin = $this->admin();
+        $this->student(['name' => 'Eleve Compte']);
+
+        $this->actingAs($admin)->get(route('admin.users.index'))->assertOk()
+            ->assertSee('<strong>' . User::count() . '</strong> utilisateurs', false)
+            ->assertDontSee('trouvé')
+            ->assertDontSee('<th scope="col">#</th>', false);
+
+        $this->get(route('admin.users.index', ['search' => 'Eleve Compte']))->assertOk()
+            ->assertSeeInOrder(['<strong>1</strong> utilisateur', 'trouvé'], false)
+            ->assertDontSee('utilisateurs');
+    }
+
     public function test_only_administrators_can_use_bulk_actions(): void
     {
         $victim = $this->student();

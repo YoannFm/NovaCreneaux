@@ -82,7 +82,7 @@ class InstallationLockTest extends TestCase
     public function test_the_environment_flag_keeps_the_site_installed_without_lock_and_without_asking_the_database(): void
     {
         config(['app.installed' => true]);
-        DB::shouldReceive('table')->never();
+        DB::partialMock()->shouldReceive('table')->never();
 
         $this->assertTrue(app(InstallationState::class)->isInstalled());
     }

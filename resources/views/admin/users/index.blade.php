@@ -14,6 +14,13 @@
             </button>
         </div>
     </div>
+    {{-- Nombre total de comptes (ou de resultats de la recherche), toutes pages confondues --}}
+    @php $plural = $users->total() > 1 ? 's' : ''; @endphp
+    <div class="col-md-auto col-12 mb-3 ms-md-auto" style="color:var(--muted-text);">
+        <i class="bi bi-people me-1"></i>
+        <strong>{{ $users->total() }}</strong> utilisateur{{ $plural }}
+        @if(request('search')) trouvé{{ $plural }} @endif
+    </div>
 </form>
 
 {{-- Formulaire des actions groupees : les cases et les boutons s'y rattachent par l'attribut form="" (pas de formulaire imbrique) --}}
@@ -29,7 +36,6 @@
                         <th scope="col" style="width:2.5rem;">
                             <input type="checkbox" class="form-check-input" id="bulk-all" title="Tout sélectionner" aria-label="Tout sélectionner">
                         </th>
-                        <th scope="col">#</th>
                         <th scope="col">Nom</th>
                         <th scope="col">Adresse Email</th>
                         <th scope="col">Classe</th>
@@ -45,16 +51,15 @@
                             <input type="checkbox" class="form-check-input bulk-item" name="ids[]" value="{{ $u->id }}" form="bulk-form"
                                    aria-label="Sélectionner {{ $u->name }}">
                         </td>
-                        <th scope="row">
-                            {{ $u->id }}
+                        <td>
+                            {{ $u->name }}
                             @if($u->isAdmin())
                                 <i class="bi bi-trophy text-warning" title="Administrateur" data-bs-toggle="tooltip"></i>
                             @endif
                             @if(!$u->is_active)
                                 <i class="bi bi-slash-circle text-danger" title="Inactif" data-bs-toggle="tooltip"></i>
                             @endif
-                        </th>
-                        <td>{{ $u->name }}</td>
+                        </td>
                         <td>{{ $u->email }}</td>
                         <td>{{ $u->classe ?? '-' }}</td>
                         <td>
@@ -76,7 +81,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="text-center py-4" style="color:var(--text-muted);">
+                        <td colspan="7" class="text-center py-4" style="color:var(--text-muted);">
                             <i class="bi bi-people d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
                             Aucun utilisateur trouvé.
                         </td>
