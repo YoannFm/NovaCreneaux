@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Rules\TrustedProxyList;
 use App\Services\ActivityLogger;
 use App\Support\HtmlSanitizer;
+use App\Support\ReservationLimits;
 use App\Services\SettingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -284,20 +285,19 @@ class SettingController extends Controller
     // ---------------------------------------------------------------
     public function reservations()
     {
-        $roles = Role::orderBy('id')->get();
-        return view('admin.settings.reservations', ['roles' => $roles]);
+        return view('admin.settings.reservations', [
+            'roles' => Role::withCount('users')->orderBy('id')->get(),
+            'fields' => ReservationLimits::fields(),
+        ]);
     }
 
     public function updateReservations(Request $request)
     {
-        $roles = Role::all();
-        foreach ($roles as $role) {
-            $role->update([
-                'max_reservations_day'  => (int) ($request->input("roles.{$role->id}.max_reservations_day", -1)),
-                'max_reservations_week' => (int) ($request->input("roles.{$role->id}.max_reservations_week", -1)),
-                'cancel_deadline_minutes' => (int) ($request->input("roles.{$role->id}.cancel_deadline_minutes", -1)),
-                'advance_days'          => (int) ($request->input("roles.{$role->id}.advance_days", 30)),
-            ]);
+        $input = $request->validate(ReservationLimits::rules(), [], ReservationLimits::attributes())['roles'];
+
+        // Un role absent du formulaire (cree entre l'affichage et l'envoi) garde ses limites
+        foreach (Role::whereKey(array_keys($input))->get() as $role) {
+            $role->update(ReservationLimits::fromInput($input[$role->id]));
         }
         ActivityLogger::log('Paramètres modifiés', 'Réservations');
         return back()->with('success', 'Limites par rôle enregistrées.');

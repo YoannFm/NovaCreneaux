@@ -282,6 +282,7 @@ Reglage dans Admin > Parametres > Securite (cle `trusted_proxies`, liste d'IP ou
 - Les comptes crees par inscription, import CSV ou installation recoivent un role (`Role::defaultUser()` ou `admin`). Sans role, aucune limite de reservation ne s'applique.
 
 - `roles.locked = true` : le rôle ne peut pas être supprimé ni renommé (admin et user par défaut).
+- Limites de réservation par rôle (Admin > Paramètres > Réservations) : `App\Support\ReservationLimits` décrit les quatre champs (libellé, icône, unité, bornes, interrupteur "sans limite") pour la page, la validation et l'enregistrement. `-1` en base = sans limite ; il n'est jamais saisi, c'est l'interrupteur qui le produit.
 - `users.is_admin` est un champ redondant maintenu en sync avec `role.is_admin` à chaque update utilisateur.
 - `User::isAdmin()` retourne `true` si `role->is_admin` OU `is_admin` est vrai (rétrocompatibilité).
 

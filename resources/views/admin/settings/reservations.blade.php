@@ -1,92 +1,109 @@
 @extends('layouts.admin')
-@php $pageTitle = 'Paramètres - Réservations'; @endphp
+@php
+    $pageTitle = 'Paramètres - Réservations';
+    // Apres un refus de validation, l'etat des interrupteurs vient du formulaire envoye, pas de la base
+    $resubmitted = session()->hasOldInput();
+@endphp
 @section('content')
 
-<div class="card">
-    <div class="card-body">
-        <p class="text-muted mb-4" style="font-size:.875rem;">
-            Limites appliquées par rôle. <strong>-1</strong> = illimité.
-        </p>
+<p class="text-muted mb-3">
+    Limites appliquées aux comptes de chaque rôle, sur le site comme par l'API.
+</p>
 
-        <form method="POST" action="{{ route('admin.settings.reservations.update') }}">
-            @csrf
-
-            <div class="table-responsive">
-                <table class="table align-middle mb-4">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="min-width:140px;">Rôle</th>
-                            <th class="text-center" style="min-width:120px;">
-                                Max / jour
-                                <i class="bi bi-info-circle text-muted ms-1"
-                                   data-bs-toggle="tooltip" title="-1 = illimité"></i>
-                            </th>
-                            <th class="text-center" style="min-width:120px;">
-                                Max / semaine
-                                <i class="bi bi-info-circle text-muted ms-1"
-                                   data-bs-toggle="tooltip" title="-1 = illimité"></i>
-                            </th>
-                            <th class="text-center" style="min-width:160px;">
-                                Délai annulation (min)
-                                <i class="bi bi-info-circle text-muted ms-1"
-                                   data-bs-toggle="tooltip" title="Délai minimum avant le créneau pour annuler. -1 = toujours possible."></i>
-                            </th>
-                            <th class="text-center" style="min-width:140px;">
-                                Jours à l'avance
-                                <i class="bi bi-info-circle text-muted ms-1"
-                                   data-bs-toggle="tooltip" title="Nombre de jours visibles à l'avance dans le calendrier."></i>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach($roles as $role)
-                    <tr>
-                        <td>
-                            <span class="badge" style="{{ $role->getBadgeStyle() }}">{{ $role->label }}</span>
-                            @if($role->is_admin)
-                                <span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.7rem;">admin</span>
-                            @endif
-                        </td>
-                        <td class="text-center">
-                            <input type="number" name="roles[{{ $role->id }}][max_reservations_day]"
-                                   class="form-control form-control-sm text-center"
-                                   value="{{ $role->max_reservations_day }}"
-                                   min="-1" max="99" style="width:75px;margin:0 auto;">
-                        </td>
-                        <td class="text-center">
-                            <input type="number" name="roles[{{ $role->id }}][max_reservations_week]"
-                                   class="form-control form-control-sm text-center"
-                                   value="{{ $role->max_reservations_week }}"
-                                   min="-1" max="99" style="width:75px;margin:0 auto;">
-                        </td>
-                        <td class="text-center">
-                            <input type="number" name="roles[{{ $role->id }}][cancel_deadline_minutes]"
-                                   class="form-control form-control-sm text-center"
-                                   value="{{ $role->cancel_deadline_minutes }}"
-                                   min="-1" max="10080" style="width:85px;margin:0 auto;">
-                        </td>
-                        <td class="text-center">
-                            <input type="number" name="roles[{{ $role->id }}][advance_days]"
-                                   class="form-control form-control-sm text-center"
-                                   value="{{ $role->advance_days }}"
-                                   min="1" max="365" style="width:75px;margin:0 auto;">
-                        </td>
-                    </tr>
-                    @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-save me-1"></i> Enregistrer
-            </button>
-        </form>
+@if($errors->any())
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> Rien n'a été enregistré : corrigez les valeurs signalées.
     </div>
-</div>
+@endif
 
+<form method="POST" action="{{ route('admin.settings.reservations.update') }}">
+    @csrf
+
+    <div class="row g-3">
+        @foreach($roles as $role)
+        <div class="col-12 col-xl-6">
+            <div class="card h-100 mb-0">
+                <div class="card-header d-flex align-items-center flex-wrap gap-2">
+                    <span class="badge" style="{{ $role->getBadgeStyle() }}">
+                        @if($role->icon)<i class="{{ $role->icon }} me-1"></i>@endif{{ $role->label }}
+                    </span>
+                    <span class="text-muted small">{{ $role->users_count }} compte{{ $role->users_count > 1 ? 's' : '' }}</span>
+                    @if($role->is_admin)
+                        <span class="badge bg-primary-subtle text-primary-emphasis ms-auto">Administrateurs</span>
+                    @endif
+                </div>
+                <div class="card-body py-1">
+                    @foreach($fields as $key => $field)
+                        @php
+                            $id = "limit-{$role->id}-{$key}";
+                            $path = "roles.{$role->id}";
+                            $unlimited = $field['unlimited'] !== null && ($resubmitted
+                                ? (bool) old("{$path}.unlimited.{$key}")
+                                : $role->{$key} === \App\Support\ReservationLimits::UNLIMITED);
+                        @endphp
+                        <div class="limit-row d-flex flex-wrap align-items-center gap-3 py-3 {{ $loop->last ? '' : 'border-bottom' }}">
+                            <div class="stat flex-shrink-0"><i class="bi {{ $field['icon'] }}"></i></div>
+                            <div class="flex-grow-1 limit-label">
+                                <label class="fw-medium d-block" for="{{ $id }}">{{ $field['label'] }}</label>
+                                <div class="text-muted small">{{ $field['help'] }}</div>
+                            </div>
+                            <div class="limit-input">
+                                <div class="input-group input-group-sm">
+                                    <input type="number" id="{{ $id }}" name="roles[{{ $role->id }}][{{ $key }}]"
+                                           class="form-control text-end @error("{$path}.{$key}") is-invalid @enderror"
+                                           value="{{ old("{$path}.{$key}", $unlimited ? '' : $role->{$key}) }}"
+                                           min="{{ $field['min'] }}" max="{{ $field['max'] }}" required @disabled($unlimited)
+                                           @if($field['unlimited'] !== null) placeholder="∞" @endif>
+                                    <span class="input-group-text">{{ $field['unit'] }}</span>
+                                </div>
+                                @if($field['unlimited'] !== null)
+                                    <div class="form-check form-switch small mt-1 mb-0">
+                                        <input class="form-check-input js-unlimited" type="checkbox" value="1"
+                                               id="{{ $id }}-unlimited" name="roles[{{ $role->id }}][unlimited][{{ $key }}]"
+                                               data-target="{{ $id }}" @checked($unlimited)>
+                                        <label class="form-check-label" for="{{ $id }}-unlimited">{{ $field['unlimited'] }}</label>
+                                    </div>
+                                @endif
+                                @error("{$path}.{$key}")
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endforeach
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save me-1"></i> Enregistrer
+        </button>
+    </div>
+</form>
+
+@push('header-styles')
+<style>
+    /* Libelle et saisie sur une ligne ; la saisie passe dessous seulement sur un ecran etroit */
+    .limit-label { flex: 1 1 9rem; min-width: 9rem; }
+    .limit-input { width: 10.5rem; }
+    .limit-input .input-group-text { width: 5.5rem; justify-content: center; }
+    .limit-row .stat { font-size: 1.1rem; color: var(--primary); }
+</style>
+@endpush
+
+@push('footer-scripts')
 <script>
-document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
-    new bootstrap.Tooltip(el);
+// "Illimite" coche : le champ est grise et n'est pas envoye ; decoche, il redevient obligatoire
+document.querySelectorAll('.js-unlimited').forEach(function (toggle) {
+    var input = document.getElementById(toggle.dataset.target);
+    toggle.addEventListener('change', function () {
+        input.disabled = toggle.checked;
+        if (!toggle.checked) input.focus();
+    });
 });
 </script>
+@endpush
+
 @endsection
