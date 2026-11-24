@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller {
 
     public function index(Request $request) {
-        $query = User::with('role');
+        $query = User::with('role')->withExists(['sanctions as is_suspended' => fn ($q) => $q->activeBan()]);
         if ($search = $request->get('search')) {
             $query->where(function($q) use ($search) {
                 $q->where('name','like',"%{$search}%")

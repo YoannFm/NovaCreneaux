@@ -2,16 +2,16 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Mail\PasswordResetLink;
 use App\Models\NavItem;
 use App\Models\Reservation;
 use App\Models\Resource;
 use App\Models\Role;
 use App\Models\Slot;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class UserAdminFormsTest extends TestCase
@@ -203,14 +203,14 @@ class UserAdminFormsTest extends TestCase
 
     public function test_reset_password_sends_a_link_to_active_accounts_only(): void
     {
-        Notification::fake();
+        Mail::fake();
         $this->actingAs($this->admin());
         [$active, $inactive] = [$this->student(), $this->student(['is_active' => false])];
 
         $this->bulk('reset_password', [$active->id, $inactive->id])->assertSessionHas('success');
 
-        Notification::assertSentTo($active, ResetPassword::class);
-        Notification::assertNotSentTo($inactive, ResetPassword::class);
+        Mail::assertSent(PasswordResetLink::class, fn ($mail) => $mail->hasTo($active->email));
+        Mail::assertNotSent(PasswordResetLink::class, fn ($mail) => $mail->hasTo($inactive->email));
     }
 
     public function test_export_contains_only_the_selected_users_and_neutralises_formulas(): void

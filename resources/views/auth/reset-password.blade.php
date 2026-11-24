@@ -1,39 +1,43 @@
-<x-guest-layout>
-    <form method="POST" action="{{ route('password.store') }}">
-        @csrf
+@extends('layouts.auth')
+@section('title', 'Nouveau mot de passe')
+@section('heading', 'Nouveau mot de passe')
+@section('subtitle', 'Choisissez le mot de passe que vous utiliserez désormais pour vous connecter.')
 
-        <!-- Password Reset Token -->
-        <input type="hidden" name="token" value="{{ $request->route('token') }}">
+@section('content')
+        <form method="POST" action="{{ route('password.store') }}">
+            @csrf
+            <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            <div class="mb-3">
+                <label for="email" class="form-label">Adresse email</label>
+                <input id="email" type="email" name="email"
+                       class="form-control @error('email') is-invalid @enderror"
+                       value="{{ old('email', $request->email) }}"
+                       required autocomplete="username">
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Nouveau mot de passe</label>
+                <input id="password" type="password" name="password"
+                       class="form-control @error('password') is-invalid @enderror"
+                       required autofocus autocomplete="new-password" minlength="8"
+                       placeholder="8 caractères minimum">
+            </div>
+
+            <div class="mb-4">
+                <label for="password_confirmation" class="form-label">Confirmer le mot de passe</label>
+                <input id="password_confirmation" type="password" name="password_confirmation"
+                       class="form-control @error('password') is-invalid @enderror"
+                       required autocomplete="new-password" minlength="8">
+            </div>
+
+            <button type="submit" class="btn-auth">
+                <i class="bi bi-shield-lock"></i> Enregistrer le mot de passe
+            </button>
+        </form>
+
+        <div class="auth-links">
+            <a href="{{ route('login') }}"><i class="bi bi-arrow-left"></i> Retour à la connexion</a>
+            <a href="{{ route('password.request') }}">Demander un nouveau lien</a>
         </div>
-
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
-                                type="password"
-                                name="password_confirmation" required autocomplete="new-password" />
-
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Reset Password') }}
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+@endsection

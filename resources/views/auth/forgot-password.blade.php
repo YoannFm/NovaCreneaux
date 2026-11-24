@@ -1,25 +1,32 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
-    </div>
+@extends('layouts.auth')
+@section('title', 'Mot de passe oublié')
+@section('heading', 'Mot de passe oublié')
+@section('subtitle', "Indiquez l'adresse e-mail de votre compte : vous recevrez un lien pour choisir un nouveau mot de passe.")
 
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+@section('content')
+        <form method="POST" action="{{ route('password.email') }}">
+            @csrf
 
-    <form method="POST" action="{{ route('password.email') }}">
-        @csrf
+            <div class="mb-4">
+                <label for="email" class="form-label">Adresse email</label>
+                <input id="email" type="email" name="email"
+                       class="form-control @error('email') is-invalid @enderror"
+                       value="{{ old('email') }}"
+                       required autofocus autocomplete="username"
+                       placeholder="prenom@rascol.net">
+            </div>
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            <button type="submit" class="btn-auth">
+                <i class="bi bi-envelope"></i> Recevoir le lien
+            </button>
+        </form>
+
+        <p class="auth-note">
+            <i class="bi bi-info-circle me-1"></i>
+            Le lien reste valable {{ config('auth.passwords.users.expire') }} minutes. Pensez à regarder dans les courriers indésirables.
+        </p>
+
+        <div class="auth-links">
+            <a href="{{ route('login') }}"><i class="bi bi-arrow-left"></i> Retour à la connexion</a>
         </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Email Password Reset Link') }}
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+@endsection

@@ -2,22 +2,33 @@
 @php
     $pageTitle = 'Édition de ' . $user->name;
     $ban = $user->activeBan();
+    $canSuspend = auth()->user()->hasPermission(\App\Support\Permission::SANCTIONS) && !$user->is(auth()->user());
 @endphp
 
 @section('content')
 
 @if($ban)
-<div class="alert alert-warning shadow" role="alert">
-    <h5><i class="bi bi-exclamation-triangle me-1"></i> Utilisateur banni</h5>
-    <ul class="mb-2">
-        <li>Motif : {{ $ban->reason }}</li>
-        <li>Date : {{ $ban->banned_at?->format('d/m/Y') ?? $ban->created_at->format('d/m/Y') }}</li>
-        @if($ban->banned_until)
-            <li>Jusqu'au : {{ $ban->banned_until->format('d/m/Y') }}</li>
-        @else
-            <li>Banni définitivement</li>
-        @endif
-    </ul>
+<div class="alert alert-warning shadow d-flex flex-wrap align-items-start gap-3" role="alert">
+    <div class="flex-grow-1">
+        <h5 class="mb-2">
+            <i class="bi bi-pause-circle-fill me-1"></i>
+            Suspendu {{ $ban->isPermanent() ? 'définitivement' : "jusqu'au " . $ban->banned_until->format('d/m/Y') . ' inclus' }}
+            @if($ban->severityLabel())
+                <span class="badge bg-{{ $ban->severityColor() }} ms-1 align-middle">{{ $ban->severityLabel() }}</span>
+            @endif
+        </h5>
+        <div>Raison : {{ $ban->reason }}</div>
+        <div class="small mt-1">Le {{ $ban->created_at->format('d/m/Y à H:i') }} par {{ $ban->admin->name ?? 'un compte supprimé' }}</div>
+    </div>
+    @if($canSuspend)
+        <form method="POST" action="{{ route('admin.sanctions.destroy', $ban) }}">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn btn-sm btn-outline-dark"
+                    onclick="return confirm({{ \Illuminate\Support\Js::from('Lever la suspension de ' . $user->name . ' ?') }})">
+                <i class="bi bi-play-circle me-1"></i> Lever la suspension
+            </button>
+        </form>
+    @endif
 </div>
 @endif
 
@@ -88,6 +99,13 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-save me-1"></i> Sauvegarder
                     </button>
+
+                    @if($canSuspend && !$ban)
+                    <button type="button" class="btn btn-warning ms-1" data-bs-toggle="modal" data-bs-target="#suspend-modal"
+                            data-action="{{ route('admin.sanctions.store', $user) }}" data-user-id="{{ $user->id }}" data-name="{{ $user->name }}">
+                        <i class="bi bi-pause-circle me-1"></i> Suspendre
+                    </button>
+                    @endif
 
                     @if($user->id !== auth()->id())
                     {{-- Le formulaire de suppression est plus bas, hors de celui-ci : deux formulaires ne s'imbriquent pas --}}
@@ -223,6 +241,8 @@
     </div>
 </div>
 @endif
+
+@includeWhen($canSuspend, 'admin.users._suspend_modal')
 
 @push('header-styles')
 <style>

@@ -228,6 +228,11 @@ Tout ce qui touche l'API et les webhooks est dans Admin > Activite (filtrable pa
 - **Assistant d'installation** : verrouille des la creation de l'administrateur (`InstallController::storeAdmin` ecrit la ligne `installation`, le fichier `storage/app/installed.lock` et `APP_INSTALLED` du `.env`, via `Support\EnvFile`). Un second administrateur ne peut jamais etre cree par `/install`. `InstallationState` : installe si `APP_INSTALLED`, si le fichier existe, si la table dit installe, ou si un administrateur existe (verrou perdu). Limite connue : si le fichier, `APP_INSTALLED` et la base sont tous indisponibles en meme temps, `/install` reste ouvert ; ne pas supprimer `storage/app/installed.lock`.
 - **Double authentification** : TOTP, e-mail, SMS, code de recuperation et cle physique partagent le meme compteur d'echecs par compte (5 essais, 5 minutes). Le defi WebAuthn est a usage unique, consomme des la premiere tentative. Non verifie : le compteur de signatures de la cle (detection de clone).
 
+## Authentification
+
+- Pages de connexion, mot de passe oublie et nouveau mot de passe : layout `layouts/auth` (sections `title`, `heading`, `subtitle`, `content` ; messages de session et premiere erreur affiches par le layout).
+- Mot de passe oublie : `User::sendPasswordResetNotification()` envoie l'e-mail francais `Mail\PasswordResetLink` (vue `emails/password-reset`, lien valable `auth.passwords.users.expire` minutes) au lieu de la notification anglaise de Laravel ; l'action groupee de l'administration l'utilise aussi. Meme reponse que l'adresse existe ou non, meme si l'envoi echoue (erreur journalisee). 6 demandes par minute et par IP.
+
 ## Formulaires admin
 
 - **Jamais de `<form>` dans un `<form>`** : le navigateur ignore le second et fusionne ses champs (`_method=DELETE` ecrasait `_method=PUT` et supprimait l'element en modifiant). Pour un bouton de suppression a cote d'un bouton Sauvegarder : `<button type="submit" form="delete-xxx">` dans le formulaire de modification, et le `<form id="delete-xxx">` apres lui. `tests/Feature/Admin/UserAdminFormsTest` verifie l'absence d'imbrication sur les pages admin.
@@ -293,7 +298,8 @@ Reglage dans Admin > Parametres > Securite (cle `trusted_proxies`, liste d'IP ou
 - `type = 'warning'` : avertissement, n'empêche pas la connexion.
 - `type = 'ban'` avec `banned_until = null` : ban permanent.
 - `type = 'ban'` avec `banned_until = date` : ban temporaire (expire le soir du jour indiqué).
-- `User::activeBan()` retourne le ban actif ou `null`.
+- `User::activeBan()` retourne le ban actif ou `null` (portee `Sanction::activeBan()`, reutilisee par la liste des utilisateurs). Le dernier jour compte encore.
+- **Suspendre** (Admin > Utilisateurs, liste et fiche, permission sanctions) : fenetre partagee `admin/users/_suspend_modal` (raison, gravite `Sanction::SEVERITIES` : mineure, moyenne, grave, duree ou definitive). Une suspension bloque les reservations (site et API), pas la connexion. Un compte deja suspendu ne l'est pas deux fois ; personne ne se suspend lui-meme. Erreurs dans le sac `suspend` : la fenetre se rouvre sur le meme compte. Journal : `Utilisateur suspendu`, `Suspension levée`.
 - `User::warningCount()` retourne le nombre total d'avertissements.
 
 ## Commandes utiles

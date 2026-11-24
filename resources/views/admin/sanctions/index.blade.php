@@ -20,6 +20,7 @@
                 <tr>
                     <th>Utilisateur</th>
                     <th>Type</th>
+                    <th>Gravité</th>
                     <th>Raison</th>
                     <th>Suspendu jusqu'au</th>
                     <th>Appliqué par</th>
@@ -35,13 +36,20 @@
                     @if($s->type === 'warning')
                         <span class="badge-warning"><i class="bi bi-exclamation-triangle"></i> Avertissement</span>
                     @else
-                        <span class="badge-danger"><i class="bi bi-slash-circle"></i> Ban</span>
+                        <span class="badge-danger"><i class="bi bi-pause-circle"></i> Suspension</span>
+                    @endif
+                </td>
+                <td>
+                    @if($s->severityLabel())
+                        <span class="badge bg-{{ $s->severityColor() }}">{{ $s->severityLabel() }}</span>
+                    @else
+                        <span class="text-muted">-</span>
                     @endif
                 </td>
                 <td style="max-width:260px;">{{ $s->reason }}</td>
                 <td>
                     @if($s->type === 'warning') <span class="text-muted">-</span>
-                    @elseif($s->isPermanent()) <span class="badge-danger">Permanent</span>
+                    @elseif($s->isPermanent()) <span class="badge-danger">Définitive</span>
                     @else {{ $s->banned_until->format('d/m/Y') }} @if(!$s->isActive()) <span class="badge-accent ms-1">Expiré</span> @endif
                     @endif
                 </td>
@@ -51,7 +59,7 @@
                     <form method="POST" action="{{ route('admin.sanctions.destroy', $s) }}">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-danger"
-                            onclick="return confirm('Supprimer cette sanction ?')">
+                            onclick="return confirm('Lever cette sanction ?')">
                             <i class="bi bi-trash"></i>
                         </button>
                     </form>

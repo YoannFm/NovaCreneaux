@@ -1,5 +1,8 @@
 @extends('layouts.admin')
-@php $pageTitle = 'Utilisateurs'; @endphp
+@php
+    $pageTitle = 'Utilisateurs';
+    $canSuspend = auth()->user()->hasPermission(\App\Support\Permission::SANCTIONS);
+@endphp
 
 @section('content')
 
@@ -59,6 +62,9 @@
                             @if(!$u->is_active)
                                 <i class="bi bi-slash-circle text-danger" title="Inactif" data-bs-toggle="tooltip"></i>
                             @endif
+                            @if($u->is_suspended)
+                                <i class="bi bi-pause-circle-fill text-warning" title="Suspendu" data-bs-toggle="tooltip"></i>
+                            @endif
                         </td>
                         <td>{{ $u->email }}</td>
                         <td>{{ $u->classe ?? '-' }}</td>
@@ -77,6 +83,13 @@
                                title="Modifier" data-bs-toggle="tooltip">
                                 <i class="bi bi-pencil-square"></i>
                             </a>
+                            @if($canSuspend && !$u->is_suspended && !$u->is(auth()->user()) && auth()->user()->canManage($u))
+                                <button type="button" class="btn btn-link p-0 mx-1 text-warning" title="Suspendre"
+                                        data-bs-toggle="modal" data-bs-target="#suspend-modal"
+                                        data-action="{{ route('admin.sanctions.store', $u) }}" data-user-id="{{ $u->id }}" data-name="{{ $u->name }}">
+                                    <i class="bi bi-pause-circle"></i>
+                                </button>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -104,6 +117,8 @@
         </a>
     </div>
 </div>
+
+@includeWhen($canSuspend, 'admin.users._suspend_modal')
 
 {{-- Reserve la place de la barre pour ne pas masquer le bas de la liste --}}
 <div id="bulk-spacer" class="d-none" style="height:9rem;"></div>

@@ -48,7 +48,7 @@ class ReservationService {
         $ban = $user->activeBan();
         if ($ban) {
             if ($ban->isPermanent())
-                return $this->failure('banned', 'Votre accès au CDI est banni définitivement. Motif : ' . $ban->reason);
+                return $this->failure('banned', 'Votre accès au CDI est suspendu définitivement. Motif : ' . $ban->reason);
             return $this->failure('banned', 'Votre accès au CDI est suspendu jusqu\'au ' . $ban->banned_until->format('d/m/Y') . '. Motif : ' . $ban->reason);
         }
 

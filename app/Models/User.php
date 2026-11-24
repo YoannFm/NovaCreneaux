@@ -2,12 +2,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Mail\PasswordResetLink;
 use App\Services\ApiTokenService;
 use App\Services\Webhook\WebhookDispatcher;
 use App\Services\Webhook\WebhookPayload;
 use App\Support\WebhookEvent;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -150,12 +152,19 @@ class User extends Authenticatable
 
     public function activeBan(): ?Sanction
     {
-        return $this->sanctions()
-            ->where('type', 'ban')
-            ->where(function ($q) {
-                $q->whereNull('banned_until')
-                  ->orWhere('banned_until', '>=', now()->toDateString());
-            })->first();
+        return $this->sanctions()->activeBan()->first();
+    }
+
+    /**
+     * Lien de reinitialisation en francais, au format des autres e-mails du site (remplace la notification
+     * anglaise de Laravel). Une erreur d'envoi remonte a l'appelant, qui decide quoi en dire.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $url = route('password.reset', ['token' => $token, 'email' => $this->getEmailForPasswordReset()]);
+        $expires = (int) config('auth.passwords.' . config('auth.defaults.passwords') . '.expire');
+
+        Mail::to($this->email)->send(new PasswordResetLink($this->name, $url, $expires));
     }
 
     public function warningCount(): int
