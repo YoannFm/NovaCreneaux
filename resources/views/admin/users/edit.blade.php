@@ -59,10 +59,10 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" for="classeInput">Classe</label>
+                        <label class="form-label" for="classeInput">{{ \App\Support\Customization::get('group_label') }}</label>
                         <input type="text" class="form-control @error('classe') is-invalid @enderror"
                                id="classeInput" name="classe"
-                               value="{{ old('classe', $user->classe) }}" placeholder="Ex: TRM2">
+                               value="{{ old('classe', $user->classe) }}" placeholder="{{ \App\Support\Customization::get('group_placeholder') }}">
                         @error('classe')<span class="invalid-feedback"><strong>{{ $message }}</strong></span>@enderror
                     </div>
 

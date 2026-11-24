@@ -40,7 +40,7 @@
             <table class="table table-hover mb-0 small">
                 <thead class="table-light">
                     <tr>
-                        <th>Nom</th><th>Classe</th><th>Ressource</th><th>Creneau</th><th>Date</th><th>Reserve le</th><th></th>
+                        <th>Nom</th><th>{{ \App\Support\Customization::get('group_label') }}</th><th>Ressource</th><th>Creneau</th><th>Date</th><th>Reserve le</th><th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -80,7 +80,7 @@
                 <p class="mb-3" id="cancel-label"></p>
                 <label class="form-label" for="cancel-reason">Motif (facultatif)</label>
                 <input type="text" class="form-control" id="cancel-reason" name="reason" maxlength="300" placeholder="Ex. salle fermée ce jour-là">
-                <div class="form-text">L'élève est prévenu par une notification sur le site et par e-mail, avec ce motif.</div>
+                <div class="form-text">La personne est prévenue par une notification sur le site et par e-mail, avec ce motif.</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>

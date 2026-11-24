@@ -40,7 +40,8 @@ class MfaController extends Controller
             ?? $this->totp->generateSecret();
         $request->session()->put('mfa_totp_setup_secret', $secret);
 
-        $otpauthUrl = $this->totp->getOtpauthUrl($user->email, $secret, config('app.name'));
+        // Nom affiche dans l'application d'authentification : celui de Parametres > General
+        $otpauthUrl = $this->totp->getOtpauthUrl($user->email, $secret, setting('app_name', '') ?: config('app.name'));
 
         return view('profile.mfa-enable', compact('secret', 'otpauthUrl'));
     }

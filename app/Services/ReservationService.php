@@ -7,10 +7,12 @@ use App\Models\Slot;
 use App\Models\User;
 use App\Services\Webhook\WebhookDispatcher;
 use App\Services\Webhook\WebhookPayload;
+use App\Support\Customization;
 use App\Support\WebhookEvent;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+
 
 /**
  * Regles de reservation, partagees par le site et l'API.
@@ -43,13 +45,18 @@ class ReservationService {
         return ['ok'=>true,'reservation'=>$reservation];
     }
 
+    /** " Pour toute question, contactez le CDI." (Parametres > General, "Qui contacter") */
+    private static function contactHint(): string {
+        return ' Pour toute question, contactez ' . Customization::get('contact_label') . '.';
+    }
+
     /** Verifie toutes les regles sans rien ecrire. Renvoie l'echec, ou null si la reservation est possible. */
     public function checkBookable(User $user, Slot $slot, string $date): ?array {
         $ban = $user->activeBan();
         if ($ban) {
             if ($ban->isPermanent())
-                return $this->failure('banned', 'Votre accès au CDI est suspendu définitivement. Motif : ' . $ban->reason);
-            return $this->failure('banned', 'Votre accès au CDI est suspendu jusqu\'au ' . $ban->banned_until->format('d/m/Y') . '. Motif : ' . $ban->reason);
+                return $this->failure('banned', 'Votre accès aux réservations est suspendu définitivement. Motif : ' . $ban->reason . self::contactHint());
+            return $this->failure('banned', 'Votre accès aux réservations est suspendu jusqu\'au ' . $ban->banned_until->format('d/m/Y') . '. Motif : ' . $ban->reason . self::contactHint());
         }
 
         if (!$slot->is_active || !$slot->resource->is_active)

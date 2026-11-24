@@ -42,6 +42,6 @@ class ResourceController extends Controller {
         return $data;
     }
     private function cancelledNote(int $cancelled): string {
-        return $cancelled > 0 ? " {$cancelled} réservation(s) à venir annulée(s), les élèves ont été prévenus." : '';
+        return $cancelled > 0 ? " {$cancelled} réservation(s) à venir annulée(s), les personnes concernées ont été prévenues." : '';
     }
 }

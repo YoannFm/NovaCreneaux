@@ -6,6 +6,7 @@ use App\Services\AccountDeletionNotice;
 use App\Services\ActivityLogger;
 use App\Services\UserExporter;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Models\Role;
@@ -45,7 +46,7 @@ class UserController extends Controller {
             'email'    => 'required|email|unique:users,email',
             'classe'   => 'nullable|string|max:50',
             'role_id'  => 'required|exists:roles,id',
-            'password' => 'nullable|string|min:8',
+            'password' => ['nullable', 'string', Password::defaults()],
             'is_active'=> 'boolean',
         ]);
 
@@ -84,7 +85,7 @@ class UserController extends Controller {
             'email'    => ['required','email', Rule::unique('users')->ignore($user->id)],
             'classe'   => 'nullable|string|max:50',
             'role_id'  => 'required|exists:roles,id',
-            'password' => 'nullable|string|min:8',
+            'password' => ['nullable', 'string', Password::defaults()],
             'is_active'=> 'boolean',
         ]);
 

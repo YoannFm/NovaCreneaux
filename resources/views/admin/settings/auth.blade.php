@@ -34,7 +34,7 @@
                                name="allowed_email_domain[]"
                                class="form-control"
                                value="{{ $d }}"
-                               placeholder="ex : rascol.net"
+                               placeholder="ex : exemple.fr"
                                style="font-family:monospace;font-size:.875rem;">
                         <button type="button" class="btn btn-sm btn-outline-danger domain-remove"
                                 title="Supprimer" tabindex="-1">
@@ -51,7 +51,7 @@
 
                 <div class="form-text mt-2">
                     <i class="bi bi-info-circle me-1"></i>
-                    Ex : <code>rascol.net</code> autorise <em>prenom@rascol.net</em>
+                    Ex : <code>exemple.fr</code> autorise <em>prenom.nom@exemple.fr</em>
                 </div>
                 @error('allowed_email_domain')
                     <div class="text-danger small mt-1">{{ $message }}</div>
@@ -82,6 +82,20 @@
                     </div>
                 </div>
                 @endforeach
+            </div>
+
+            @php $length = \App\Support\Customization::PASSWORD_MIN_LENGTH; @endphp
+            <div class="mb-4" style="max-width:22rem;">
+                <label class="form-label" for="password_min_length">Longueur minimale des mots de passe</label>
+                <div class="input-group">
+                    <input type="number" id="password_min_length" name="password_min_length"
+                           class="form-control @error('password_min_length') is-invalid @enderror"
+                           value="{{ old('password_min_length', \App\Support\Customization::passwordMinLength()) }}"
+                           min="{{ $length['min'] }}" max="{{ $length['max'] }}" required>
+                    <span class="input-group-text">caractères</span>
+                </div>
+                <div class="form-text">Inscription, profil, mot de passe oublié et comptes créés par l'administration. Les mots de passe actuels restent valables.</div>
+                @error('password_min_length')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
             </div>
 
             <button type="submit" class="btn btn-primary">
@@ -120,7 +134,7 @@
         row.className = 'domain-row d-flex align-items-center gap-2 mb-2';
         row.innerHTML =
             '<input type="text" name="allowed_email_domain[]" class="form-control"' +
-            ' value="' + (value || '') + '" placeholder="ex : rascol.net"' +
+            ' value="' + (value || '') + '" placeholder="ex : exemple.fr"' +
             ' style="font-family:monospace;font-size:.875rem;">' +
             '<button type="button" class="btn btn-sm btn-outline-danger domain-remove" title="Supprimer" tabindex="-1">' +
             '<i class="bi bi-x-lg"></i></button>';

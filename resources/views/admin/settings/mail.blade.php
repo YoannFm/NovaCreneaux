@@ -72,6 +72,33 @@
                 </div>
             </div>
 
+            @php
+                $customColor = old('mail_use_site_color', ($s['mail_color'] ?? '') === '' ? '1' : '0') !== '1';
+            @endphp
+            <div class="mb-4 pb-4 border-bottom">
+                <h6 class="fw-semibold mb-3">Apparence des e-mails</h6>
+                <div class="mb-3">
+                    <label class="form-label" for="mail_color">Couleur (bandeau et boutons)</label>
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <input type="hidden" name="mail_use_site_color" value="0">
+                        <div class="form-check form-switch mb-0">
+                            <input type="checkbox" class="form-check-input" id="mail_use_site_color" name="mail_use_site_color" value="1" @checked(!$customColor)>
+                            <label class="form-check-label" for="mail_use_site_color">Couleur d'accent du site</label>
+                        </div>
+                        <input type="color" class="form-control form-control-color @error('mail_color') is-invalid @enderror" id="mail_color" name="mail_color"
+                               value="{{ old('mail_color', \App\Support\Customization::mailColor()) }}" @disabled(!$customColor) title="Couleur des e-mails">
+                    </div>
+                    @error('mail_color')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-0">
+                    <label class="form-label" for="mail_signature">Signature</label>
+                    <textarea class="form-control @error('mail_signature') is-invalid @enderror" id="mail_signature" name="mail_signature" rows="3" maxlength="500"
+                              placeholder="Ex. : L'équipe de l'accueil - 05 00 00 00 00">{{ old('mail_signature', $s['mail_signature'] ?? '') }}</textarea>
+                    <div class="form-text">Ajoutée en bas de chaque e-mail (réservations, mot de passe, double authentification…).</div>
+                    @error('mail_signature')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
             <div class="mb-4 pb-4 border-bottom">
                 <h6 class="fw-semibold mb-3">Suppression de comptes</h6>
                 <input type="hidden" name="notify_account_deletion" value="0">
@@ -80,7 +107,7 @@
                            @checked(old('notify_account_deletion', $s['notify_account_deletion'] ?? '1') == '1')>
                     <label class="form-check-label" for="notify_account_deletion">Prévenir par e-mail les comptes supprimés par un administrateur</label>
                 </div>
-                <div class="form-text">Décochez avant une suppression en masse (fin d'année) pour ne pas envoyer un e-mail à chaque élève. Un utilisateur qui supprime lui-même son compte est toujours prévenu.</div>
+                <div class="form-text">Décochez avant une suppression en masse (fin d'année) pour ne pas envoyer un e-mail à chaque compte supprimé. Un utilisateur qui supprime lui-même son compte est toujours prévenu.</div>
             </div>
 
             <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -127,4 +154,12 @@ function toggleMailFields() {
 }
 toggleMailFields();
 </script>
+@push('footer-scripts')
+<script>
+// Couleur du site : le choix de couleur est grise (et non envoye)
+document.getElementById('mail_use_site_color').addEventListener('change', function () {
+    document.getElementById('mail_color').disabled = this.checked;
+});
+</script>
+@endpush
 @endsection

@@ -41,7 +41,7 @@
                         </th>
                         <th scope="col">Nom</th>
                         <th scope="col">Adresse Email</th>
-                        <th scope="col">Classe</th>
+                        <th scope="col">{{ \App\Support\Customization::get('group_label') }}</th>
                         <th scope="col">Rôle</th>
                         <th scope="col">Inscrit le</th>
                         <th scope="col">Action</th>

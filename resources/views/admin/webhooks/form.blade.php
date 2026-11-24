@@ -31,7 +31,7 @@
                 <div class="col-md-4">
                     <label class="form-label" for="name">Nom</label>
                     <input type="text" id="name" name="name" maxlength="100" required value="{{ old('name', $webhook->name) }}"
-                           class="form-control @error('name') is-invalid @enderror" placeholder="Tableau d'affichage du CDI">
+                           class="form-control @error('name') is-invalid @enderror" placeholder="Écran d'affichage de l'accueil">
                     @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-md-5">
@@ -56,9 +56,9 @@
                 <div class="col-md-7" id="names-option">
                     <div class="form-check form-switch mt-md-4">
                         <input type="checkbox" class="form-check-input" id="show_names" name="show_names" value="1" @checked(old('show_names', $webhook->show_names))>
-                        <label class="form-check-label" for="show_names">Afficher le nom et la classe des élèves dans les messages</label>
+                        <label class="form-check-label" for="show_names">Afficher les noms dans les messages</label>
                     </div>
-                    <div class="form-text">Désactivé par défaut : le destinataire est un service tiers, les messages disent « un élève ».</div>
+                    <div class="form-text">Désactivé par défaut : le destinataire est un service tiers, les messages disent « {{ \App\Support\Customization::aUser() }} ».</div>
                 </div>
                 <div class="col-12" id="url-group">
                     <label class="form-label" for="url">Adresse qui reçoit les envois</label>
@@ -75,7 +75,7 @@
                                 <p class="mb-2"><strong>{{ $preset['name'] }}</strong> : {{ $preset['description'] }}</p>
                                 <p class="small mb-2" style="color:var(--muted-text)">{{ $preset['help'] ?? '' }}</p>
                                 @if(($preset['body'] ?? null) === '@payload')
-                                    <p class="small mb-2">Ce service reçoit la charge utile standard (JSON signé) : les noms des élèves y figurent.</p>
+                                    <p class="small mb-2">Ce service reçoit la charge utile standard (JSON signé) : les noms y figurent.</p>
                                 @endif
                                 <div class="row g-3">
                                     @foreach($preset['fields'] ?? [] as $field)

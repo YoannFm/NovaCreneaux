@@ -7,7 +7,7 @@ use App\Models\User;
 
 class OtpService
 {
-    private const EXPIRY_MINUTES = 15;
+    public const EXPIRY_MINUTES = 15;
     private const RESEND_SECONDS = 60;
 
     public function generate(User $user, string $type): string

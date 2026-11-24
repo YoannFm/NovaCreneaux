@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Loggable;
+use App\Support\Color;
 use App\Support\Permission;
 use Illuminate\Database\Eloquent\Model;
 
@@ -48,19 +49,7 @@ class Role extends Model
     public function getBadgeStyle(): string
     {
         $bg   = $this->color ?: '#6c757d';
-        $text = $this->getContrastColor($bg);
+        $text = Color::contrastText($bg);
         return "background-color:{$bg};color:{$text};";
-    }
-
-    private function getContrastColor(string $hex): string
-    {
-        $hex = ltrim($hex, '#');
-        if (strlen($hex) === 3) {
-            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
-        }
-        $r = hexdec(substr($hex, 0, 2));
-        $g = hexdec(substr($hex, 2, 2));
-        $b = hexdec(substr($hex, 4, 2));
-        return (0.299 * $r + 0.587 * $g + 0.114 * $b) > 128 ? '#000000' : '#ffffff';
     }
 }

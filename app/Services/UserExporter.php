@@ -1,12 +1,14 @@
 <?php
 namespace App\Services;
+
+use App\Support\Customization;
 use App\Support\CsvCell;
 use Illuminate\Support\Collection;
 
 /** Export CSV des utilisateurs (ZIP complet et selection multiple). Les utilisateurs doivent avoir `role` et `reservations_count`. */
 class UserExporter {
     public function csv(Collection $users): string {
-        $csv = implode(',', ['Nom', 'Email', 'Classe', 'Rôle', 'Actif', 'Réservations', 'Inscrit le']) . "\n";
+        $csv = implode(',', ['Nom', 'Email', Customization::get('group_label'), 'Rôle', 'Actif', 'Réservations', 'Inscrit le']) . "\n";
         foreach ($users as $u) {
             $csv .= implode(',', [
                 $this->text($u->name),

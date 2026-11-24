@@ -8,12 +8,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title') - {{ setting('app_name','NovaCreneaux') }}</title>
 
-    <script>
-    (function () {
-        var t = localStorage.getItem('nc-theme') || 'dark';
-        document.documentElement.setAttribute('data-bs-theme', t);
-    })();
-    </script>
+    @include('partials.theme-init')
 
     <link href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/vendor/admin.css') }}" rel="stylesheet">
@@ -151,7 +146,7 @@
 
     <div class="auth-brand">
         <a href="{{ url('/') }}" class="brand-name">{{ setting('app_name','NovaCreneaux') }}</a>
-        <div class="brand-sub">{{ setting('app_description', 'Reservation de creneaux CDI') }}</div>
+        <div class="brand-sub">{{ \App\Support\Customization::get('app_tagline') }}</div>
     </div>
 
     <div class="auth-card">

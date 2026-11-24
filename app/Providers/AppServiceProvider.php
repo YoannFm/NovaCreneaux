@@ -8,12 +8,14 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Cache\RateLimiting\Limit;
 use App\Rules\TrustedProxyList;
 use App\Support\CanonicalUrl;
+use App\Support\Customization;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,7 +33,15 @@ class AppServiceProvider extends ServiceProvider
         Event::listen([Login::class, Logout::class, Registered::class],
             \App\Listeners\LogAuthListener::class);
 
+        // Longueur minimale des mots de passe (Parametres > Authentification), lue au moment de la validation
+        Password::defaults(fn () => Password::min(Customization::passwordMinLength()));
+
         try {
+            // Nom du site (Parametres > General) : application de double authentification, e-mails, etc.
+            if ($name = setting('app_name', '')) {
+                config(['app.name' => $name]);
+            }
+
             // Fuseau horaire configuré dans Paramètres > Général
             if ($tz = setting('timezone', '')) {
                 config(['app.timezone' => $tz]);

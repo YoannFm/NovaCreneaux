@@ -200,7 +200,7 @@ class DiscordWebhookTest extends TestCase
         $this->get(route('admin.webhooks.edit', $discord))->assertOk()->assertSee('Format des envois')->assertDontSee('Côté destinataire');
         $this->get(route('admin.webhooks.index'))->assertSee('Discord');
         $this->get(route('admin.webhooks.edit', $discord))->assertDontSee('hash_hmac');
-        $this->get(route('admin.webhooks.create'))->assertOk()->assertSee('Afficher le nom et la classe des élèves dans les messages');
+        $this->get(route('admin.webhooks.create'))->assertOk()->assertSee('Afficher les noms dans les messages');
     }
 
     public function test_the_test_button_posts_a_discord_test_message(): void

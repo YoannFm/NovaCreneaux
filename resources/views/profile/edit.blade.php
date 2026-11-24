@@ -34,8 +34,8 @@
                         @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
                     </div>
                     <div class="mb-4">
-                        <label class="form-label">Classe</label>
-                        <input type="text" name="classe" class="form-control" placeholder="ex: 2nde A"
+                        <label class="form-label">{{ \App\Support\Customization::get('group_label') }}</label>
+                        <input type="text" name="classe" class="form-control" placeholder="{{ \App\Support\Customization::get('group_placeholder') }}"
                                value="{{ old('classe', $user->classe) }}">
                     </div>
                     <button type="submit" class="btn btn-primary">

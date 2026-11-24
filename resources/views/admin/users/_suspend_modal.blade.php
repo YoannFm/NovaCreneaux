@@ -41,8 +41,8 @@
                 <div class="mb-3">
                     <label class="form-label" for="suspend-reason">Raison</label>
                     <textarea class="form-control" id="suspend-reason" name="reason" rows="3" maxlength="1000" required
-                              placeholder="Ex. comportement inapproprié au CDI le 24/11">{{ old('reason') }}</textarea>
-                    <div class="form-text">Affichée à l'élève quand il essaie de réserver.</div>
+                              placeholder="Ex. comportement inapproprié le 24/11">{{ old('reason') }}</textarea>
+                    <div class="form-text">Affichée lors de chaque tentative de réservation.</div>
                 </div>
 
                 <div class="mb-3">

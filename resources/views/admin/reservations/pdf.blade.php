@@ -45,7 +45,7 @@
                 <th style="width:17%;">Horaire</th>
                 <th style="width:22%;">Créneau</th>
                 <th>Nom</th>
-                <th style="width:15%;">Classe</th>
+                <th style="width:15%;">{{ \App\Support\Customization::get('group_label') }}</th>
                 <th style="width:14%;">Réservé le</th>
             </tr>
         </thead>

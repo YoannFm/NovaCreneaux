@@ -137,7 +137,7 @@
                         </p>
                         <div class="topic-box">
                             <strong>Choisissez un topic difficile à deviner</strong>, par exemple :<br>
-                            <code style="color:var(--accent-text);font-size:.9rem;">yoann-cdi-7429</code> ou
+                            <code style="color:var(--accent-text);font-size:.9rem;">prenom-sms-7429</code> ou
                             <code style="color:var(--accent-text);font-size:.9rem;">marie-notifications-8831</code><br>
                             <br>
                             ⚠️ N'utilisez pas un mot simple comme <code>test</code> ou votre prénom seul - n'importe qui pourrait s'abonner à ce topic.
@@ -163,7 +163,7 @@
                                 <label class="form-label fw-semibold">Votre topic ntfy</label>
                                 <input type="text" name="contact"
                                        class="form-control font-monospace @error('contact') is-invalid @enderror"
-                                       placeholder="yoann-cdi-7429"
+                                       placeholder="prenom-sms-7429"
                                        value="{{ old('contact') }}"
                                        autofocus autocomplete="off"
                                        style="max-width:280px; letter-spacing:.03em;">

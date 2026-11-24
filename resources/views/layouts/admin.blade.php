@@ -6,17 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ isset($pageTitle) ? $pageTitle . ' - Admin' : 'Administration - ' . setting('app_name','NovaCreneaux') }}</title>
 
-    <script>
-    (function () {
-        // Meme cle et meme preference par defaut que layouts/app : le theme suit l'utilisateur entre site et admin
-        var pref = localStorage.getItem('nc-theme') || '{{ auth()->check() && auth()->user()->theme_mode ? auth()->user()->theme_mode : 'system' }}';
-        var mode = pref === 'system'
-            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-            : pref;
-        document.documentElement.setAttribute('data-bs-theme', mode);
-        document.documentElement.setAttribute('data-theme-mode', pref);
-    })();
-    </script>
+    @include('partials.theme-init')
 
     <link href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/vendor/admin.css') }}" rel="stylesheet">
@@ -170,7 +160,7 @@
         <footer class="footer">
             <div class="container-fluid text-center text-muted" style="font-size:.78rem;">
                 <div>
-                    &copy; Copyright 2026 -
+                    &copy; Copyright 2025{{ now()->year > 2025 ? ' - ' . now()->year : '' }} -
                     <a href="https://github.com/{{ config('nova.repo') }}" target="_blank" rel="noopener"
                        style="color:var(--accent-text);text-decoration:none;font-weight:600;">
                         NovaCreneaux

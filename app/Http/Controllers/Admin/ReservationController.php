@@ -7,6 +7,7 @@ use App\Services\ActivityLogger;
 use App\Services\PdfRenderer;
 use App\Services\ReservationService;
 use App\Support\CsvCell;
+use App\Support\Customization;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -57,7 +58,7 @@ class ReservationController extends Controller {
         $callback = function() use ($reservations) {
             $out = fopen('php://output','w');
             fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-            fputcsv($out,['Nom','Email','Classe','Ressource','Créneau','Date','Réservé le'],';');
+            fputcsv($out,['Nom','Email',Customization::get('group_label'),'Ressource','Créneau','Date','Réservé le'],';');
             foreach ($reservations as $r) {
                 fputcsv($out,[CsvCell::safe($r->user->name),CsvCell::safe($r->user->email),CsvCell::safe($r->user->classe),CsvCell::safe($r->slot->resource->name),CsvCell::safe($r->slot->name),$r->reservation_date->format('d/m/Y'),$r->created_at->format('d/m/Y H:i')],';');
             }

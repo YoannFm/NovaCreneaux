@@ -7,6 +7,7 @@ use App\Mail\TestMail;
 use App\Models\Role;
 use App\Rules\TrustedProxyList;
 use App\Services\ActivityLogger;
+use App\Support\Customization;
 use App\Support\HtmlSanitizer;
 use App\Support\ReservationLimits;
 use App\Services\SettingService;
@@ -38,7 +39,7 @@ class SettingController extends Controller
             'site_keywords'    => 'nullable|string|max:500',
             'timezone'         => 'nullable|string|max:100',
             'locale'           => 'nullable|in:fr,en',
-        ]);
+        ] + Customization::rules());
         foreach ($data as $key => $value) $this->settings->set($key, $value ?? '');
         ActivityLogger::log('Paramètres modifiés', 'Général');
         return back()->with('success', 'Paramètres généraux enregistrés.');
@@ -110,7 +111,11 @@ class SettingController extends Controller
             'allow_account_deletion'      => 'boolean',
             'allowed_email_domain'        => 'nullable|array',
             'allowed_email_domain.*'      => 'nullable|string|max:100|regex:/^[a-zA-Z0-9\-\.]+$/',
+            'password_min_length'         => ['nullable', 'integer', 'min:' . Customization::PASSWORD_MIN_LENGTH['min'], 'max:' . Customization::PASSWORD_MIN_LENGTH['max']],
         ]);
+        if ($request->filled('password_min_length')) {
+            $this->settings->set('password_min_length', (string) $request->integer('password_min_length'));
+        }
 
         // Consolider les domaines en CSV
         $domains = array_values(array_filter(array_map(
@@ -244,9 +249,17 @@ class SettingController extends Controller
             'mail_smtp_username'   => 'nullable|string|max:255',
             'mail_smtp_password'   => 'nullable|string|max:255',
             'notify_account_deletion' => 'nullable|in:0,1',
+            'mail_use_site_color'  => 'nullable|in:0,1',
+            'mail_color'           => ['exclude_unless:mail_use_site_color,0', 'required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'mail_signature'       => 'nullable|string|max:500',
             'clear_secrets'        => 'nullable|array',
             'clear_secrets.*'      => Rule::in(SettingService::SECRET_KEYS),
         ]);
+        // Couleur vide = celle du site (Customization::mailColor) ; sans le choix dans le formulaire, rien ne change
+        if ($request->has('mail_use_site_color')) {
+            $data['mail_color'] = $request->boolean('mail_use_site_color') ? '' : $data['mail_color'];
+        }
+        unset($data['mail_use_site_color']);
         $this->storeSettings($data);
         ActivityLogger::log('Paramètres modifiés', 'E-mail');
         return back()->with('success', 'Paramètres e-mail enregistrés.');

@@ -6,18 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ isset($pageTitle) ? $pageTitle . ' - ' . setting('app_name','NovaCreneaux') : setting('app_name','NovaCreneaux') }}</title>
 
-    <script>
-    (function () {
-        // localStorage en priorité - si absent, fallback sur la préférence DB ou système
-        var stored = localStorage.getItem('nc-theme');
-        var pref   = stored || '{{ auth()->check() && auth()->user()->theme_mode ? auth()->user()->theme_mode : 'system' }}';
-        var mode   = pref === 'system'
-            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-            : pref;
-        document.documentElement.setAttribute('data-bs-theme', mode);
-        document.documentElement.setAttribute('data-theme-mode', pref);
-    })();
-    </script>
+    @include('partials.theme-init')
 
     <link href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/vendor/admin.css') }}" rel="stylesheet">
@@ -276,8 +265,8 @@
     <nav class="navbar navbar-expand-lg px-3 py-0 h-100">
 
         <a href="{{ route('home') }}" class="navbar-brand me-3">
-            @if(setting('logo_path'))
-                <img src="{{ asset(setting('logo_path')) }}" alt="" style="height:22px;width:auto;object-fit:contain;margin-right:.4rem;vertical-align:middle;">
+            @if(setting('site_logo'))
+                <img src="{{ asset(setting('site_logo')) }}" alt="" style="height:22px;width:auto;object-fit:contain;margin-right:.4rem;vertical-align:middle;">
             @endif
             {{ setting('app_name','NovaCreneaux') }}
         </a>
@@ -403,7 +392,7 @@
 
 <footer id="main-footer">
     <div>
-        &copy; Copyright 2026 -
+        &copy; Copyright 2025{{ now()->year > 2025 ? ' - ' . now()->year : '' }} -
         <a href="https://github.com/{{ config('nova.repo') }}"
            target="_blank" rel="noopener"
            style="color:var(--accent-text);text-decoration:none;font-weight:600;">

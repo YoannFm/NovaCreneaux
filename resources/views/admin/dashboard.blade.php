@@ -47,7 +47,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Utilisateur</th>
-                        <th>Classe</th>
+                        <th>{{ \App\Support\Customization::get('group_label') }}</th>
                         <th>Ressource</th>
                         <th>Créneau</th>
                         <th>Date</th>

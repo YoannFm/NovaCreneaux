@@ -2,6 +2,7 @@
 
 namespace App\Services\Webhook;
 
+use App\Support\Customization;
 use App\Support\WebhookEvent;
 use Carbon\Carbon;
 
@@ -21,7 +22,7 @@ class EventMessage
     public const VARIABLES = [
         'title' => "Titre avec pictogramme : « 📅 Nouvelle réservation »",
         'title_plain' => 'Titre sans pictogramme',
-        'text' => 'Détail sur plusieurs lignes (ressource, créneau, date, élève)',
+        'text' => 'Détail sur plusieurs lignes (ressource, créneau, date, personne)',
         'summary' => 'Titre et détail sur une seule ligne',
         'event' => 'Nom de l\'événement : reservation.created, user.deleted...',
         'created_at' => 'Date et heure de l\'événement (ISO 8601)',
@@ -29,9 +30,9 @@ class EventMessage
         'app_name' => 'Nom du site',
         'color_int' => 'Couleur de l\'événement en nombre (Discord)',
         'color_hex' => 'Couleur de l\'événement en hexadécimal (#2ECC71)',
-        'who' => 'L\'élève (« un élève » si les noms sont masqués)',
-        'user_name' => 'Nom de l\'élève (vide si les noms sont masqués)',
-        'user_classe' => 'Classe de l\'élève (vide si les noms sont masqués)',
+        'who' => 'La personne (« un élève » ou le terme choisi si les noms sont masqués)',
+        'user_name' => 'Nom de la personne (vide si les noms sont masqués)',
+        'user_classe' => 'Classe ou groupe de la personne (vide si les noms sont masqués)',
         'resource' => 'Nom de la ressource réservée',
         'slot' => 'Nom du créneau',
         'date' => 'Date de la réservation (2026-10-27)',
@@ -49,8 +50,9 @@ class EventMessage
         $data = $payload['data'];
         $user = $data['user'] ?? null;
         $reservation = $data['reservation'] ?? null;
-        $who = self::who($user, $showNames);
-        [$emoji, $title, $lines, $color] = self::describe($payload['event'], $data, $who);
+        $known = $showNames && $user;
+        $who = $known ? self::who($user) : Customization::aUser();
+        [$emoji, $title, $lines, $color] = self::describe($payload['event'], $data, $who, $known);
         $text = mb_substr(implode("\n", array_filter($lines)), 0, 4000);
         $date = $reservation ? Carbon::parse($reservation['date']) : null;
 
@@ -77,25 +79,19 @@ class EventMessage
         ];
     }
 
-    private static function who(?array $user, bool $showNames): string
+    private static function who(array $user): string
     {
-        if (! $showNames || ! $user) {
-            return 'un élève';
-        }
-
         return $user['name'] . (($user['classe'] ?? null) ? " ({$user['classe']})" : '');
     }
 
     /** @return array{0: string, 1: string, 2: list<string>, 3: int} pictogramme, titre, lignes, couleur */
-    private static function describe(string $event, array $data, string $who): array
+    private static function describe(string $event, array $data, string $who, bool $known): array
     {
-        $known = $who !== 'un élève';
-
         return match ($event) {
             WebhookEvent::RESERVATION_CREATED => ['📅', 'Nouvelle réservation', [...self::reservationLines($data['reservation']), "Par {$who}"], self::GREEN],
             WebhookEvent::RESERVATION_CANCELLED => ['❌', 'Réservation annulée', [
                 ...self::reservationLines($data['reservation']),
-                ($data['cancelled_by'] === 'admin' ? 'Annulée par un administrateur' : 'Annulée par l\'élève') . " : {$who}",
+                ($data['cancelled_by'] === 'admin' ? 'Annulée par un administrateur' : 'Annulée par ' . Customization::theUser()) . " : {$who}",
             ], self::RED],
             WebhookEvent::USER_CREATED => ['👤', 'Nouveau compte', [$known ? $who : 'Un compte a été créé.'], self::BLUE],
             WebhookEvent::USER_DELETED => ['🗑️', 'Compte supprimé', [$known ? $who : 'Un compte a été supprimé.'], self::ORANGE],

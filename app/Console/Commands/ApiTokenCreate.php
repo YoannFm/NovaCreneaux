@@ -10,7 +10,7 @@ class ApiTokenCreate extends Command
 {
     protected $signature = 'api:token:create
         {email : E-mail du compte de service auquel appartient le jeton}
-        {name : Nom de l\'integration (ex. borne CDI)}
+        {name : Nom de l\'integration (ex. borne d\'accueil)}
         {--ability=* : Droit du jeton (resources:read, reservations:read, reservations:write), tous les droits de lecture par defaut}
         {--days= : Duree de validite en jours (1 an par defaut)}';
 

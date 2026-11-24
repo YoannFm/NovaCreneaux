@@ -13,7 +13,7 @@
                        class="form-control @error('email') is-invalid @enderror"
                        value="{{ old('email') }}"
                        required autofocus autocomplete="username"
-                       placeholder="prenom@rascol.net">
+                       placeholder="{{ \App\Support\Customization::get('email_placeholder') }}">
             </div>
 
             <div class="mb-4">

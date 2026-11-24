@@ -32,7 +32,7 @@
             @else
                 <span class="badge bg-danger">Désactivée</span>
             @endif
-            <div class="small text-body-secondary">Désactivée, l'API répond par une erreur 503 à tout le monde et les élèves ne voient plus la section des jetons. Les jetons sont conservés.</div>
+            <div class="small text-body-secondary">Désactivée, l'API répond par une erreur 503 à tout le monde et les utilisateurs ne voient plus la section des jetons. Les jetons sont conservés.</div>
         </div>
         <form method="POST" action="{{ route('admin.api-tokens.status') }}">
             @csrf @method('PUT')
@@ -64,7 +64,7 @@
                 <div class="col-md-4">
                     <label class="form-label" for="name">Nom de l'intégration</label>
                     <input type="text" name="name" id="name" maxlength="100" value="{{ old('name') }}"
-                           class="form-control @error('name') is-invalid @enderror" placeholder="Borne du CDI" required>
+                           class="form-control @error('name') is-invalid @enderror" placeholder="Borne d'accueil" required>
                     @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-md-3">

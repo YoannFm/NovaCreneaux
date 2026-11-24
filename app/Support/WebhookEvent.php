@@ -16,7 +16,7 @@ final class WebhookEvent
     {
         return [
             self::RESERVATION_CREATED => 'Réservation créée',
-            self::RESERVATION_CANCELLED => 'Réservation annulée (par l\'élève, un administrateur ou l\'API)',
+            self::RESERVATION_CANCELLED => 'Réservation annulée (par la personne, un administrateur ou l\'API)',
             self::USER_CREATED => 'Compte créé',
             self::USER_DELETED => 'Compte supprimé',
         ];
