@@ -109,6 +109,7 @@ app/
   Services/
     ReservationService (transaction + verrou sur le creneau, codes d'erreur), AvailabilityService (places libres),
     ApiTokenService (jetons d'API), InstallationState (verrou d'installation)
+    PdfRenderer (vue Blade -> PDF avec dompdf : aucune ressource distante, styles en ligne, cache des polices dans storage)
   Support/
     CsvCell                  - neutralise les formules dans les exports CSV
     Permission, AdminNavigation, ThemeSettings - permissions delegables, menu admin, couleurs du theme
@@ -231,6 +232,7 @@ Tout ce qui touche l'API et les webhooks est dans Admin > Activite (filtrable pa
 
 - **Jamais de `<form>` dans un `<form>`** : le navigateur ignore le second et fusionne ses champs (`_method=DELETE` ecrasait `_method=PUT` et supprimait l'element en modifiant). Pour un bouton de suppression a cote d'un bouton Sauvegarder : `<button type="submit" form="delete-xxx">` dans le formulaire de modification, et le `<form id="delete-xxx">` apres lui. `tests/Feature/Admin/UserAdminFormsTest` verifie l'absence d'imbrication sur les pages admin.
 - Aucun champ de confirmation de mot de passe dans les formulaires admin : ne pas utiliser la regle `confirmed` pour un mot de passe saisi par un administrateur.
+- Liste des reservations (Admin > Reservations) : exports CSV et PDF de la date et de la ressource filtrees (`?export=csv|pdf`). Le PDF (`admin/reservations/pdf`) est classe par ressource, horaire puis nom, et journalise.
 - Liste des utilisateurs : cases a cocher (`form="bulk-form"`) et barre d'actions fixe en bas, traitees par `Admin\UserBulkController` (activer, desactiver, lien de reinitialisation par e-mail, export CSV, supprimer). Le compte de l'administrateur qui agit est toujours ignore.
 
 ## Mises à jour (archive signée)

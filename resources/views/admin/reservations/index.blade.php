@@ -23,6 +23,9 @@
                 <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-download"></i> CSV
                 </a>
+                <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                </a>
             </div>
         </form>
     </div>
