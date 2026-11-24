@@ -8,7 +8,7 @@
         <div class="card">
             <div class="card-header d-flex align-items-center gap-2">
                 <i class="bi bi-palette2"></i>
-                <span>Personnalisation du theme</span>
+                <span>Personnalisation du thème</span>
             </div>
             <div class="card-body">
 
@@ -71,7 +71,7 @@
 
                             <div class="mt-3">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-generate-light">
-                                    <i class="bi bi-magic me-1"></i> Generer le mode clair automatiquement
+                                    <i class="bi bi-magic me-1"></i> Générer le mode clair automatiquement
                                 </button>
                             </div>
                         </div>
@@ -95,7 +95,7 @@
 
                     <hr class="my-4">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-1"></i> Enregistrer le theme
+                        <i class="bi bi-check-lg me-1"></i> Enregistrer le thème
                     </button>
                 </form>
             </div>

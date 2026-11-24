@@ -119,8 +119,8 @@
 
 <div class="reserve-header">
     <div>
-        <h1><i class="bi bi-calendar-plus me-2" style="color:var(--accent-text);"></i>Reserver un creneau</h1>
-        <div class="subtitle">Selectionnez une date puis un creneau disponible</div>
+        <h1><i class="bi bi-calendar-plus me-2" style="color:var(--accent-text);"></i>Réserver un créneau</h1>
+        <div class="subtitle">Sélectionnez une date puis un créneau disponible</div>
     </div>
     @if($errors->any())
     <div class="alert alert-danger mb-0 py-2 px-3" style="font-size:.85rem;">
@@ -283,7 +283,7 @@
                         @elseif(!$check['allowed'])
                             <i class="bi bi-lock me-1"></i> Ferme
                         @else
-                            <i class="bi bi-check-circle me-1"></i> Reserver
+                            <i class="bi bi-check-circle me-1"></i> Réserver
                         @endif
                     </button>
                 </form>
@@ -291,7 +291,7 @@
             @empty
             <div class="empty-state" style="grid-column:1/-1">
                 <i class="bi bi-calendar-x"></i>
-                Aucun creneau configure pour cette ressource.
+                Aucun créneau configuré pour cette ressource.
             </div>
             @endforelse
         </div>

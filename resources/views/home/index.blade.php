@@ -108,7 +108,7 @@
     @if(setting('home_message') && !empty(strip_tags(setting('home_message'))))
         <div style="opacity:.9;">{!! \App\Support\HtmlSanitizer::clean(setting('home_message')) !!}</div>
     @else
-        <p>Bienvenue sur {{ setting('app_name','NovaCreneaux') }}. Reservez vos creneaux en quelques clics.</p>
+        <p>Bienvenue sur {{ setting('app_name','NovaCreneaux') }}. Réservez vos créneaux en quelques clics.</p>
     @endif
 </div>
 
@@ -121,7 +121,7 @@
             </div>
             <div>
                 <div class="stat-value">{{ $slotsAvailableToday }}</div>
-                <div class="stat-label">Creneaux disponibles aujourd'hui</div>
+                <div class="stat-label">Créneaux disponibles aujourd'hui</div>
             </div>
         </div>
     </div>
@@ -132,7 +132,7 @@
             </div>
             <div>
                 <div class="stat-value">{{ $totalUpcoming }}</div>
-                <div class="stat-label">Mes reservations a venir</div>
+                <div class="stat-label">Mes réservations à venir</div>
             </div>
         </div>
     </div>
@@ -154,7 +154,7 @@
     {{-- Acces rapides --}}
     <div class="col-lg-8">
         <h5 class="mb-3 fw-bold" style="font-size:.9rem;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">
-            <i class="bi bi-lightning-charge me-1"></i> Acces rapides
+            <i class="bi bi-lightning-charge me-1"></i> Accès rapides
         </h5>
         <div class="row g-3">
             <div class="col-sm-6">
@@ -162,9 +162,9 @@
                     <div class="qc-icon" style="background:rgba(239,183,2,.15);color:var(--accent-text);">
                         <i class="bi bi-calendar-plus"></i>
                     </div>
-                    <div class="qc-title">Reserver un creneau</div>
-                    <p class="qc-desc">Consultez les disponibilites et reservez votre place pour aujourd'hui ou demain.</p>
-                    <div class="qc-arrow"><i class="bi bi-arrow-right"></i> Voir les creneaux</div>
+                    <div class="qc-title">Réserver un créneau</div>
+                    <p class="qc-desc">Consultez les disponibilités et réservez votre place pour aujourd'hui ou demain.</p>
+                    <div class="qc-arrow"><i class="bi bi-arrow-right"></i> Voir les créneaux</div>
                 </a>
             </div>
             <div class="col-sm-6">
@@ -172,9 +172,9 @@
                     <div class="qc-icon" style="background:rgba(34,197,94,.12);color:#22c55e;">
                         <i class="bi bi-bookmark-check"></i>
                     </div>
-                    <div class="qc-title">Mes reservations</div>
-                    <p class="qc-desc">Retrouvez l'historique de vos reservations et annulez si necessaire.</p>
-                    <div class="qc-arrow"><i class="bi bi-arrow-right"></i> Voir mes reservations</div>
+                    <div class="qc-title">Mes réservations</div>
+                    <p class="qc-desc">Retrouvez l'historique de vos réservations et annulez si nécessaire.</p>
+                    <div class="qc-arrow"><i class="bi bi-arrow-right"></i> Voir mes réservations</div>
                 </a>
             </div>
             <div class="col-sm-6">
@@ -183,7 +183,7 @@
                         <i class="bi bi-person-circle"></i>
                     </div>
                     <div class="qc-title">Mon profil</div>
-                    <p class="qc-desc">Modifiez vos informations personnelles et vos preferences de theme.</p>
+                    <p class="qc-desc">Modifiez vos informations personnelles et vos préférences de thème.</p>
                     <div class="qc-arrow"><i class="bi bi-arrow-right"></i> Gerer mon profil</div>
                 </a>
             </div>
@@ -194,7 +194,7 @@
                         <i class="bi bi-shield-check"></i>
                     </div>
                     <div class="qc-title">Panel administrateur</div>
-                    <p class="qc-desc">Gerez les ressources, utilisateurs, reservations et parametres du site.</p>
+                    <p class="qc-desc">Gérez les ressources, utilisateurs, réservations et paramètres du site.</p>
                     <div class="qc-arrow"><i class="bi bi-arrow-right"></i> Acceder au panel</div>
                 </a>
             </div>
@@ -248,18 +248,18 @@
             @empty
             <div class="text-center py-3" style="color:var(--text-muted);">
                 <i class="bi bi-calendar-x d-block mb-2" style="font-size:2rem;opacity:.4;"></i>
-                <span style="font-size:.85rem;">Aucune reservation a venir</span>
+                <span style="font-size:.85rem;">Aucune réservation à venir</span>
             </div>
             @endforelse
 
             @if($totalUpcoming > 3)
             <a href="{{ route('reservations.my') }}" class="d-block text-center mt-3"
                style="font-size:.8rem;font-weight:600;color:var(--accent-text);text-decoration:none;">
-                Voir toutes les reservations ({{ $totalUpcoming }})
+                Voir toutes les réservations ({{ $totalUpcoming }})
             </a>
             @elseif($upcoming->isEmpty())
             <a href="{{ route('reservations.index') }}" class="btn btn-primary btn-sm w-100 mt-2">
-                <i class="bi bi-calendar-plus me-1"></i> Faire une reservation
+                <i class="bi bi-calendar-plus me-1"></i> Faire une réservation
             </a>
             @endif
         </div>

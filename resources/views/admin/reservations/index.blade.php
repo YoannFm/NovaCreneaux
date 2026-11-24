@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@php $pageTitle = 'Reservations'; @endphp
+@php $pageTitle = 'Réservations'; @endphp
 @section('content')
 
 <div class="card mb-3">
@@ -33,14 +33,14 @@
 
 <div class="card">
     <div class="card-header">
-        <span class="text-muted small">{{ $reservations->count() }} reservation(s)</span>
+        <span class="text-muted small">{{ $reservations->count() }} réservation(s)</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0 small">
                 <thead class="table-light">
                     <tr>
-                        <th>Nom</th><th>{{ \App\Support\Customization::get('group_label') }}</th><th>Ressource</th><th>Creneau</th><th>Date</th><th>Reserve le</th><th></th>
+                        <th>Nom</th><th>{{ \App\Support\Customization::get('group_label') }}</th><th>Ressource</th><th>Créneau</th><th>Date</th><th>Réservé le</th><th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -60,7 +60,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="text-center py-4 text-muted">Aucune reservation pour cette date.</td></tr>
+                <tr><td colspan="7" class="text-center py-4 text-muted">Aucune réservation pour cette date.</td></tr>
                 @endforelse
                 </tbody>
             </table>

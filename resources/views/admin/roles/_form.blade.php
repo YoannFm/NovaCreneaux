@@ -113,37 +113,16 @@ document.addEventListener('DOMContentLoaded', function () {
         @endforeach
         @error('permissions.*')<span class="text-danger small">{{ $message }}</span>@enderror
     </div>
-    <div class="card card-body mb-3 pb-0">
-        <h5 class="mb-3" style="font-size:1rem;font-weight:600;">Limites de réservation</h5>
-        <div class="row gx-3">
-            <div class="col-sm-6 col-md-3 mb-3">
-                <label class="form-label">Max / jour</label>
-                <input type="number" name="max_reservations_day" class="form-control"
-                       value="{{ old('max_reservations_day', $role->max_reservations_day ?? 2) }}"
-                       min="1" max="99">
-                <div class="form-text" style="font-size:.73rem;">Réservations par jour.</div>
+    {{-- Les limites de reservation se reglent a un seul endroit, pour tous les roles a la fois --}}
+    <div class="card card-body mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <h5 class="mb-1" style="font-size:1rem;font-weight:600;">Limites de réservation</h5>
+                <div class="text-muted small">Réservations par jour et par semaine, délai d'annulation, réservation à l'avance.</div>
             </div>
-            <div class="col-sm-6 col-md-3 mb-3">
-                <label class="form-label">Max / semaine</label>
-                <input type="number" name="max_reservations_week" class="form-control"
-                       value="{{ old('max_reservations_week', $role->max_reservations_week ?? 5) }}"
-                       min="1" max="99">
-                <div class="form-text" style="font-size:.73rem;">Réservations par semaine.</div>
-            </div>
-            <div class="col-sm-6 col-md-3 mb-3">
-                <label class="form-label">Annulation (min)</label>
-                <input type="number" name="cancel_deadline_minutes" class="form-control"
-                       value="{{ old('cancel_deadline_minutes', $role->cancel_deadline_minutes ?? 30) }}"
-                       min="0" max="1440">
-                <div class="form-text" style="font-size:.73rem;">Délai avant le créneau.</div>
-            </div>
-            <div class="col-sm-6 col-md-3 mb-3">
-                <label class="form-label">Réserver à l'avance (j)</label>
-                <input type="number" name="advance_days" class="form-control"
-                       value="{{ old('advance_days', $role->advance_days ?? 14) }}"
-                       min="1" max="365">
-                <div class="form-text" style="font-size:.73rem;">Jours max à l'avance.</div>
-            </div>
+            <a href="{{ route('admin.settings.reservations') }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-sliders me-1"></i> Régler dans Paramètres &gt; Réservations
+            </a>
         </div>
     </div>
 </div>

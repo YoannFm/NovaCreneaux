@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\MfaOtpMail;
 use App\Models\User;
 use App\Services\OtpService;
+use App\Services\QrCode;
 use App\Services\SmsService;
 use App\Services\TotpService;
 use App\Services\WebAuthnService;
@@ -27,6 +28,7 @@ class MfaController extends Controller
         private OtpService    $otp,
         private SmsService    $sms,
         private WebAuthnService $webAuthn,
+        private QrCode        $qrCode,
     ) {}
 
     // ══════════════════════════════════════════════════════════════════
@@ -43,7 +45,10 @@ class MfaController extends Controller
         // Nom affiche dans l'application d'authentification : celui de Parametres > General
         $otpauthUrl = $this->totp->getOtpauthUrl($user->email, $secret, setting('app_name', '') ?: config('app.name'));
 
-        return view('profile.mfa-enable', compact('secret', 'otpauthUrl'));
+        // QR code dessine sur le serveur : la cle secrete ne doit jamais etre envoyee a un service externe
+        $qrSvg = $this->qrCode->svg($otpauthUrl);
+
+        return view('profile.mfa-enable', compact('secret', 'qrSvg'));
     }
 
     public function totpEnable(Request $request): RedirectResponse

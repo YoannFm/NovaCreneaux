@@ -5,27 +5,25 @@
         <h2 class="mb-4"><i class="bi bi-shield-lock me-2"></i>Activer la double authentification</h2>
 
         <div class="card mb-4">
-            <div class="card-header"><i class="bi bi-phone me-1"></i> Etape 1 - Configurer votre application</div>
+            <div class="card-header"><i class="bi bi-phone me-1"></i> Étape 1 - Configurer votre application</div>
             <div class="card-body">
                 <p class="text-muted small mb-3">
                     Utilisez une application d'authentification (Google Authenticator, Aegis, Authy, etc.)
-                    et scannez le QR code ou entrez la cle manuellement.
+                    et scannez le QR code ou entrez la clé manuellement.
                 </p>
 
-                {{-- QR code via qrserver.com (simple, ne transmet que l'URL TOTP sans donnee sensible) --}}
+                {{-- QR code dessine par le serveur (App\Services\QrCode) : un SVG fait uniquement de formes, la cle n'y est pas en texte --}}
                 <div class="text-center mb-4">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode($otpauthUrl) }}"
-                         alt="QR Code MFA" width="200" height="200"
-                         style="border:4px solid var(--accent);border-radius:8px;image-rendering:pixelated;">
+                    <div class="d-inline-block" style="line-height:0;border:4px solid var(--accent);border-radius:8px;overflow:hidden;" role="img" aria-label="QR code à scanner avec l'application d'authentification">{!! $qrSvg !!}</div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small text-muted text-uppercase">Cle secrete (saisie manuelle)</label>
+                    <label class="form-label fw-semibold small text-muted text-uppercase">Clé secrète (saisie manuelle)</label>
                     <div class="input-group">
                         <input type="text" class="form-control font-monospace" value="{{ $secret }}"
                                id="mfa-secret-input" readonly style="letter-spacing:.15em;">
                         <button class="btn btn-outline-secondary" type="button" onclick="
-                            navigator.clipboard.writeText('{{ $secret }}');
+                            navigator.clipboard.writeText({{ \Illuminate\Support\Js::from($secret) }});
                             this.innerHTML='<i class=\'bi bi-check-lg\'></i>';
                             setTimeout(()=>this.innerHTML='<i class=\'bi bi-clipboard\'></i>',1500);">
                             <i class="bi bi-clipboard"></i>
@@ -36,20 +34,20 @@
         </div>
 
         <div class="card">
-            <div class="card-header"><i class="bi bi-check2-circle me-1"></i> Etape 2 - Confirmer le code</div>
+            <div class="card-header"><i class="bi bi-check2-circle me-1"></i> Étape 2 - Confirmer le code</div>
             <div class="card-body">
                 @if($errors->any())
                     <div class="alert alert-danger"><i class="bi bi-exclamation-circle me-1"></i>{{ $errors->first() }}</div>
                 @endif
 
                 <p class="text-muted small mb-3">
-                    Entrez le code a 6 chiffres affiche dans votre application pour confirmer la configuration.
+                    Entrez le code à 6 chiffres affiché dans votre application pour confirmer la configuration.
                 </p>
 
                 <form method="POST" action="{{ route('mfa.enable') }}">
                     @csrf
                     <div class="mb-4">
-                        <label for="code" class="form-label">Code de verification</label>
+                        <label for="code" class="form-label">Code de vérification</label>
                         <input type="text" name="code" id="code"
                                class="form-control font-monospace @error('code') is-invalid @enderror"
                                inputmode="numeric" pattern="\d{6}" maxlength="6"
@@ -60,7 +58,7 @@
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-shield-check me-1"></i> Activer la MFA
+                            <i class="bi bi-shield-check me-1"></i> Activer la double authentification
                         </button>
                         <a href="{{ route('profile.edit') }}" class="btn btn-outline-secondary">Annuler</a>
                     </div>

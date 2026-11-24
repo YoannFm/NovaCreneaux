@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@php $pageTitle = $slot->exists ? 'Modifier un creneau' : 'Nouveau creneau'; @endphp
+@php $pageTitle = $slot->exists ? 'Modifier un créneau' : 'Nouveau créneau'; @endphp
 @section('content')
 
 <div class="d-flex align-items-center gap-3 mb-3">
@@ -48,7 +48,7 @@
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1"
                                 {{ old('is_active', $slot->is_active ?? true) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="is_active">Creneau actif</label>
+                            <label class="form-check-label" for="is_active">Créneau actif</label>
                         </div>
                     </div>
 

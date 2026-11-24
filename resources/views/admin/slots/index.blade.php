@@ -7,7 +7,7 @@
         <i class="bi bi-arrow-left"></i> Ressources
     </a>
     <a href="{{ route('admin.slots.create', $resource) }}" class="btn btn-primary btn-sm ms-auto">
-        <i class="bi bi-plus-lg"></i> Nouveau creneau
+        <i class="bi bi-plus-lg"></i> Nouveau créneau
     </a>
 </div>
 
@@ -21,7 +21,7 @@
                         <th>Debut</th>
                         <th>Fin</th>
                         <th>Capacite</th>
-                        <th>Reservations</th>
+                        <th>Réservations</th>
                         <th>Statut</th>
                         <th>Actions</th>
                     </tr>
@@ -58,7 +58,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">Aucun creneau.</td>
+                    <td colspan="7" class="text-center py-4 text-muted">Aucun créneau.</td>
                 </tr>
                 @endforelse
                 </tbody>

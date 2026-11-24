@@ -4,13 +4,13 @@
 
 <div class="card">
     <div class="card-header">
-        <h5 class="card-title mb-0"><i class="bi bi-bookmark-check me-2"></i>Mes reservations</h5>
+        <h5 class="card-title mb-0"><i class="bi bi-bookmark-check me-2"></i>Mes réservations</h5>
     </div>
     <div class="card-body p-0">
         @if($reservations->isEmpty())
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-calendar-x" style="font-size:2rem;opacity:.4"></i>
-                <p class="mt-2 mb-0">Aucune reservation.</p>
+                <p class="mt-2 mb-0">Aucune réservation.</p>
             </div>
         @else
         <div class="table-responsive">
@@ -19,8 +19,8 @@
                     <tr>
                         <th>Date</th>
                         <th>Ressource</th>
-                        <th>Creneau</th>
-                        <th>Reserve le</th>
+                        <th>Créneau</th>
+                        <th>Réservé le</th>
                         <th></th>
                     </tr>
                 </thead>

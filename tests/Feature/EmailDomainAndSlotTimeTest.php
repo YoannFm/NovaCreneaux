@@ -23,29 +23,29 @@ class EmailDomainAndSlotTimeTest extends TestCase
 
     public function test_changing_email_to_another_domain_is_refused_when_a_domain_is_enforced(): void
     {
-        $this->allowDomain('e.rascol.net');
-        $user = User::factory()->create(['email' => 'eleve@e.rascol.net']);
+        $this->allowDomain('eleves.exemple.fr');
+        $user = User::factory()->create(['email' => 'eleve@eleves.exemple.fr']);
 
         $this->actingAs($user)->patch('/profile', ['name' => $user->name, 'email' => 'eleve@gmail.com'])
             ->assertSessionHasErrors('email');
-        $this->assertSame('eleve@e.rascol.net', $user->fresh()->email);
+        $this->assertSame('eleve@eleves.exemple.fr', $user->fresh()->email);
     }
 
     public function test_changing_email_inside_the_domain_is_accepted(): void
     {
-        $this->allowDomain('e.rascol.net');
-        $user = User::factory()->create(['email' => 'eleve@e.rascol.net']);
+        $this->allowDomain('eleves.exemple.fr');
+        $user = User::factory()->create(['email' => 'eleve@eleves.exemple.fr']);
 
-        $this->actingAs($user)->patch('/profile', ['name' => $user->name, 'email' => 'autre@e.rascol.net'])
+        $this->actingAs($user)->patch('/profile', ['name' => $user->name, 'email' => 'autre@eleves.exemple.fr'])
             ->assertSessionHasNoErrors();
     }
 
     public function test_existing_account_outside_the_domain_can_still_update_its_name(): void
     {
-        $this->allowDomain('e.rascol.net');
-        $user = User::factory()->create(['email' => 'prof@rascol.net']);
+        $this->allowDomain('eleves.exemple.fr');
+        $user = User::factory()->create(['email' => 'prof@exemple.fr']);
 
-        $this->actingAs($user)->patch('/profile', ['name' => 'Nouveau Nom', 'email' => 'prof@rascol.net'])
+        $this->actingAs($user)->patch('/profile', ['name' => 'Nouveau Nom', 'email' => 'prof@exemple.fr'])
             ->assertSessionHasNoErrors();
     }
 

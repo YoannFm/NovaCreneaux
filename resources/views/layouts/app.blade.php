@@ -250,7 +250,7 @@
         @endif
         <form method="POST" action="{{ route('logout') }}">
             @csrf
-            <button type="submit" class="mobile-user-link danger"><i class="bi bi-box-arrow-right"></i> Deconnexion</button>
+            <button type="submit" class="mobile-user-link danger"><i class="bi bi-box-arrow-right"></i> Déconnexion</button>
         </form>
     </div>
     @else
@@ -349,7 +349,7 @@
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="dropdown-item text-danger">
-                                    <i class="bi bi-box-arrow-right"></i> Deconnexion
+                                    <i class="bi bi-box-arrow-right"></i> Déconnexion
                                 </button>
                             </form>
                         </li>

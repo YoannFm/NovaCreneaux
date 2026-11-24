@@ -59,10 +59,10 @@ class DiscordWebhookTest extends TestCase
 
     public function test_the_message_describes_the_reservation_without_naming_the_pupil_by_default(): void
     {
-        $message = $this->message($this->reservationPayload(), false, 'CDI Rascol');
+        $message = $this->message($this->reservationPayload(), false, 'Médiathèque');
 
         $embed = $message['embeds'][0];
-        $this->assertSame('CDI Rascol', $message['username']);
+        $this->assertSame('Médiathèque', $message['username']);
         $this->assertStringContainsString('Nouvelle réservation', $embed['title']);
         $this->assertStringContainsString('CDI - 11h55 - 12h50', $embed['description']);
         $this->assertStringContainsString('mardi 27 octobre 2026', $embed['description']);

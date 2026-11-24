@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Services\ActivityLogger;
 use App\Support\Permission;
+use App\Support\ReservationLimits;
 use Illuminate\Http\Request;
 
 class RoleController extends Controller
@@ -31,10 +32,6 @@ class RoleController extends Controller
             'api_access'              => 'boolean',
             'permissions'             => 'nullable|array',
             'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
-            'max_reservations_day'    => 'required|integer|min:1|max:99',
-            'max_reservations_week'   => 'required|integer|min:1|max:99',
-            'cancel_deadline_minutes' => 'required|integer|min:0|max:1440',
-            'advance_days'            => 'required|integer|min:1|max:365',
         ]);
 
         Role::create([
@@ -47,10 +44,8 @@ class RoleController extends Controller
             'api_access'              => $request->boolean('api_access', true),
             'locked'                  => false,
             'power'                   => 0,
-            'max_reservations_day'    => $data['max_reservations_day'],
-            'max_reservations_week'   => $data['max_reservations_week'],
-            'cancel_deadline_minutes' => $data['cancel_deadline_minutes'],
-            'advance_days'            => $data['advance_days'],
+            // Limites de reservation : celles du role par defaut, a ajuster dans Parametres > Reservations
+            ...$this->defaultLimits(),
         ]);
 
         return redirect()->route('admin.roles.index')->with('success', "Rôle \"{$data['label']}\" créé.");
@@ -71,20 +66,12 @@ class RoleController extends Controller
             'api_access'              => 'boolean',
             'permissions'             => 'nullable|array',
             'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
-            'max_reservations_day'    => 'required|integer|min:1|max:99',
-            'max_reservations_week'   => 'required|integer|min:1|max:99',
-            'cancel_deadline_minutes' => 'required|integer|min:0|max:1440',
-            'advance_days'            => 'required|integer|min:1|max:365',
         ]);
 
         $update = [
             'label'                   => $data['label'],
             'icon'                    => ($data['icon'] ?? null) ?: 'bi bi-star',
             'color'                   => $data['color'],
-            'max_reservations_day'    => $data['max_reservations_day'],
-            'max_reservations_week'   => $data['max_reservations_week'],
-            'cancel_deadline_minutes' => $data['cancel_deadline_minutes'],
-            'advance_days'            => $data['advance_days'],
         ];
         if ($request->has('api_access')) {
             $update['api_access'] = $request->boolean('api_access');
@@ -102,6 +89,14 @@ class RoleController extends Controller
     }
 
     /** Un role administrateur a deja tous les droits : ses permissions detaillees ne servent a rien. */
+    /** Limites du role par defaut ("Utilisateur") ; sans lui, celles de la base (sans limite). */
+    private function defaultLimits(): array
+    {
+        $default = Role::defaultUser();
+
+        return $default ? $default->only(array_keys(ReservationLimits::fields())) : [];
+    }
+
     private function permissions(Request $request, ?bool $isAdmin = null): ?array
     {
         if ($isAdmin ?? $request->boolean('is_admin')) {

@@ -105,6 +105,32 @@ class ReservationLimitsSettingsTest extends TestCase
         $this->assertSame(4, $other->refresh()->max_reservations_day);
     }
 
+    public function test_a_role_with_unlimited_limits_can_still_be_edited_from_the_roles_page(): void
+    {
+        $this->actingAs($this->admin());
+        $role = Role::create(['name' => 'prof', 'label' => 'Professeur', 'color' => '#198754'] + $this->limits(['max_reservations_day' => ReservationLimits::UNLIMITED]));
+
+        $this->get(route('admin.roles.edit', $role))->assertOk()
+            ->assertDontSee('name="max_reservations_day"', false)
+            ->assertSee('href="' . route('admin.settings.reservations') . '"', false);
+        $this->put(route('admin.roles.update', $role), ['label' => 'Enseignant', 'color' => '#198754'])->assertSessionHasNoErrors();
+
+        $role->refresh();
+        $this->assertSame('Enseignant', $role->label);
+        $this->assertSame(ReservationLimits::UNLIMITED, $role->max_reservations_day, 'la fiche du role ne touche plus aux limites');
+    }
+
+    public function test_a_new_role_starts_with_the_limits_of_the_default_role(): void
+    {
+        $this->actingAs($this->admin());
+        $this->userRole()->update($this->limits(['max_reservations_day' => 3]));
+
+        $this->post(route('admin.roles.store'), ['name' => 'stagiaire', 'label' => 'Stagiaire', 'color' => '#123456'])->assertSessionHasNoErrors();
+
+        $this->assertSame(3, Role::where('name', 'stagiaire')->value('max_reservations_day'));
+        $this->assertSame(14, Role::where('name', 'stagiaire')->value('advance_days'));
+    }
+
     public function test_staff_who_manage_reservations_cannot_change_the_limits(): void
     {
         $role = $this->userRole();

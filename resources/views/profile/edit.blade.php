@@ -10,7 +10,7 @@
             <div class="card-body">
                 @if(session('status') === 'profile-updated')
                     <div class="alert alert-success alert-dismissible">
-                        <i class="bi bi-check-circle me-1"></i> Profil mis a jour.
+                        <i class="bi bi-check-circle me-1"></i> Profil mis à jour.
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 @endif
@@ -24,7 +24,7 @@
                             @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         @else
                             <input type="text" class="form-control" value="{{ $user->name }}" disabled>
-                            <div class="form-text">La modification du nom est desactivee par l'administrateur.</div>
+                            <div class="form-text">La modification du nom est désactivée par l'administrateur.</div>
                         @endif
                     </div>
                     <div class="mb-3">
@@ -51,7 +51,7 @@
             <div class="card-body">
                 @if(session('status') === 'password-updated')
                     <div class="alert alert-success alert-dismissible">
-                        <i class="bi bi-check-circle me-1"></i> Mot de passe mis a jour.
+                        <i class="bi bi-check-circle me-1"></i> Mot de passe mis à jour.
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 @endif
@@ -80,11 +80,11 @@
 
         {{-- Preferences de theme --}}
         <div class="card mb-4">
-            <div class="card-header"><i class="bi bi-palette me-1"></i> Preferences de theme</div>
+            <div class="card-header"><i class="bi bi-palette me-1"></i> Préférences de thème</div>
             <div class="card-body">
                 @if(session('status') === 'theme-updated')
                     <div class="alert alert-success alert-dismissible">
-                        <i class="bi bi-check-circle me-1"></i> Preferences de theme mises a jour.
+                        <i class="bi bi-check-circle me-1"></i> Préférences de thème mises à jour.
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 @endif
@@ -102,7 +102,7 @@
                                    maxlength="7" style="max-width:120px;">
                             @if($user->accent_color)
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-reset-accent">
-                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reinitialiser
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Réinitialiser
                             </button>
                             @endif
                         </div>
@@ -124,9 +124,9 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-shield-lock me-1"></i> Double authentification (MFA)</span>
                 @if($user->hasAnyMfa())
-                    <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>Activee</span>
+                    <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>Activée</span>
                 @else
-                    <span class="badge bg-secondary"><i class="bi bi-shield me-1"></i>Desactivee</span>
+                    <span class="badge bg-secondary"><i class="bi bi-shield me-1"></i>Désactivée</span>
                 @endif
             </div>
             <div class="card-body">
@@ -202,7 +202,7 @@
                     <div class="flex-shrink-0 ms-3">
                         @if($user->hasEmailMfa())
                             <button class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#email-disable-form">
-                                <i class="bi bi-shield-x"></i> Desactiver
+                                <i class="bi bi-shield-x"></i> Désactiver
                             </button>
                             <div class="collapse mt-2" id="email-disable-form">
                                 <form method="POST" action="{{ route('mfa.email.disable') }}">
@@ -235,14 +235,14 @@
                             @if($user->hasSmsMfa())
                                 Numero : {{ $user->mfa_phone }}
                             @else
-                                Code envoye par SMS sur votre telephone.
+                                Code envoye par SMS sur votre téléphone.
                             @endif
                         </div>
                     </div>
                     <div class="flex-shrink-0 ms-3">
                         @if($user->hasSmsMfa())
                             <button class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#sms-disable-form">
-                                <i class="bi bi-shield-x"></i> Desactiver
+                                <i class="bi bi-shield-x"></i> Désactiver
                             </button>
                             <div class="collapse mt-2" id="sms-disable-form">
                                 <form method="POST" action="{{ route('mfa.sms.disable') }}">
@@ -264,7 +264,7 @@
                     <div class="fw-semibold small d-flex align-items-center gap-2 mb-2">
                         <i class="bi bi-usb-symbol"></i> Cle physique (WebAuthn / FIDO2)
                         @if($user->hasWebAuthn())
-                            <span class="badge bg-success-subtle text-success border border-success-subtle">{{ count($user->webAuthnCredentials()) }} cle(s)</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">{{ count($user->webAuthnCredentials()) }} clé(s)</span>
                         @endif
                     </div>
                     <div class="text-muted mb-2" style="font-size:.78rem;">YubiKey, Touch ID, Windows Hello, Face ID, etc.</div>
@@ -286,7 +286,7 @@
                     @endforeach
 
                     <a href="{{ route('mfa.webauthn.add') }}" class="btn btn-sm btn-outline-primary mt-1">
-                        <i class="bi bi-plus-circle me-1"></i> Ajouter une cle physique
+                        <i class="bi bi-plus-circle me-1"></i> Ajouter une clé physique
                     </a>
                 </div>
             </div>
@@ -327,7 +327,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                         <button type="submit" form="delete-form" class="btn btn-danger">
-                            <i class="bi bi-trash me-1"></i> Supprimer definitivement
+                            <i class="bi bi-trash me-1"></i> Supprimer définitivement
                         </button>
                     </div>
                 </div>

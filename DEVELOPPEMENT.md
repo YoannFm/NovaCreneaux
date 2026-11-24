@@ -1,6 +1,6 @@
 # NovaCreneaux - notes de développement
 
-Système de réservation de créneaux pour le CDI du Lycée Louis Rascol (Albi).
+Système de réservation de créneaux (salles, postes, équipements) pour un établissement : CDI, médiathèque, service.
 
 ## Règles de rédaction
 
@@ -8,8 +8,7 @@ Système de réservation de créneaux pour le CDI du Lycée Louis Rascol (Albi).
 
 ## Projet
 
-- **URL de production** : https://cdi.rascol.net
-- **Répertoire serveur** : `/home/rascol-cdi/htdocs/`
+- **Répertoire serveur** (exemple) : `/var/www/novacreneaux/`
 - **Repo GitHub** : https://github.com/YoannFm/NovaCreneaux
 - **Branche principale** : `main`
 
@@ -228,6 +227,7 @@ Tout ce qui touche l'API et les webhooks est dans Admin > Activite (filtrable pa
 - **Limites d'envoi** : inscription 10 par minute, SMS et e-mail de double authentification 5 par minute et un code par minute et par compte. La reinitialisation de mot de passe repond pareil que l'adresse existe ou non.
 - **Installateur de mises a jour** (`FileInstaller::assertNoSymlink`) : refuse tout chemin dont un dossier ou le fichier lui-meme est un lien symbolique sur le serveur, avant d'ecrire quoi que ce soit (installation), a l'ecriture, a la suppression et a la restauration. Le dossier de base peut etre un lien (dossier `current`). Complete la verification des liens dans l'archive (`PathPolicy`).
 - **Assistant d'installation** : verrouille des la creation de l'administrateur (`InstallController::storeAdmin` ecrit la ligne `installation`, le fichier `storage/app/installed.lock` et `APP_INSTALLED` du `.env`, via `Support\EnvFile`). Un second administrateur ne peut jamais etre cree par `/install`. `InstallationState` : installe si `APP_INSTALLED`, si le fichier existe, si la table dit installe, ou si un administrateur existe (verrou perdu). Limite connue : si le fichier, `APP_INSTALLED` et la base sont tous indisponibles en meme temps, `/install` reste ouvert ; ne pas supprimer `storage/app/installed.lock`.
+- **QR codes** : dessines sur le serveur par `Services\QrCode` (paquet `bacon/bacon-qr-code`, SVG insere dans la page). Le QR code TOTP contient la cle secrete : ne jamais utiliser un service externe de QR code ni mettre la cle dans une adresse. `tests/Feature/MfaQrCodeTest`.
 - **Double authentification** : TOTP, e-mail, SMS, code de recuperation et cle physique partagent le meme compteur d'echecs par compte (5 essais, 5 minutes). Le defi WebAuthn est a usage unique, consomme des la premiere tentative. Non verifie : le compteur de signatures de la cle (detection de clone).
 
 ## Authentification
@@ -266,7 +266,7 @@ Tests : `tests/Unit/PathPolicyTest`, `SignatureVerifierTest`, `tests/Feature/Upd
 - Section "Sauvegardes de la base de données" de Admin > Mise à jour (`Admin\BackupController`, partial `admin/update/_backups`). Export SQL compressé (`.sql.gz`) fait en PHP avec PDO (`DatabaseDumper`, pilotes MySQL, MariaDB et SQLite), sans `mysqldump`. Les tables `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches` et `failed_jobs` sont exportées sans leurs lignes. Un fichier n'est gardé que s'il se termine par le marqueur de fin (`DatabaseDumper::isComplete`).
 - Fichiers dans `storage/app/database-backups` (`config('nova.backups.directory')`), mode 0600, jamais servis publiquement. Le nom porte les métadonnées : `nova-AAAAMMJJ-HHMMSS-(auto|manual)-<16 hex>.sql.gz`. `BackupManager::path()` n'accepte que ce format : aucun chemin ni nom approximatif n'est résolu.
 - **Planification** (réglages `backup_enabled`, `backup_frequency` daily|weekly|monthly, `backup_time`, `backup_weekday`, `backup_keep`) : par défaut tous les jours à 03:00, 7 sauvegardes automatiques conservées (les manuelles ne sont jamais purgées). `BackupSchedule` calcule les échéances, `AutomaticBackup::isDue()` décide : une échéance est tentée une fois, puis reprise toutes les heures après un échec. État : `backup_last_attempt_at`, `backup_last_success_at`, `backup_last_error`.
-- **Déclenchement** : avec le cron du serveur (`* * * * * cd /home/rascol-cdi/htdocs && php8.5 artisan schedule:run >> /dev/null 2>&1`), la commande `backup:run-due` part chaque minute et la sauvegarde a lieu à l'heure choisie. Sans cron, le middleware `RunDueBackupOnRequest` la lance après l'envoi de la réponse, à la première visite après l'heure prévue (`NOVA_BACKUPS_ON_REQUEST=false` le désactive ; les tests le désactivent dans `phpunit.xml`).
+- **Déclenchement** : avec le cron du serveur (`* * * * * cd /var/www/novacreneaux && php artisan schedule:run >> /dev/null 2>&1`), la commande `backup:run-due` part chaque minute et la sauvegarde a lieu à l'heure choisie. Sans cron, le middleware `RunDueBackupOnRequest` la lance après l'envoi de la réponse, à la première visite après l'heure prévue (`NOVA_BACKUPS_ON_REQUEST=false` le désactive ; les tests le désactivent dans `phpunit.xml`).
 - **Sécurité** : télécharger ou supprimer exige le mot de passe de l'administrateur connecté (POST, 6 essais par minute), les refus et les actions sont dans le journal d'activité. Une sauvegarde contient toutes les données du site (comptes, adresses e-mail, empreintes de mots de passe) : ne la déposer que dans un endroit sûr. Les secrets des réglages y restent chiffrés avec `APP_KEY`, qui n'est pas dans la sauvegarde : conserver aussi une copie du `.env`.
 - **Restauration** (pas d'interface, volontairement) : le fichier contient `DROP TABLE` puis `CREATE TABLE` et `INSERT` de chaque table. `gunzip -c nova-....sql.gz | mysql -u UTILISATEUR -p NOM_DE_LA_BASE` remet la base dans l'état de la sauvegarde. À essayer d'abord sur une base de test.
 

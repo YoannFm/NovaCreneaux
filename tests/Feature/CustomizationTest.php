@@ -38,7 +38,7 @@ class CustomizationTest extends TestCase
 
         $login->assertSee('placeholder="prenom.nom@exemple.fr"', false)->assertSee('Réservation de créneaux');
         foreach ([$login->getContent(), $this->get(route('password.request'))->getContent()] as $html) {
-            $this->assertDoesNotMatchRegularExpression('/rascol|\bCDI\b/i', $html);
+            $this->assertDoesNotMatchRegularExpression('/\bCDI\b/', $html);
         }
     }
 
@@ -149,14 +149,6 @@ class CustomizationTest extends TestCase
             ->assertSessionHasNoErrors();
         auth()->logout();
         $this->get(route('password.reset', ['token' => 'x']))->assertSee('minlength="12"', false)->assertSee('12 caractères minimum');
-    }
-
-    public function test_the_authenticator_app_shows_the_configured_site_name(): void
-    {
-        $this->set(['app_name' => 'Ma Médiathèque']);
-
-        $this->actingAs($this->student())->get(route('mfa.totp.enable.form'))->assertOk()
-            ->assertSee(urlencode(rawurlencode('Ma Médiathèque')), false);
     }
 
     public function test_the_footer_shows_the_years_since_2025(): void

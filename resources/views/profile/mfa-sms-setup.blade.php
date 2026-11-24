@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@inject('qrCode', 'App\Services\QrCode')
 
 @push('header-styles')
 <style>
@@ -45,7 +46,7 @@
 
 .qr-grid { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .85rem; }
 .qr-item { text-align: center; }
-.qr-item img { border: 3px solid var(--accent); border-radius: 6px; image-rendering: pixelated; }
+.qr-item .qr-svg { display: inline-block; line-height: 0; border: 3px solid var(--accent); border-radius: 6px; overflow: hidden; }
 .qr-item .qr-label { font-size: .72rem; color: var(--text-muted); margin-top: .4rem; font-weight: 600; }
 
 .topic-box {
@@ -96,13 +97,11 @@
                         {{-- QR codes --}}
                         <div class="qr-grid">
                             <div class="qr-item">
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data={{ urlencode('https://play.google.com/store/apps/details?id=io.heckel.ntfy') }}"
-                                     alt="QR Android" width="110" height="110">
+                                <div class="qr-svg" role="img" aria-label="QR Android">{!! $qrCode->svg('https://play.google.com/store/apps/details?id=io.heckel.ntfy', 110) !!}</div>
                                 <div class="qr-label"><i class="bi bi-android2 me-1"></i>Android</div>
                             </div>
                             <div class="qr-item">
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data={{ urlencode('https://apps.apple.com/app/ntfy/id1625396347') }}"
-                                     alt="QR iPhone" width="110" height="110">
+                                <div class="qr-svg" role="img" aria-label="QR iPhone">{!! $qrCode->svg('https://apps.apple.com/app/ntfy/id1625396347', 110) !!}</div>
                                 <div class="qr-label"><i class="bi bi-apple me-1"></i>iPhone</div>
                             </div>
                         </div>

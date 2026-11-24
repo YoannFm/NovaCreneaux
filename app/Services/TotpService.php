@@ -85,12 +85,4 @@ class TotpService
 
         return $output;
     }
-
-    public function generateQrCodeDataUri(string $otpauthUrl): string
-    {
-        // Inline QR code using a minimal pure-PHP approach via Google Charts API alternative
-        // We generate a simple SVG QR representation using a third-party URL-free approach.
-        // Since we have no QR package, we embed the URL as text and let the user copy it.
-        return $otpauthUrl;
-    }
 }
