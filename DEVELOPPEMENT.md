@@ -292,6 +292,7 @@ Reglage dans Admin > Parametres > Securite (cle `trusted_proxies`, liste d'IP ou
 
 - `roles.locked = true` : le rôle ne peut pas être supprimé ni renommé (admin et user par défaut).
 - Limites de réservation par rôle (Admin > Paramètres > Réservations) : `App\Support\ReservationLimits` décrit les quatre champs (libellé, icône, unité, bornes, interrupteur "sans limite") pour la page, la validation et l'enregistrement. `-1` en base = sans limite ; il n'est jamais saisi, c'est l'interrupteur qui le produit.
+- **Fenetre de reservation** (`Resource::canReserveFor($date, $advanceDays)`, seule regle utilisee par le site, l'API et la page de reservation) : le jour meme jusqu'a `close_time` ; chaque jour a `open_time`, une journee de plus s'ouvre, jusqu'a `User::advanceDays()` jours (limite du role, 30 sans role). Avec 1 jour : demain s'ouvre aujourd'hui a `open_time`. Annulation par le titulaire : jusqu'a `Reservation::cancellableUntil()` (debut du creneau moins le delai du role), affiche dans "Mes reservations". `tests/Feature/ReservationWindowTest`.
 - `users.is_admin` est un champ redondant maintenu en sync avec `role.is_admin` à chaque update utilisateur.
 - `User::isAdmin()` retourne `true` si `role->is_admin` OU `is_admin` est vrai (rétrocompatibilité).
 

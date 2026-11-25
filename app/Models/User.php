@@ -16,6 +16,9 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    /** Reservation a l'avance d'un compte sans role. */
+    public const DEFAULT_ADVANCE_DAYS = 30;
+
     protected $fillable = [
         'name', 'email', 'password', 'classe', 'is_admin', 'is_active', 'role_id',
         'theme_mode', 'accent_color',
@@ -165,6 +168,12 @@ class User extends Authenticatable
         $expires = (int) config('auth.passwords.' . config('auth.defaults.passwords') . '.expire');
 
         Mail::to($this->email)->send(new PasswordResetLink($this->name, $url, $expires));
+    }
+
+    /** Nombre de jours a l'avance ou ce compte peut reserver (limite de son role ; sans role, 30). */
+    public function advanceDays(): int
+    {
+        return max(1, (int) ($this->role?->advance_days ?? self::DEFAULT_ADVANCE_DAYS));
     }
 
     public function warningCount(): int

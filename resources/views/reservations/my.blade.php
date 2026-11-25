@@ -33,12 +33,11 @@
                     <td class="text-muted">{{ $r->created_at->format('d/m/Y H:i') }}</td>
                     <td>
                         @php
-                            $slotStarted = $r->reservation_date->isToday()
-                                && $r->slot
-                                && now()->format('H:i:s') >= $r->slot->start_time;
-                            $canCancel = ($r->reservation_date->isFuture() || $r->reservation_date->isToday()) && !$slotStarted;
+                            // Meme regle que l'annulation elle-meme (Reservation::cancellableUntil : debut du creneau moins le delai du role)
+                            $until = $r->cancellableUntil();
+                            $untilText = $until->isToday() ? $until->format('H:i') : $until->locale('fr')->isoFormat('ddd D MMM [à] HH:mm');
                         @endphp
-                        @if($canCancel)
+                        @if($r->isCancellableByOwner())
                         <form method="POST" action="{{ route('reservations.destroy', $r->id) }}">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -46,8 +45,9 @@
                                 <i class="bi bi-x-lg"></i> Annuler
                             </button>
                         </form>
-                        @elseif($slotStarted)
-                            <span class="text-muted small"><i class="bi bi-lock me-1"></i>Annulation impossible</span>
+                        <div class="text-muted small mt-1">jusqu'à {{ $untilText }}</div>
+                        @elseif(now()->lt($r->startsAt()))
+                            <span class="text-muted small"><i class="bi bi-lock me-1"></i>Annulation impossible depuis {{ $untilText }}</span>
                         @else
                             <span class="text-muted small">Passée</span>
                         @endif

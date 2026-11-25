@@ -62,7 +62,8 @@ class ReservationService {
         if (!$slot->is_active || !$slot->resource->is_active)
             return $this->failure('slot_unavailable', "Ce créneau n'est pas disponible.");
 
-        $check = $slot->resource->canReserveFor($date);
+        // Fenetre de la ressource et limite "a l'avance" du role (Resource::canReserveFor)
+        $check = $slot->resource->canReserveFor($date, $user->advanceDays());
         if (!$check['allowed']) return $this->failure($check['code'], $check['reason']);
 
         // Un creneau deja commence (ou termine) aujourd'hui n'est plus reservable
@@ -90,12 +91,6 @@ class ReservationService {
                 return $this->failure('weekly_limit', "Limite de {$maxWeek} réservation(s) par semaine atteinte.");
         }
 
-        // Advance days limit
-        $advanceDays = $role ? $role->advance_days : 30;
-        $maxDate = Carbon::today()->addDays($advanceDays)->toDateString();
-        if ($date > $maxDate)
-            return $this->failure('advance_limit', "Vous ne pouvez pas réserver plus de {$advanceDays} jours à l'avance.");
-
         if ($slot->availableCountFor($date) <= 0)
             return $this->failure('slot_full', 'Ce créneau est complet.');
 
@@ -111,16 +106,13 @@ class ReservationService {
             return $this->failure('reservation_past', "Impossible d'annuler une réservation passée.");
 
         // Bloquer si le créneau a déjà commencé
-        $slotStart = Carbon::parse($reservation->reservation_date->toDateString() . ' ' . $reservation->slot->start_time);
-        if (Carbon::now()->gte($slotStart))
+        if (Carbon::now()->gte($reservation->startsAt()))
             return $this->failure('slot_started', "Impossible d'annuler un créneau déjà commencé.");
 
-        // Cancel deadline
-        $role = $user->role;
-        $deadline = $role ? $role->cancel_deadline_minutes : -1;
-        if ($deadline !== -1) {
-            if (Carbon::now()->diffInMinutes($slotStart, false) < $deadline)
-                return $this->failure('cancel_deadline', "Annulation impossible : le délai de {$deadline} minute(s) avant le créneau est dépassé.");
+        // Délai d'annulation du rôle (Reservation::cancellableUntil, aussi affiché dans "Mes réservations")
+        if (!$reservation->isCancellableByOwner()) {
+            $deadline = $user->role->cancel_deadline_minutes;
+            return $this->failure('cancel_deadline', "Annulation impossible : le délai de {$deadline} minute(s) avant le créneau est dépassé.");
         }
 
         $this->remove($reservation);

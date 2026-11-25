@@ -11,9 +11,8 @@ class ReservationController extends Controller {
     public function index() {
         $resources = Resource::with(['activeSlots'])->where('is_active',true)->get();
 
-        // Plage dynamique selon advance_days du rôle (défaut : 1 = today + demain)
-        $user = auth()->user();
-        $advanceDays = max(1, (int) ($user?->role?->advance_days ?: 1));
+        // Jours affichés : aujourd'hui puis la limite "à l'avance" du rôle (le dernier peut n'ouvrir qu'à l'heure de la ressource)
+        $advanceDays = auth()->user()->advanceDays();
 
         $today = now()->toDateString();
         $dates = [];
@@ -23,7 +22,7 @@ class ReservationController extends Controller {
 
         $counts = $this->availability->freeSpots($resources->flatMap->activeSlots, $dates);
 
-        return view('reservations.index', compact('resources', 'today', 'dates', 'counts'));
+        return view('reservations.index', compact('resources', 'today', 'dates', 'counts', 'advanceDays'));
     }
     public function store(Request $request) {
         $data = $request->validate([
@@ -38,7 +37,7 @@ class ReservationController extends Controller {
     }
     public function my() {
         $reservations = auth()->user()->reservations()
-            ->with('slot.resource')->orderBy('reservation_date','desc')->paginate(20);
+            ->with(['slot.resource', 'user.role'])->orderBy('reservation_date','desc')->paginate(20);
         return view('reservations.my', compact('reservations'));
     }
     public function destroy(int $id) {

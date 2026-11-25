@@ -19,7 +19,7 @@ class RulesController extends Controller
             'max_reservations_per_day' => $limit($role?->max_reservations_day),
             'max_reservations_per_week' => $limit($role?->max_reservations_week),
             'cancel_deadline_minutes' => $limit($role?->cancel_deadline_minutes),
-            'advance_days' => $role ? $role->advance_days : 30,
+            'advance_days' => $request->user()->advanceDays(),
         ]]);
     }
 }

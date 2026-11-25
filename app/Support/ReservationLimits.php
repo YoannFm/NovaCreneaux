@@ -15,7 +15,7 @@ final class ReservationLimits
         'max_reservations_day' => ['Réservations par jour', 'bi-calendar-check', 'Créneaux réservables sur une même journée.', 'par jour', 0, 99, 'Illimité'],
         'max_reservations_week' => ['Réservations par semaine', 'bi-calendar-week', 'Créneaux réservables du lundi au dimanche.', 'par semaine', 0, 99, 'Illimité'],
         'cancel_deadline_minutes' => ["Délai d'annulation", 'bi-hourglass-split', 'Temps minimum avant le début du créneau pour annuler.', 'min', 0, 10080, 'Toujours possible'],
-        'advance_days' => ["Réservation à l'avance", 'bi-calendar-range', "Jours visibles et réservables à l'avance.", 'jours', 1, 365, null],
+        'advance_days' => ["Réservation à l'avance", 'bi-calendar-range', "Jours réservables à l'avance ; le plus lointain s'ouvre à l'heure d'ouverture de la ressource.", 'jours', 1, 365, null],
     ];
 
     /** @return array<string, array{label: string, icon: string, help: string, unit: string, min: int, max: int, unlimited: ?string}> */

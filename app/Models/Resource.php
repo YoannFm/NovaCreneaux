@@ -24,7 +24,11 @@ class Resource extends Model {
         $dow = (int) date('N', strtotime($date));
         return !in_array($dow, $this->closed_days ?? []);
     }
-    public function canReserveFor(string $date): array {
+    /**
+     * Fenetre de reservation : le jour meme jusqu'a close_time, et chaque jour a open_time une journee de plus
+     * s'ouvre, jusqu'a $advanceDays jours a l'avance (limite du role). Avec 1 jour : demain s'ouvre aujourd'hui a open_time.
+     */
+    public function canReserveFor(string $date, int $advanceDays): array {
         $today = now()->toDateString();
         $now   = now()->format('H:i:s');
 
@@ -40,7 +44,20 @@ class Resource extends Model {
             return ['allowed'=>true];
         }
 
-        // Dates futures : autorisé dès que la ressource est ouverte ce jour-là
-        return ['allowed'=>true];
+        if ($date <= $this->lastBookableDate($advanceDays)) return ['allowed'=>true];
+
+        // Le prochain jour a s'ouvrir : il ouvre aujourd'hui a open_time
+        if ($date === now()->addDays($advanceDays)->toDateString()) {
+            return ['allowed'=>false,'code'=>'advance_limit','reason'=>'Ouverture des réservations aujourd\'hui à ' . substr($this->open_time, 0, 5) . '.'];
+        }
+
+        return ['allowed'=>false,'code'=>'advance_limit','reason'=>"Vous ne pouvez pas réserver plus de {$advanceDays} jour(s) à l'avance."];
+    }
+
+    /** Jour le plus lointain reservable maintenant : celui a $advanceDays jours ne s'ouvre qu'a open_time. */
+    public function lastBookableDate(int $advanceDays): string {
+        $opened = now()->format('H:i:s') >= $this->open_time;
+
+        return now()->addDays($opened ? $advanceDays : $advanceDays - 1)->toDateString();
     }
 }

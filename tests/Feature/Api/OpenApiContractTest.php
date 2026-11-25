@@ -90,7 +90,8 @@ class OpenApiContractTest extends TestCase
 
     public function test_real_responses_match_the_documented_schemas(): void
     {
-        $resource = Resource::create(['name' => 'CDI', 'description' => null, 'open_time' => '08:00', 'close_time' => '23:59', 'closed_days' => [6, 7]]);
+        // Ouverte tous les jours : le test ne doit pas dependre du jour ou il tourne (J+3 un samedi)
+        $resource = Resource::create(['name' => 'CDI', 'description' => null, 'open_time' => '08:00', 'close_time' => '23:59', 'closed_days' => []]);
         $slot = Slot::create(['resource_id' => $resource->id, 'name' => 'Recre', 'start_time' => '23:00', 'end_time' => '23:30', 'max_capacity' => 3]);
         $user = User::factory()->create(['role_id' => Role::defaultUser()->id, 'classe' => null]);
         $reservation = Reservation::create(['user_id' => $user->id, 'slot_id' => $slot->id, 'reservation_date' => now()->addDay()->toDateString()]);

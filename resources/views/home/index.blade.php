@@ -213,8 +213,7 @@
                         <span class="dot"></span>
                         {{ $resource->name }}
                         <small style="color:var(--text-muted);">
-                            {{ $resource->open_time ? substr($resource->open_time,0,5) : '' }}
-                            @if($resource->close_time) – {{ substr($resource->close_time,0,5) }} @endif
+                            @if($resource->close_time) jusqu'à {{ substr($resource->close_time,0,5) }} @endif
                         </small>
                     </a>
                 @endforeach

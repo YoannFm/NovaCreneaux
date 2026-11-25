@@ -23,7 +23,7 @@
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Heure ouverture (veille) <span class="text-danger">*</span></label>
+                            <label class="form-label">Ouverture d'un nouveau jour <span class="text-danger">*</span></label>
                             <input type="time" name="open_time" class="form-control"
                                    value="{{ old('open_time', substr($resource->open_time ?? '17:00:00', 0, 5)) }}" required>
                         </div>
@@ -31,6 +31,11 @@
                             <label class="form-label">Heure fermeture (jour J) <span class="text-danger">*</span></label>
                             <input type="time" name="close_time" class="form-control"
                                    value="{{ old('close_time', substr($resource->close_time ?? '11:30:00', 0, 5)) }}" required>
+                        </div>
+                        <div class="col-12 form-text mt-1">
+                            Chaque jour à l'heure d'ouverture, une journée de plus devient réservable, dans la limite
+                            « Réservation à l'avance » du rôle (Paramètres &gt; Réservations). Avec 1 jour : demain s'ouvre aujourd'hui à cette heure.
+                            Après l'heure de fermeture, on ne réserve plus pour le jour même.
                         </div>
                     </div>
 

@@ -195,7 +195,7 @@
         @if($resource->open_time && $resource->close_time)
         <div class="resource-hours">
             <i class="bi bi-clock"></i>
-            {{ substr($resource->open_time,0,5) }} – {{ substr($resource->close_time,0,5) }}
+            Nouveau jour à {{ substr($resource->open_time,0,5) }} · le jour même jusqu'à {{ substr($resource->close_time,0,5) }}
         </div>
         @endif
     </div>
@@ -203,7 +203,7 @@
     {{-- Panneau par date --}}
     @foreach($dates as $date)
     @php
-        $check       = $resource->canReserveFor($date);
+        $check       = $resource->canReserveFor($date, $advanceDays);
         $isFirst     = $loop->first;
         $totalSlots  = $resource->activeSlots->count();
         $availSlots  = $resource->activeSlots->filter(fn($s) => ($counts[$s->id][$date] ?? $s->max_capacity) > 0)->count();
@@ -217,7 +217,7 @@
         @if(!$check['allowed'])
         <div class="px-4 py-3 d-flex align-items-center gap-2" style="border-bottom:1px solid rgba(255,255,255,.05);">
             <span class="resource-closed-badge">
-                <i class="bi bi-lock"></i> {{ $check['reason'] ?? 'Reservations fermees' }}
+                <i class="bi bi-lock"></i> {{ $check['reason'] ?? 'Réservations fermées' }}
             </span>
         </div>
         @else
@@ -233,9 +233,9 @@
                 <div style="height:100%;width:{{ $fillPct }}%;background:{{ $gaugeColor }};border-radius:3px;transition:width .5s ease;"></div>
             </div>
             <div style="font-size:.72rem;color:var(--text-muted);margin-top:.35rem;">
-                {{ $takenPlaces }} place{{ $takenPlaces > 1 ? 's' : '' }} occupee{{ $takenPlaces > 1 ? 's' : '' }}
+                {{ $takenPlaces }} place{{ $takenPlaces > 1 ? 's' : '' }} occupée{{ $takenPlaces > 1 ? 's' : '' }}
                 sur {{ $totalPlaces }} &middot;
-                {{ $availSlots }} creneau{{ $availSlots > 1 ? 'x' : '' }} disponible{{ $availSlots > 1 ? 's' : '' }}
+                {{ $availSlots }} créneau{{ $availSlots > 1 ? 'x' : '' }} disponible{{ $availSlots > 1 ? 's' : '' }}
             </div>
         </div>
         @endif
@@ -281,7 +281,7 @@
                         @if($available <= 0)
                             <i class="bi bi-x-circle me-1"></i> Complet
                         @elseif(!$check['allowed'])
-                            <i class="bi bi-lock me-1"></i> Ferme
+                            <i class="bi bi-lock me-1"></i> Fermé
                         @else
                             <i class="bi bi-check-circle me-1"></i> Réserver
                         @endif
