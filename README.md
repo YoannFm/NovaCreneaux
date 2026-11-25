@@ -1,8 +1,30 @@
 # NovaCreneaux
 
+[![Version](https://img.shields.io/github/v/release/YoannFm/NovaCreneaux?label=version)](https://github.com/YoannFm/NovaCreneaux/releases/latest)
+[![Téléchargements](https://img.shields.io/github/downloads/YoannFm/NovaCreneaux/total?label=t%C3%A9l%C3%A9chargements)](https://github.com/YoannFm/NovaCreneaux/releases)
+[![Issues ouvertes](https://img.shields.io/github/issues/YoannFm/NovaCreneaux?label=issues%20ouvertes)](https://github.com/YoannFm/NovaCreneaux/issues)
+[![Dernière modification](https://img.shields.io/github/last-commit/YoannFm/NovaCreneaux?label=derni%C3%A8re%20modification)](https://github.com/YoannFm/NovaCreneaux/commits/main)
+[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)](#prérequis)
+[![Licence](https://img.shields.io/github/license/YoannFm/NovaCreneaux?label=licence)](LICENSE)
+
 Logiciel libre de réservation de créneaux pour un établissement : CDI, médiathèque, salle de travail, postes informatiques, matériel. Les élèves (ou adhérents, agents…) réservent en quelques clics ; le personnel gère les ressources, les créneaux et les présences depuis une administration complète.
 
 Interface en français, thème clair et sombre, utilisable sur téléphone.
+
+<p align="center">
+  <img src="docs/images/reservation.png" alt="Page de réservation d'un créneau" width="900">
+</p>
+
+## Aperçu
+
+| | |
+|:---:|:---:|
+| ![Planning du jour](docs/images/planning.png) | ![Détail du journal d'activité](docs/images/journal.png) |
+| **Planning du jour** : réservations par ressource et par créneau, ajout pour le compte d'un élève | **Journal d'activité** : qui a modifié quoi, avant et après |
+| ![Limites par rôle](docs/images/limites.png) | ![Tableau de bord en thème sombre](docs/images/tableau-de-bord.png) |
+| **Limites par rôle** : par jour, par semaine, annulation, jours à l'avance | **Tableau de bord**, ici en thème sombre |
+| ![Connexion](docs/images/connexion.png) | |
+| **Connexion**, avec mot de passe oublié par e-mail et double authentification | |
 
 ## Fonctionnalités
 
