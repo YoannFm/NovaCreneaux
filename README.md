@@ -15,6 +15,8 @@ Interface en français, thème clair et sombre, utilisable sur téléphone.
   <img src="docs/images/reservation.png" alt="Page de réservation d'un créneau" width="900">
 </p>
 
+Page de présentation : [`docs/index.html`](docs/index.html).
+
 ## Aperçu
 
 | | |
@@ -23,8 +25,8 @@ Interface en français, thème clair et sombre, utilisable sur téléphone.
 | **Planning du jour** : réservations par ressource et par créneau, ajout pour le compte d'un élève | **Journal d'activité** : qui a modifié quoi, avant et après |
 | ![Limites par rôle](docs/images/limites.png) | ![Tableau de bord en thème sombre](docs/images/tableau-de-bord.png) |
 | **Limites par rôle** : par jour, par semaine, annulation, jours à l'avance | **Tableau de bord**, ici en thème sombre |
-| ![Connexion](docs/images/connexion.png) | |
-| **Connexion**, avec mot de passe oublié par e-mail et double authentification | |
+| ![Connexion](docs/images/connexion.png) | ![Modèles prêts à importer](docs/images/configuration.png) |
+| **Connexion**, avec mot de passe oublié par e-mail et double authentification | **Modèles prêts à importer** : CDI, salle informatique, salle de travail, prêt de matériel |
 
 ## Fonctionnalités
 
@@ -33,6 +35,7 @@ Interface en français, thème clair et sombre, utilisable sur téléphone.
 - « Mes réservations » : historique et annulation jusqu'à l'heure limite affichée
 - E-mail de confirmation et d'annulation, notifications sur le site
 - Double authentification facultative (application, e-mail, SMS, clé physique)
+- Connexion avec le compte de l'établissement (OpenID Connect ou CAS), en plus du mot de passe
 
 **Pour le personnel**
 - Ressources (salles, postes, matériel) et créneaux, jours de fermeture, ouverture des réservations la veille à l'heure choisie
@@ -44,6 +47,7 @@ Interface en français, thème clair et sombre, utilisable sur téléphone.
 - Journal d'activité détaillé (qui, quand, depuis quelle adresse, avant / après de chaque modification)
 
 **Pour l'administrateur**
+- Export et import de la configuration, modèles prêts à importer (CDI, salle informatique, salle de travail, prêt de matériel)
 - Personnalisation sans toucher au code : nom, logo, couleurs, vocabulaire (« élève », « classe »…), textes et signature des e-mails
 - Mises à jour en un clic depuis l'administration, par archive signée
 - Sauvegardes automatiques de la base de données
@@ -82,11 +86,28 @@ Conservez une copie du fichier `.env` : la clé `APP_KEY` chiffre certains régl
 
 ## Mises à jour
 
-Dans **Administration > Mise à jour** : le site télécharge la nouvelle version, vérifie sa signature, sauvegarde la base et les fichiers remplacés, puis installe. Un retour en arrière est possible. Aucune donnée n'est envoyée.
+Dans **Administration > Mise à jour** : le site télécharge la nouvelle version, vérifie sa signature, sauvegarde la base et les fichiers remplacés, puis installe. Si une migration échoue, le site reste en maintenance et propose de réessayer. Le retour en arrière remet les fichiers précédents et, si vous le choisissez, la base telle qu'avant la mise à jour. Aucune donnée n'est envoyée.
 
 ## API
 
 La documentation interactive de l'API est disponible sur votre site, à l'adresse `/api/docs`. Les jetons se créent dans **Administration > Intégrations API** ou, pour chaque compte autorisé, depuis son profil.
+
+## Documentation
+
+Deux éditions sont produites à partir des mêmes sources :
+
+| Édition | Fichier | Parties |
+|---|---|---|
+| Générique, pour tout établissement | [NovaCreneaux - Documentation complete.pdf](<docs/pdf/NovaCreneaux - Documentation complete.pdf>) | Utilisateurs, Personnel, Administrateur |
+| CDI du lycée Louis Rascol (Albi) | [NovaCreneaux - Lycee Louis Rascol - Documentation du CDI.pdf](<docs/pdf/NovaCreneaux - Lycee Louis Rascol - Documentation du CDI.pdf>) | Élèves, Documentalistes, Technique |
+
+Les chapitres sont dans `docs/complete/fr/` (édition générique, un dossier par partie) et `docs/complete/rascol/` (chapitres propres au lycée, qui reprennent aussi des chapitres génériques). Les tableaux sont générés depuis le code par `docs/build/sources.py`. Pour reconstruire les deux éditions, ou une seule (`generique` ou `rascol`) :
+
+```bash
+docs/build/.venv/bin/python docs/build/build_complete.py
+```
+
+Il faut Python avec `pymupdf` et `pyyaml`, `pandoc` et le navigateur Brave. Le chapitre « Guide du développeur » détaille l'installation de ces outils.
 
 ## Licence
 

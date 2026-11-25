@@ -1,0 +1,59 @@
+{
+  "format": "novacreneaux-configuration",
+  "version": 1,
+  "title": "Salle de travail en groupe",
+  "icon": "bi-people",
+  "description": "Une salle de 6 places pour travailler à plusieurs, par séances de deux heures. Une réservation par jour et deux par semaine, deux semaines à l'avance.",
+  "roles": [
+    {
+      "name": "user",
+      "max_reservations_day": 1,
+      "max_reservations_week": 2,
+      "cancel_deadline_minutes": 120,
+      "advance_days": 14
+    }
+  ],
+  "resources": [
+    {
+      "name": "Salle de travail en groupe",
+      "description": "Table de travail, tableau blanc et écran.",
+      "is_active": true,
+      "open_time": "17:00",
+      "close_time": "11:30",
+      "closed_days": [
+        6,
+        7
+      ],
+      "slots": [
+        {
+          "name": "Matin 1",
+          "start_time": "08:00",
+          "end_time": "10:00",
+          "max_capacity": 6,
+          "is_active": true
+        },
+        {
+          "name": "Matin 2",
+          "start_time": "10:00",
+          "end_time": "12:00",
+          "max_capacity": 6,
+          "is_active": true
+        },
+        {
+          "name": "Après-midi 1",
+          "start_time": "13:00",
+          "end_time": "15:00",
+          "max_capacity": 6,
+          "is_active": true
+        },
+        {
+          "name": "Après-midi 2",
+          "start_time": "15:00",
+          "end_time": "17:00",
+          "max_capacity": 6,
+          "is_active": true
+        }
+      ]
+    }
+  ]
+}

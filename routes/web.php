@@ -66,7 +66,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/api-tokens', [\App\Http\Controllers\ProfileApiTokenController::class, 'store'])->middleware('throttle:10,1')->name('profile.api-tokens.store');
     Route::delete('/profile/api-tokens/{token}', [\App\Http\Controllers\ProfileApiTokenController::class, 'destroy'])->whereNumber('token')->name('profile.api-tokens.destroy');
 
-    // MFA — TOTP
+    // MFA - TOTP
     Route::get('/profile/mfa/totp/enable', [\App\Http\Controllers\MfaController::class, 'totpEnableForm'])->name('mfa.totp.enable.form');
     Route::post('/profile/mfa/totp/enable', [\App\Http\Controllers\MfaController::class, 'totpEnable'])->name('mfa.totp.enable');
     Route::delete('/profile/mfa/totp', [\App\Http\Controllers\MfaController::class, 'totpDisable'])->name('mfa.totp.disable');
@@ -74,20 +74,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/mfa/recovery-codes/confirm', [\App\Http\Controllers\MfaController::class, 'recoveryCodesConfirm'])->name('mfa.recovery-codes.confirm');
     Route::post('/profile/mfa/recovery-codes/regenerate', [\App\Http\Controllers\MfaController::class, 'recoveryCodesRegenerate'])->name('mfa.recovery-codes.regenerate');
 
-    // MFA — Email OTP
+    // MFA - Email OTP
     Route::post('/profile/mfa/email/enable', [\App\Http\Controllers\MfaController::class, 'emailEnable'])->middleware('throttle:5,1')->name('mfa.email.enable');
     Route::get('/profile/mfa/email/confirm', [\App\Http\Controllers\MfaController::class, 'emailConfirmForm'])->name('mfa.email.confirm');
     Route::post('/profile/mfa/email/confirm', [\App\Http\Controllers\MfaController::class, 'emailConfirm'])->name('mfa.email.confirm.post');
     Route::delete('/profile/mfa/email', [\App\Http\Controllers\MfaController::class, 'emailDisable'])->name('mfa.email.disable');
 
-    // MFA — SMS OTP
+    // MFA - SMS OTP
     Route::get('/profile/mfa/sms/setup', [\App\Http\Controllers\MfaController::class, 'smsSetupForm'])->name('mfa.sms.setup');
     Route::post('/profile/mfa/sms/setup', [\App\Http\Controllers\MfaController::class, 'smsSetup'])->middleware('throttle:5,1')->name('mfa.sms.setup.post');
     Route::get('/profile/mfa/sms/confirm', [\App\Http\Controllers\MfaController::class, 'smsConfirmForm'])->name('mfa.sms.confirm');
     Route::post('/profile/mfa/sms/confirm', [\App\Http\Controllers\MfaController::class, 'smsConfirm'])->name('mfa.sms.confirm.post');
     Route::delete('/profile/mfa/sms', [\App\Http\Controllers\MfaController::class, 'smsDisable'])->name('mfa.sms.disable');
 
-    // MFA — WebAuthn
+    // MFA - WebAuthn
     Route::get('/profile/mfa/webauthn/register-options', [\App\Http\Controllers\MfaController::class, 'webAuthnRegisterOptions'])->name('mfa.webauthn.options');
     Route::get('/profile/mfa/webauthn/add', fn() => view('profile.mfa-webauthn-add'))->name('mfa.webauthn.add');
     Route::post('/profile/mfa/webauthn/register', [\App\Http\Controllers\MfaController::class, 'webAuthnRegister'])->name('mfa.webauthn.register');
@@ -204,6 +204,8 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
             Route::post('/auth',       [\App\Http\Controllers\Admin\SettingController::class, 'updateAuth'])->name('auth.update');
             Route::get('/security',    [\App\Http\Controllers\Admin\SettingController::class, 'security'])->name('security');
             Route::post('/security',   [\App\Http\Controllers\Admin\SettingController::class, 'updateSecurity'])->name('security.update');
+            Route::get('/sso',         [\App\Http\Controllers\Admin\SettingController::class, 'sso'])->name('sso');
+            Route::post('/sso',        [\App\Http\Controllers\Admin\SettingController::class, 'updateSso'])->name('sso.update');
             Route::post('/security/proxies', [\App\Http\Controllers\Admin\SettingController::class, 'updateProxies'])->name('security.proxies');
             Route::get('/mail',        [\App\Http\Controllers\Admin\SettingController::class, 'mail'])->name('mail');
             Route::post('/mail',       [\App\Http\Controllers\Admin\SettingController::class, 'updateMail'])->name('mail.update');
@@ -212,6 +214,15 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
             Route::post('/maintenance',[\App\Http\Controllers\Admin\SettingController::class, 'updateMaintenance'])->name('maintenance.update');
             Route::get('/reservations',[\App\Http\Controllers\Admin\SettingController::class, 'reservations'])->name('reservations');
             Route::post('/reservations',[\App\Http\Controllers\Admin\SettingController::class, 'updateReservations'])->name('reservations.update');
+            Route::prefix('configuration')->name('configuration.')->controller(\App\Http\Controllers\Admin\ConfigurationController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                // Mot de passe exige, essais limites
+                Route::middleware('throttle:6,1')->group(function () {
+                    Route::post('/export', 'export')->name('export');
+                    Route::post('/import', 'import')->name('import');
+                    Route::post('/templates/{template}', 'template')->where('template', '[a-z0-9-]+')->name('template');
+                });
+            });
         });
         Route::post('/logs/purge', [LogController::class, 'purge'])->name('logs.purge');
         Route::get('/api-tokens', [\App\Http\Controllers\Admin\ApiTokenController::class, 'index'])->name('api-tokens.index');

@@ -5,7 +5,7 @@ use App\Support\SecretValue;
 use Illuminate\Support\Facades\Cache;
 class SettingService {
     /** Reglages chiffres en base, jamais reaffiches ni mis en cache en clair. */
-    public const SECRET_KEYS = ['mail_smtp_password', 'sms_ntfy_token', 'sms_android_pass', 'sms_free_mobile_key'];
+    public const SECRET_KEYS = ['mail_smtp_password', 'sms_ntfy_token', 'sms_android_pass', 'sms_free_mobile_key', 'oidc_client_secret'];
 
     public static function isSecret(string $key): bool {
         return in_array($key, self::SECRET_KEYS, true);
@@ -29,7 +29,6 @@ class SettingService {
     public function all(): array {
         return Setting::all()->reject(fn ($s) => self::isSecret($s->key))->pluck('value','key')->toArray();
     }
-    /** Pour chaque secret, indique s'il est renseigne, sans jamais renvoyer sa valeur. */
     /**
      * Etat de tous les reglages pour le journal d'activite : valeurs en clair, sauf les secrets, remplaces par
      * une empreinte de leur valeur chiffree (dit qu'un secret a change sans jamais le reveler).
@@ -40,6 +39,7 @@ class SettingService {
         ])->all();
     }
 
+    /** Pour chaque secret, indique s'il est renseigne, sans jamais renvoyer sa valeur. */
     public function secretsStatus(): array {
         $stored = Setting::whereIn('key', self::SECRET_KEYS)->pluck('value', 'key');
         return collect(self::SECRET_KEYS)->mapWithKeys(fn ($key) => [$key => filled($stored[$key] ?? null)])->all();

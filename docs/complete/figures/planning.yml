@@ -1,0 +1,11 @@
+image: planning.png
+legende: Planning du jour (menu Réservations)
+marques:
+  - {n: 1, cadre: [325, 185, 372, 46], bulle: [319, 180], texte: "Jour précédent ou suivant."}
+  - {n: 2, cadre: [705, 190, 333, 36], bulle: [699, 185], texte: "Date précise et filtre par ressource."}
+  - {n: 3, cadre: [987, 243, 137, 32], bulle: [981, 238], texte: "Export du planning affiché : CSV (tableur) ou PDF (à imprimer)."}
+  - {n: 4, cadre: [1125, 242, 90, 34], bulle: [1226, 238], texte: "« Ajouter » : réserver pour un élève."}
+  - {n: 5, rond: [1199, 384, 20], texte: "Ajouter un élève directement sur ce créneau."}
+  - {n: 6, cadre: [1016, 373, 157, 23], bulle: [1009, 368], texte: "Places prises sur la capacité du créneau."}
+  - {n: 7, rond: [1207, 420, 15], bulle: [1240, 432], texte: "Supprimer la réservation, avec un motif transmis à l'élève."}
+  - {n: 8, cadre: [3, 388, 257, 40], bulle: [242, 388], texte: "Menu « Réservations »."}

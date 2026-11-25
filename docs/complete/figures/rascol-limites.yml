@@ -1,0 +1,10 @@
+image: rascol-limites.jpg
+legende: Limites de réservation des élèves sur le site du CDI (Paramètres > Réservations)
+marques:
+  - {n: 1, cadre: [255, 176, 144, 20], bulle: [251, 172], texte: "Rôle des élèves (Utilisateur) : 1924 comptes."}
+  - {n: 2, cadre: [613, 221, 134, 26], bulle: [757, 234], texte: "Réservations par jour : 1."}
+  - {n: 3, rond: [622, 256, 9], bulle: [655, 257], texte: "Interrupteur « Illimité » : désactivé, la valeur saisie s'applique."}
+  - {n: 4, cadre: [613, 290, 134, 26], bulle: [757, 303], texte: "Réservations par semaine, du lundi au dimanche : 4."}
+  - {n: 5, cadre: [613, 358, 134, 26], bulle: [757, 371], texte: "Délai d'annulation avant le début du créneau : 30 minutes."}
+  - {n: 6, cadre: [613, 438, 134, 26], bulle: [757, 451], texte: "Réservation à l'avance : 1 jour, pour réserver la veille dès 17 h."}
+  - {n: 7, fleche: [400, 521, 342, 521], texte: "« Enregistrer » applique les limites."}

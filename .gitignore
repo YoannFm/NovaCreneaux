@@ -26,3 +26,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 .env
+/docs/build/.venv
+/docs/build/__pycache__
+/to delete/

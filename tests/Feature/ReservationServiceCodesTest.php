@@ -11,6 +11,7 @@ use App\Models\Slot;
 use App\Models\User;
 use App\Services\ReservationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -125,5 +126,24 @@ class ReservationServiceCodesTest extends TestCase
 
         $this->assertSame(0, Reservation::count());
         Mail::assertSent(ReservationCancelled::class, fn ($mail) => $mail->hasTo($user->email));
+    }
+
+    public function test_the_account_is_locked_before_the_slot_inside_the_booking_transaction(): void
+    {
+        // Sur MySQL, ces deux lectures portent FOR UPDATE (SQLite, utilise par les tests, verrouille deja toute la base) :
+        // deux demandes simultanees du meme compte comptent alors ses reservations l'une apres l'autre.
+        $user = $this->student();
+        $slot = $this->slot();
+        $reads = [];
+        $outside = DB::transactionLevel(); // RefreshDatabase ouvre deja une transaction
+        DB::listen(function ($query) use (&$reads) {
+            if (preg_match('/^select .* from "(users|slots)" where/', $query->sql, $match)) {
+                $reads[] = [$match[1], DB::transactionLevel()];
+            }
+        });
+
+        $this->assertTrue($this->service->create($user, $slot->id, $this->tomorrow())['ok']);
+
+        $this->assertSame([['users', $outside + 1], ['slots', $outside + 1]], array_slice($reads, 0, 2));
     }
 }

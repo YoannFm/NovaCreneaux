@@ -1,0 +1,11 @@
+image: limites.png
+legende: Limites de réservation par rôle (Paramètres > Réservations)
+marques:
+  - {n: 1, cadre: [796, 215, 152, 28], texte: "Rôle des élèves (Utilisateur) et nombre de comptes."}
+  - {n: 2, cadre: [1041, 275, 172, 32], bulle: [1226, 291], texte: "Réservations par jour (ici 2)."}
+  - {n: 3, rond: [1054, 317, 13], bulle: [1100, 318], texte: "Interrupteur « Illimité » : désactivé, la valeur saisie s'applique."}
+  - {n: 4, cadre: [1041, 375, 172, 32], bulle: [1226, 391], texte: "Réservations par semaine, du lundi au dimanche (ici 5)."}
+  - {n: 5, cadre: [1041, 475, 172, 32], bulle: [1226, 491], texte: "Délai d'annulation avant le début du créneau (ici 30 minutes)."}
+  - {n: 6, cadre: [1041, 585, 172, 32], bulle: [1226, 601], texte: "Réservation à l'avance (ici 3 jours)."}
+  - {n: 7, fleche: [530, 700, 442, 700], texte: "« Enregistrer » applique les limites de tous les rôles."}
+  - {n: 8, cadre: [326, 215, 98, 28], texte: "Rôle des administrateurs : sans limite."}

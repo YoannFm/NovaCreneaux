@@ -10,23 +10,24 @@ class AllowedEmailDomain implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $domains = $this->domains();
-        if ($domains === []) {
+        if (self::allows((string) $value)) {
             return;
         }
 
-        $email = strtolower((string) $value);
-        foreach ($domains as $domain) {
-            if (str_ends_with($email, '@' . $domain)) {
-                return;
-            }
-        }
+        $fail('Seules les adresses @' . implode(', @', self::domains()) . ' sont autorisées.');
+    }
 
-        $fail('Seules les adresses @' . implode(', @', $domains) . ' sont autorisées.');
+    /** L'adresse est-elle acceptee (aussi pour un compte cree a la connexion par l'etablissement) ? */
+    public static function allows(string $email): bool
+    {
+        $domains = self::domains();
+        $email = strtolower($email);
+
+        return $domains === [] || array_filter($domains, fn (string $domain) => str_ends_with($email, '@' . $domain)) !== [];
     }
 
     /** @return list<string> */
-    private function domains(): array
+    private static function domains(): array
     {
         $raw = (string) setting('allowed_email_domain', '');
 

@@ -1,0 +1,11 @@
+image: reservation.png
+legende: Page « Réserver » d'un élève
+marques:
+  - {n: 1, cadre: [46, 157, 1188, 73], bulle: [42, 152], texte: "Choix du jour : aujourd'hui, demain, puis les jours suivants permis par le rôle."}
+  - {n: 2, cadre: [893, 273, 322, 27], bulle: [887, 268], texte: "Horaires de la ressource : ouverture d'un nouveau jour et fermeture du jour même."}
+  - {n: 3, rond: [108, 531, 34], texte: "Places encore libres sur le créneau, sur la capacité totale."}
+  - {n: 4, fleche: [245, 655, 212, 594], texte: "Bouton « Réserver » : la réservation est confirmée aussitôt, un e-mail suit."}
+  - {n: 5, cadre: [447, 12, 168, 32], bulle: [440, 52], texte: "« Mes réservations » : historique et annulation."}
+  - {n: 6, rond: [1015, 26, 20], bulle: [1015, 66], texte: "Notifications non lues."}
+  - {n: 7, rond: [1056, 26, 20], bulle: [1056, 66], texte: "Thème clair ou sombre."}
+  - {n: 8, cadre: [1084, 9, 142, 36], bulle: [1240, 56], texte: "Menu du compte : profil, double authentification, déconnexion."}

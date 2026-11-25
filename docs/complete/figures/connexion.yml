@@ -1,0 +1,9 @@
+image: connexion.png
+legende: Page de connexion
+marques:
+  - {n: 1, cadre: [462, 354, 356, 50], texte: "Adresse e-mail : majuscules et minuscules sont équivalentes."}
+  - {n: 2, cadre: [462, 439, 356, 50], texte: "Mot de passe. Après 5 essais manqués, il faut patienter."}
+  - {n: 3, cadre: [459, 510, 154, 25], bulle: [452, 505], texte: "« Se souvenir de moi » : seulement sur un appareil personnel."}
+  - {n: 4, fleche: [890, 579, 824, 579], texte: "« Se connecter »."}
+  - {n: 5, fleche: [690, 630, 606, 630], texte: "« Mot de passe oublié ? » : envoie un lien valable 60 minutes."}
+  - {n: 6, rond: [1246, 34, 21], bulle: [1246, 76], texte: "Thème clair ou sombre."}

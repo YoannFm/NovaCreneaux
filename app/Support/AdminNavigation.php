@@ -58,10 +58,12 @@ class AdminNavigation
                     $this->link('Accueil', null, 'admin.settings.home', self::ADMIN_ONLY),
                     $this->link('Apparence', null, 'admin.themes.index', Permission::APPEARANCE, 'admin.themes.*'),
                     $this->link('Authentification', null, 'admin.settings.auth', self::ADMIN_ONLY),
+                    $this->link("Compte de l'établissement", null, 'admin.settings.sso', self::ADMIN_ONLY),
                     $this->link('Sécurité', null, 'admin.settings.security', self::ADMIN_ONLY),
                     $this->link('E-mail', null, 'admin.settings.mail', self::ADMIN_ONLY),
                     $this->link('Maintenance', null, 'admin.settings.maintenance', self::ADMIN_ONLY),
                     $this->link('Réservations', null, 'admin.settings.reservations', self::ADMIN_ONLY),
+                    $this->link('Configuration', null, 'admin.settings.configuration.index', self::ADMIN_ONLY, 'admin.settings.configuration.*'),
                 ]],
             ]],
             ['header' => 'Gestion', 'items' => [

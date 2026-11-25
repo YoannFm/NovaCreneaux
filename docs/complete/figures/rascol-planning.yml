@@ -1,0 +1,12 @@
+image: rascol-planning.jpg
+legende: Planning du CDI pour le 27 octobre 2026 (menu Réservations)
+marques:
+  - {n: 1, cadre: [255, 145, 320, 34], bulle: [251, 141], texte: "Jour précédent ou suivant ; « Aujourd'hui » revient au jour même."}
+  - {n: 2, cadre: [255, 190, 244, 26], bulle: [251, 186], texte: "Date précise et filtre par ressource (le CDI est la seule)."}
+  - {n: 3, cadre: [578, 226, 101, 26], bulle: [574, 222], texte: "Export du planning affiché : CSV (tableur) ou PDF (à imprimer)."}
+  - {n: 4, cadre: [682, 226, 66, 26], bulle: [757, 222], texte: "« Ajouter » : réserver pour un élève."}
+  - {n: 5, rond: [736, 334, 14], texte: "Ajouter un élève directement sur ce créneau."}
+  - {n: 6, cadre: [595, 325, 122, 19], bulle: [589, 321], texte: "Places prises sur la capacité : 1 sur 40."}
+  - {n: 7, rond: [743, 362, 11], bulle: [770, 374], texte: "Supprimer la réservation, avec un motif transmis à l'élève."}
+  - {n: 8, cadre: [249, 351, 102, 24], bulle: [245, 347], texte: "Élève inscrit et sa classe (ici le compte de test « Yoann »)."}
+  - {n: 9, cadre: [2, 303, 200, 30], bulle: [192, 303], texte: "Menu « Réservations »."}

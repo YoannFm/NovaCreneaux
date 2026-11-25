@@ -27,6 +27,8 @@
         var data = new FormData();
         var backup = document.getElementById('backup-database');
         if (backup) { data.append('backup_database', backup.checked ? '1' : '0'); }
+        var restoreDatabase = document.getElementById('restore-database');
+        if (restoreDatabase) { data.append('restore_database', restoreDatabase.checked ? '1' : '0'); }
 
         return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }, body: data })
             .then(function (response) {
@@ -40,7 +42,10 @@
     // data-update-route : une ou plusieurs etapes enchainees (separees par une virgule)
     document.querySelectorAll('[data-update-route]').forEach(function (button) {
         button.addEventListener('click', function () {
-            if (button.dataset.confirm && !confirm(button.dataset.confirm)) { return; }
+            var question = button.dataset.confirm;
+            var restoreDatabase = document.getElementById('restore-database');
+            if (button.dataset.confirmDatabase && restoreDatabase && restoreDatabase.checked) { question = button.dataset.confirmDatabase; }
+            if (question && !confirm(question)) { return; }
             var steps = button.dataset.updateRoute.split(',');
             document.querySelectorAll('[data-update-route]').forEach(function (b) { b.disabled = true; });
             show('info', button.dataset.wait || 'Veuillez patienter, ne fermez pas cette page...');
@@ -85,7 +90,23 @@
             </div>
         @endunless
 
-        @if($status['pending'])
+        @if($status['pending'] && !empty($status['pending']['error']))
+            <div class="alert alert-danger">
+                <i class="bi bi-x-octagon me-1"></i>
+                <strong>La mise à jour vers la version {{ $status['pending']['to'] }} n'a pas abouti.</strong>
+                Les fichiers sont installés mais la base de données n'a pas été entièrement mise à jour. Le site reste en maintenance pour les visiteurs.
+                <div class="small mt-2 text-break"><code>{{ $status['pending']['error'] }}</code></div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary" data-update-route="{{ route('admin.update.finalize') }}">
+                    <i class="bi bi-arrow-repeat me-1"></i> Réessayer
+                </button>
+                @if($status['backup'])
+                    <a href="#update-restore" class="btn btn-outline-danger"><i class="bi bi-arrow-counterclockwise me-1"></i> Revenir à la version précédente</a>
+                @endif
+            </div>
+
+        @elseif($status['pending'])
             <div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle me-1"></i>
                 <strong>Mise à jour à finaliser.</strong> Les fichiers de la version {{ $status['pending']['to'] }} sont installés, mais les
@@ -144,15 +165,34 @@
         <div id="update-feedback" class="d-none"></div>
 
         @if($status['backup'])
+            @php($databaseBackup = $status['database_backup'])
             <hr class="my-4">
-            <h6><i class="bi bi-clock-history me-1"></i> Revenir en arrière</h6>
+            <h6 id="update-restore"><i class="bi bi-clock-history me-1"></i> Revenir en arrière</h6>
             <p class="small text-muted mb-2">
                 Sauvegarde des fichiers : <code>{{ $status['backup']['name'] }}</code>.
-                Cette opération remet les fichiers de la version précédente ; <strong>la base de données n'est pas modifiée</strong>.
+                Par défaut, seuls <strong>les fichiers</strong> de la version précédente sont remis ; la base de données garde les changements
+                de la mise à jour.
             </p>
+            @if($databaseBackup)
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="restore-database">
+                    <label class="form-check-label" for="restore-database">
+                        Restaurer aussi la base de données sauvegardée avant la mise à jour
+                        (<code>{{ $databaseBackup['name'] }}</code>, {{ \Illuminate\Support\Carbon::parse($databaseBackup['created_at'])->translatedFormat('j F Y à H:i') }})
+                    </label>
+                </div>
+                <div class="alert alert-warning small py-2">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Tout ce qui a été enregistré depuis cette sauvegarde sera <strong>perdu</strong> (réservations, comptes, réglages),
+                    et tout le monde sera déconnecté.
+                </div>
+            @else
+                <p class="small text-muted mb-2">Aucune sauvegarde de la base n'est associée à cette mise à jour : seule la restauration des fichiers est possible.</p>
+            @endif
             <button type="button" class="btn btn-outline-danger btn-sm" data-update-route="{{ route('admin.update.restore') }}"
-                    data-confirm="Restaurer les fichiers de la version précédente ? La base de données reste telle quelle.">
-                <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurer les fichiers précédents
+                    data-confirm="Restaurer les fichiers de la version précédente ? La base de données reste telle quelle."
+                    data-confirm-database="Restaurer les fichiers ET la base de données d'avant la mise à jour ? Tout ce qui a été enregistré depuis sera perdu.">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Revenir à la version précédente
             </button>
         @endif
 

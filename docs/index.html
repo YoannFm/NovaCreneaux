@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NovaCreneaux - réservation de créneaux pour un établissement</title>
+<meta name="description" content="Logiciel libre de réservation de créneaux pour un CDI, une médiathèque, une salle ou du matériel. Configurable, en français, sous licence MIT.">
+<style>
+    :root {
+        --accent: #efb703; --accent-text: #8a6a00; --on-accent: #212227;
+        --bg: #f4f5f7; --surface: #ffffff; --text: #1a1a2e; --muted: #5f6673; --border: #e3e5ea;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root { --accent-text: #efb703; --bg: #111113; --surface: #1c1d22; --text: #e2e8f0; --muted: #9ca3af; --border: #2c2e35; }
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent-text); }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+    header { padding: 56px 0 32px; text-align: center; }
+    .logo { font-size: 2.4rem; font-weight: 800; color: var(--accent); letter-spacing: -.5px; margin: 0; }
+    .tagline { font-size: 1.25rem; margin: .5rem auto 0; max-width: 640px; }
+    .lead { color: var(--muted); max-width: 680px; margin: 1rem auto 0; }
+    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
+    .btn { display: inline-block; padding: .75rem 1.4rem; font-weight: 700; text-decoration: none; border: 2px solid var(--accent); }
+    .btn-primary { background: var(--accent); color: var(--on-accent); }
+    .btn-outline { color: var(--text); }
+    .hero-shot { margin: 40px auto 0; max-width: 960px; }
+    img { max-width: 100%; height: auto; display: block; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0, 0, 0, .12); }
+    section { padding: 48px 0; border-top: 1px solid var(--border); }
+    h2 { font-size: 1.6rem; margin: 0 0 .4rem; }
+    .section-lead { color: var(--muted); margin: 0 0 28px; max-width: 720px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+    .card { background: var(--surface); border: 1px solid var(--border); padding: 20px; }
+    .card h3 { font-size: 1.05rem; margin: 0 0 .4rem; }
+    .card p, .card ul { margin: 0; color: var(--muted); font-size: .95rem; }
+    .card ul { padding-left: 1.1rem; }
+    .shots { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    figure { margin: 0; }
+    figcaption { color: var(--muted); font-size: .9rem; margin-top: .6rem; }
+    figcaption strong { color: var(--text); }
+    ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    ol.steps li { counter-increment: step; background: var(--surface); border: 1px solid var(--border); padding: 14px 16px 14px 60px; position: relative; }
+    ol.steps li::before { content: counter(step); position: absolute; left: 16px; top: 12px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 800; display: grid; place-items: center; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; background: var(--bg); border: 1px solid var(--border); padding: .1em .35em; overflow-wrap: anywhere; }
+    footer { padding: 32px 0 48px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+    <p class="logo">NovaCreneaux</p>
+    <p class="tagline">La réservation de créneaux pour votre établissement, configurée en quelques minutes.</p>
+    <p class="lead">
+        CDI, médiathèque, salle informatique, salle de travail, prêt de matériel : chacun réserve sa place en quelques clics,
+        le personnel gère les ressources, les créneaux et les présences depuis une administration complète.
+        Logiciel libre, en français, utilisable sur téléphone.
+    </p>
+    <div class="actions">
+        <a class="btn btn-primary" href="https://github.com/YoannFm/NovaCreneaux/releases/latest">Télécharger la dernière version</a>
+        <a class="btn btn-outline" href="https://github.com/YoannFm/NovaCreneaux">Voir le code source</a>
+    </div>
+    <div class="hero-shot">
+        <img src="images/reservation.png" alt="Page de réservation d'un créneau, avec les places restantes" width="1280" height="800">
+    </div>
+</header>
+
+<main>
+    <section>
+        <div class="wrap">
+            <h2>Pour quels usages ?</h2>
+            <p class="section-lead">Tout ce qui se réserve par créneau, avec un nombre de places et des règles d'accès.</p>
+            <div class="grid">
+                <div class="card"><h3>CDI et médiathèque</h3><p>Places de lecture et de travail par heure, ouverture des réservations la veille à l'heure choisie.</p></div>
+                <div class="card"><h3>Salle informatique</h3><p>Postes réservables par séance, avec une limite par jour et par semaine pour partager équitablement.</p></div>
+                <div class="card"><h3>Salle de travail en groupe</h3><p>Séances longues pour travailler à plusieurs, réservables plusieurs jours à l'avance.</p></div>
+                <div class="card"><h3>Prêt de matériel</h3><p>Ordinateurs portables, tablettes, appareils photo, empruntés à la demi-journée.</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="wrap">
+            <h2>Entièrement configurable</h2>
+            <p class="section-lead">Rien de propre à un établissement n'est écrit dans le code : tout se règle depuis l'administration.</p>
+            <div class="grid">
+                <div class="card"><h3>Modèles prêts à importer</h3><p>CDI, salle informatique, salle de travail, prêt de matériel : ressources, créneaux et règles en un clic, à ajuster ensuite.</p></div>
+                <div class="card"><h3>Règles par rôle</h3><p>Réservations par jour et par semaine, délai d'annulation, nombre de jours à l'avance, pour chaque rôle.</p></div>
+                <div class="card"><h3>Vocabulaire et apparence</h3><p>Nom, logo, couleurs, thème clair ou sombre, « élève » ou « adhérent », « classe » ou « service », textes des e-mails.</p></div>
+                <div class="card"><h3>Export et import</h3><p>La configuration tient dans un fichier, sans aucun secret : à garder, ou à reprendre sur une autre installation.</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="wrap">
+            <h2>Aperçu</h2>
+            <p class="section-lead">Quelques écrans du site et de son administration.</p>
+            <div class="shots">
+                <figure><img src="images/planning.png" alt="Planning du jour par ressource et par créneau" width="1280" height="800" loading="lazy">
+                    <figcaption><strong>Planning du jour</strong> : réservations par ressource et par créneau, ajout pour le compte d'un élève, export CSV et PDF.</figcaption></figure>
+                <figure><img src="images/configuration.png" alt="Modèles de configuration prêts à importer" width="1280" height="800" loading="lazy">
+                    <figcaption><strong>Modèles prêts à importer</strong> : un point de départ pour chaque usage.</figcaption></figure>
+                <figure><img src="images/limites.png" alt="Limites de réservation par rôle" width="1280" height="800" loading="lazy">
+                    <figcaption><strong>Limites par rôle</strong> : par jour, par semaine, annulation, jours à l'avance.</figcaption></figure>
+                <figure><img src="images/journal.png" alt="Détail d'une entrée du journal d'activité" width="1280" height="800" loading="lazy">
+                    <figcaption><strong>Journal d'activité</strong> : qui a modifié quoi, avant et après.</figcaption></figure>
+                <figure><img src="images/tableau-de-bord.png" alt="Tableau de bord en thème sombre" width="1280" height="800" loading="lazy">
+                    <figcaption><strong>Tableau de bord</strong>, ici en thème sombre.</figcaption></figure>
+                <figure><img src="images/connexion.png" alt="Page de connexion" width="1280" height="800" loading="lazy">
+                    <figcaption><strong>Connexion</strong> par mot de passe ou avec le compte de l'établissement, double authentification possible.</figcaption></figure>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="wrap">
+            <h2>Fonctionnalités</h2>
+            <p class="section-lead">L'essentiel pour une utilisation au quotidien, sans module payant.</p>
+            <div class="grid">
+                <div class="card"><h3>Pour les personnes qui réservent</h3><ul>
+                    <li>Places restantes en direct</li>
+                    <li>Historique et annulation jusqu'à l'heure limite</li>
+                    <li>E-mails de confirmation et d'annulation</li>
+                    <li>Connexion avec le compte de l'établissement (OpenID Connect ou CAS)</li>
+                </ul></div>
+                <div class="card"><h3>Pour le personnel</h3><ul>
+                    <li>Ressources, créneaux, jours de fermeture</li>
+                    <li>Réservation pour le compte d'un élève</li>
+                    <li>Import CSV des comptes, actions groupées, suspension</li>
+                    <li>Permissions délégables par rôle</li>
+                </ul></div>
+                <div class="card"><h3>Pour l'administrateur</h3><ul>
+                    <li>Mises à jour en un clic, par archive signée, avec retour en arrière</li>
+                    <li>Sauvegardes automatiques de la base</li>
+                    <li>API REST documentée et webhooks</li>
+                    <li>Journal d'activité détaillé</li>
+                </ul></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="installation">
+        <div class="wrap">
+            <h2>Installation</h2>
+            <p class="section-lead">Un hébergement PHP 8.3 avec MySQL ou MariaDB suffit. Node.js n'est pas nécessaire.</p>
+            <ol class="steps">
+                <li>Téléchargez l'archive <code>novacreneaux-X.Y.Z.zip</code> de la <a href="https://github.com/YoannFm/NovaCreneaux/releases/latest">dernière version</a> et décompressez-la sur le serveur.</li>
+                <li>Faites pointer la racine du site sur le dossier <code>public/</code>.</li>
+                <li>Créez la configuration : <code>cp .env.example .env</code> puis <code>php artisan key:generate</code>.</li>
+                <li>Ouvrez le site : l'assistant vérifie les prérequis, configure la base de données et crée le compte administrateur.</li>
+                <li>Ajoutez la tâche planifiée : <code>* * * * * cd /chemin/vers/novacreneaux &amp;&amp; php artisan schedule:run</code>.</li>
+                <li>Dans Paramètres &gt; Configuration, importez le modèle qui correspond à votre usage.</li>
+            </ol>
+        </div>
+    </section>
+
+    <section>
+        <div class="wrap">
+            <h2>Licence</h2>
+            <p class="section-lead" style="margin-bottom:0">
+                NovaCreneaux est un logiciel libre distribué sous <a href="https://github.com/YoannFm/NovaCreneaux/blob/main/LICENSE">licence MIT</a> :
+                vous pouvez l'utiliser, le modifier et le redistribuer librement. Aucune donnée n'est envoyée à l'auteur.
+            </p>
+        </div>
+    </section>
+</main>
+
+<footer class="wrap">
+    NovaCreneaux - <a href="https://github.com/YoannFm/NovaCreneaux">code source</a> - <a href="https://github.com/YoannFm/NovaCreneaux/issues">signaler un problème</a>
+</footer>
+
+</body>
+</html>

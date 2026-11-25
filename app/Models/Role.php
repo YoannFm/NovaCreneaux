@@ -4,6 +4,7 @@ namespace App\Models;
 use App\Models\Concerns\Loggable;
 use App\Support\Color;
 use App\Support\Permission;
+use App\Support\ReservationLimits;
 use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
@@ -21,7 +22,39 @@ class Role extends Model
     protected const ACTIVITY_NOUN = 'Rôle';
     protected const ACTIVITY_FEMININE = false;
 
+    /** Identifiant technique d'un role (unique, jamais modifie apres la creation). */
+    public const NAME_RULE = 'required|string|max:50|regex:/^[a-z0-9_]+$/';
+
+    public const DEFAULT_ICON = 'bi bi-star';
+
+    public const DEFAULT_COLOR = '#6c757d';
+
     public function users() { return $this->hasMany(User::class); }
+
+    /** Limites d'un nouveau role : celles du role par defaut ("Utilisateur") ; sans lui, celles de la base (sans limite). */
+    public static function defaultLimits(): array
+    {
+        return self::defaultUser()?->only(array_keys(ReservationLimits::fields())) ?? [];
+    }
+
+    /**
+     * Regles communes a un role (formulaire et import de configuration) ; $prefix pour un tableau, ex. "roles.*.".
+     * $partial : libelle et couleur facultatifs (un import ne change que ce qu'il contient).
+     * Les permissions inconnues ne sont pas refusees ici : Permission::only() les ecarte.
+     */
+    public static function rules(string $prefix = '', bool $partial = false): array
+    {
+        $required = $partial ? 'sometimes|required' : 'required';
+
+        return [
+            "{$prefix}label" => "{$required}|string|max:100",
+            "{$prefix}icon" => 'nullable|string|max:60',
+            "{$prefix}color" => "{$required}|string|regex:/^#[0-9a-fA-F]{6}$/",
+            "{$prefix}api_access" => 'boolean',
+            "{$prefix}permissions" => 'nullable|array',
+            "{$prefix}permissions.*" => 'string',
+        ];
+    }
 
     public function hasPermission(string $permission): bool
     {
@@ -48,7 +81,7 @@ class Role extends Model
 
     public function getBadgeStyle(): string
     {
-        $bg   = $this->color ?: '#6c757d';
+        $bg   = $this->color ?: self::DEFAULT_COLOR;
         $text = Color::contrastText($bg);
         return "background-color:{$bg};color:{$text};";
     }

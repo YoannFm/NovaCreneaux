@@ -104,6 +104,11 @@
             display: flex; align-items: center; justify-content: center; gap: .5rem;
         }
         .btn-auth:hover { background: var(--accent-hover); }
+        /* Variante discrete : connexion avec le compte de l'etablissement, au-dessus du formulaire */
+        .btn-auth-outline { background: transparent; border: 2px solid var(--accent); color: var(--text-primary); text-decoration: none; }
+        .btn-auth-outline:hover { background: var(--accent); color: #212227; }
+        .auth-separator { display: flex; align-items: center; gap: .75rem; margin: 1.1rem 0; font-size: .78rem; color: var(--text-muted); }
+        .auth-separator::before, .auth-separator::after { content: ''; flex: 1; border-top: 1px solid var(--bs-border-color); }
 
         .auth-links { display: flex; justify-content: space-between; margin-top: 1.25rem; font-size: .8rem; }
         .auth-links a { color: var(--text-muted); text-decoration: none; }

@@ -19,7 +19,7 @@ class MfaOtpMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Code de vérification — ' . setting('app_name', 'NovaCreneaux'));
+        return new Envelope(subject: 'Code de vérification - ' . setting('app_name', 'NovaCreneaux'));
     }
 
     public function content(): Content

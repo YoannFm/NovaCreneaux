@@ -47,8 +47,14 @@ class ReservationService {
         return $result;
     }
 
-    /** Verrouille le creneau pour que deux demandes simultanees ne depassent pas sa capacite. */
+    /**
+     * Deux verrous jusqu'a la fin de la transaction, toujours dans cet ordre (compte puis creneau, jamais l'inverse) :
+     * - le compte : deux demandes du meme compte sur des creneaux differents ne comptent pas ses reservations
+     *   du jour ou de la semaine en meme temps (sinon elles depasseraient ensemble la limite du role) ;
+     * - le creneau : deux demandes de comptes differents ne depassent pas sa capacite.
+     */
     private function book(User $user, int $slotId, string $date, callable $check): array {
+        User::whereKey($user->id)->lockForUpdate()->first();
         $slot = Slot::with('resource')->lockForUpdate()->findOrFail($slotId);
 
         if ($failure = $check($slot)) return $failure;

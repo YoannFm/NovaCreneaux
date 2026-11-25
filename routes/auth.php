@@ -11,7 +11,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
-// MFA login challenge (no auth required — user stored in session)
+// MFA login challenge (no auth required - user stored in session)
 Route::get('mfa/challenge', [\App\Http\Controllers\MfaController::class, 'challengeForm'])->name('mfa.challenge.form');
 Route::post('mfa/challenge/send', [\App\Http\Controllers\MfaController::class, 'challengeSend'])->name('mfa.challenge.send');
 Route::post('mfa/challenge', [\App\Http\Controllers\MfaController::class, 'challenge'])->name('mfa.challenge');
@@ -29,6 +29,12 @@ Route::middleware('guest')->group(function () {
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    // Connexion avec le compte de l'etablissement (OpenID Connect ou CAS), si elle est activee
+    Route::middleware('throttle:20,1')->group(function () {
+        Route::get('login/etablissement', [\App\Http\Controllers\Auth\SsoController::class, 'redirect'])->name('sso.redirect');
+        Route::get('login/etablissement/retour', [\App\Http\Controllers\Auth\SsoController::class, 'callback'])->name('sso.callback');
+    });
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');

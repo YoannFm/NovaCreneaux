@@ -11,6 +11,7 @@ use App\Support\ActivityChanges;
 use App\Support\Customization;
 use App\Support\HtmlSanitizer;
 use App\Support\ReservationLimits;
+use App\Support\SsoSettings;
 use App\Services\SettingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -134,6 +135,27 @@ class SettingController extends Controller
 
         $this->logSettings('Authentification', $before);
         return back()->with('success', 'Paramètres d\'authentification enregistrés.');
+    }
+
+    // ---------------------------------------------------------------
+    // Compte de l'etablissement (OpenID Connect ou CAS)
+    // ---------------------------------------------------------------
+    public function sso()
+    {
+        return view('admin.settings.sso', ['s' => $this->settings->all(), 'secrets' => $this->settings->secretsStatus()]);
+    }
+
+    public function updateSso(Request $request)
+    {
+        $before = $this->settings->snapshot();
+        $data = $request->validate(SsoSettings::rules() + [
+            'clear_secrets'   => 'nullable|array',
+            'clear_secrets.*' => Rule::in(SettingService::SECRET_KEYS),
+        ]);
+        $data['sso_auto_create'] = $request->boolean('sso_auto_create') ? '1' : '0';
+        $this->storeSettings($data);
+        $this->logSettings("Compte de l'établissement", $before);
+        return back()->with('success', "Paramètres de connexion par l'établissement enregistrés.");
     }
 
     // ---------------------------------------------------------------

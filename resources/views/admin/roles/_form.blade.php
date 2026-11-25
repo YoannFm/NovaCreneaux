@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <small class="form-text text-info">
         Lorsque le rôle est administrateur, il a toutes les permissions.
         @if(isset($role) && $role->locked)
-            <em class="text-body-secondary">(Verrouillé — rôle système)</em>
+            <em class="text-body-secondary">(Verrouillé - rôle système)</em>
         @endif
     </small>
 </div>

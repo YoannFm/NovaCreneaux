@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
     public function up(): void {
-        // Clear placeholder icon — was set as column default, not intentional
+        // Clear placeholder icon - was set as column default, not intentional
         DB::table('roles')->where('icon', 'bi bi-star')->update(['icon' => '']);
 
         // Only the lowest-power non-admin role should be locked (default role for new users)

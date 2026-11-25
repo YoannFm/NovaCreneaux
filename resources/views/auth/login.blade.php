@@ -4,6 +4,13 @@
 @section('subtitle', 'Entrez vos identifiants pour accéder à votre espace.')
 
 @section('content')
+        @if(\App\Support\SsoSettings::enabled())
+            <a href="{{ route('sso.redirect') }}" class="btn-auth btn-auth-outline">
+                <i class="bi bi-building"></i> {{ \App\Support\SsoSettings::label() }}
+            </a>
+            <div class="auth-separator">ou avec votre mot de passe</div>
+        @endif
+
         <form method="POST" action="{{ route('login') }}">
             @csrf
 

@@ -1,0 +1,8 @@
+image: rascol-tableau-de-bord.jpg
+legende: Tableau de bord de l'administration du CDI (thème sombre)
+marques:
+  - {n: 1, cadre: [237, 126, 528, 260], bulle: [233, 122], texte: "Compteurs : 1924 comptes, 1 ressource (le CDI), 2 créneaux, réservations du jour et total."}
+  - {n: 2, cadre: [239, 421, 524, 114], bulle: [235, 417], texte: "Dernières réservations (ici, la réservation de test)."}
+  - {n: 3, cadre: [256, 17, 168, 26], bulle: [434, 30], texte: "« Support » (Discord) et « Documentation » (documentation générale)."}
+  - {n: 4, cadre: [632, 15, 152, 30], bulle: [622, 50], texte: "Compte connecté : « ADMINISTRATEUR CDI »."}
+  - {n: 5, cadre: [2, 66, 200, 30], bulle: [192, 66], texte: "Menu de l'administration, regroupé par rubriques."}
