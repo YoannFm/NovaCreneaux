@@ -87,6 +87,41 @@ class ReservationPdfExportTest extends TestCase
         $this->assertMatchesRegularExpression('/CDI \(3\).*Zoé Moreau.*Élodie Durand.*Noah Thomas.*Postes informatiques \(1\).*Hugo Bernard/s', $html);
     }
 
+    public function test_the_page_offers_the_three_layouts(): void
+    {
+        $page = $this->actingAs($this->admin())->get(route('admin.reservations.index', ['date' => self::DATE]))->assertOk();
+
+        foreach (['list' => 'Une seule liste', 'slots' => 'Un bloc par créneau', 'pages' => 'Une page par créneau'] as $layout => $label) {
+            $page->assertSee("layout={$layout}", false)->assertSee($label);
+        }
+    }
+
+    public function test_slots_can_be_separated_in_blocks_or_one_page_each(): void
+    {
+        $this->renderHtmlInsteadOfPdf();
+        $m2 = $this->slot('CDI', 'M2', '09:00');
+        $m1 = $this->slot('CDI', 'M1', '08:00');
+        $this->book($m2, 'Noah Thomas');
+        $this->book($m1, 'Zoé Moreau');
+        $this->book($m2, 'Élodie Durand');
+        $this->actingAs($this->admin());
+
+        $blocks = $this->export(['layout' => 'slots'])->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/1 \/ 30 places.*CDI - 08:00 - 23:00 - M1.*Zoé Moreau.*2 \/ 30 places.*CDI - 09:00 - 23:00 - M2.*Élodie Durand.*Noah Thomas/s',
+            preg_replace('/\s+/', ' ', $blocks));
+        $this->assertSame(2, substr_count($blocks, 'class="slot '));
+        $this->assertStringNotContainsString('slot-page"', $blocks);
+        $this->assertStringNotContainsString('Présent', $blocks);
+
+        $pages = $this->export(['layout' => 'pages'])->assertOk()->getContent();
+        $this->assertSame(1, substr_count($pages, 'slot-page"'), 'chaque creneau apres le premier commence une page');
+        $this->assertSame(2, substr_count($pages, '<th style="width:11%;">Présent</th>'));
+        $this->assertStringContainsString('Mardi 1 décembre 2026', $pages);
+        $this->assertTrue(ActivityLog::where('action', 'Export PDF des réservations')->where('context', self::DATE . ', une page par créneau')->exists());
+
+        $this->export(['layout' => 'autre'])->assertSessionHasErrors('layout');
+    }
+
     public function test_the_resource_filter_applies_and_names_are_escaped(): void
     {
         $this->renderHtmlInsteadOfPdf();
