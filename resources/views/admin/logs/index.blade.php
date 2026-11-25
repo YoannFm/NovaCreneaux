@@ -2,12 +2,6 @@
 @php $pageTitle = 'Journaux d\'activité'; @endphp
 @section('content')
 
-@if(session('success'))
-<div class="alert alert-success alert-dismissible mb-4" role="alert">
-    <i class="bi bi-check-circle me-2"></i> {{ session('success') }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-@endif
 
 {{-- Filtres --}}
 <div class="card mb-4">
@@ -73,6 +67,7 @@
                         <th class="px-3 py-3 fw-semibold text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;">Action</th>
                         <th class="px-3 py-3 fw-semibold text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;">Contexte</th>
                         <th class="px-3 py-3 fw-semibold text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;">IP</th>
+                        <th class="px-3 py-3"><span class="visually-hidden">Détail</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -100,10 +95,17 @@
                         <td class="px-3 py-2 text-muted" style="font-family:monospace;font-size:.78rem;white-space:nowrap;">
                             {{ $log->ip_address ?? '-' }}
                         </td>
+                        <td class="px-3 py-2 text-end">
+                            <button type="button" class="btn btn-sm btn-link p-0 js-log-detail" data-template="log-detail-{{ $log->id }}"
+                                    title="Voir le détail" aria-label="Voir le détail">
+                                <i class="bi {{ $log->changes ? 'bi-eye-fill' : 'bi-eye' }}"></i>
+                            </button>
+                            <template id="log-detail-{{ $log->id }}">@include('admin.logs._detail')</template>
+                        </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-5">
+                        <td colspan="6" class="text-center text-muted py-5">
                             <i class="bi bi-journal-x d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
                             Aucune activité enregistrée
                         </td>
@@ -121,4 +123,28 @@
 
     </div>
 </div>
+{{-- Detail d'une entree : le contenu vient du <template> de la ligne (deja echappe par Blade) --}}
+<div class="modal fade" id="log-detail-modal" tabindex="-1" aria-labelledby="log-detail-title" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="log-detail-title"><i class="bi bi-eye me-1"></i> Détail de l'activité</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body" id="log-detail-body"></div>
+        </div>
+    </div>
+</div>
+
+@push('footer-scripts')
+<script>
+document.querySelectorAll('.js-log-detail').forEach(function (button) {
+    button.addEventListener('click', function () {
+        var body = document.getElementById('log-detail-body');
+        body.replaceChildren(document.getElementById(button.dataset.template).content.cloneNode(true));
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('log-detail-modal')).show();
+    });
+});
+</script>
+@endpush
 @endsection

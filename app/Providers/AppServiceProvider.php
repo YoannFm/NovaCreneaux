@@ -2,9 +2,6 @@
 
 namespace App\Providers;
 
-use Illuminate\Auth\Events\Login;
-use Illuminate\Auth\Events\Logout;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Cache\RateLimiting\Limit;
 use App\Rules\TrustedProxyList;
 use App\Support\CanonicalUrl;
@@ -12,7 +9,6 @@ use App\Support\Customization;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -30,8 +26,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-write', fn (Request $request) => Limit::perMinute(30)->by('w' . ($request->user()?->currentAccessToken()?->id ?: $request->ip())));
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->currentAccessToken()?->id ?: $request->ip()));
 
-        Event::listen([Login::class, Logout::class, Registered::class],
-            \App\Listeners\LogAuthListener::class);
+        // App\Listeners\LogAuthListener (connexion, deconnexion, inscription) est decouvert par Laravel :
+        // le declarer ici aussi l'executait deux fois (chaque connexion etait inscrite deux fois au journal).
 
         // Longueur minimale des mots de passe (Parametres > Authentification), lue au moment de la validation
         Password::defaults(fn () => Password::min(Customization::passwordMinLength()));

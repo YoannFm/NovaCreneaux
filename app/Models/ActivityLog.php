@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class ActivityLog extends Model
 {
     public $timestamps  = false;
-    protected $fillable = ['user_id', 'user_name', 'action', 'context', 'ip_address', 'created_at'];
+    protected $fillable = ['user_id', 'user_name', 'action', 'context', 'changes', 'ip_address', 'created_at'];
 
-    protected $casts = ['created_at' => 'datetime'];
+    protected $casts = ['created_at' => 'datetime', 'changes' => 'array'];
 
     public function user()
     {

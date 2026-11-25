@@ -30,6 +30,16 @@ class SettingService {
         return Setting::all()->reject(fn ($s) => self::isSecret($s->key))->pluck('value','key')->toArray();
     }
     /** Pour chaque secret, indique s'il est renseigne, sans jamais renvoyer sa valeur. */
+    /**
+     * Etat de tous les reglages pour le journal d'activite : valeurs en clair, sauf les secrets, remplaces par
+     * une empreinte de leur valeur chiffree (dit qu'un secret a change sans jamais le reveler).
+     */
+    public function snapshot(): array {
+        return Setting::all()->mapWithKeys(fn ($s) => [
+            $s->key => self::isSecret($s->key) ? (filled($s->value) ? hash('sha256', (string) $s->value) : '') : $s->value,
+        ])->all();
+    }
+
     public function secretsStatus(): array {
         $stored = Setting::whereIn('key', self::SECRET_KEYS)->pluck('value', 'key');
         return collect(self::SECRET_KEYS)->mapWithKeys(fn ($key) => [$key => filled($stored[$key] ?? null)])->all();

@@ -7,6 +7,7 @@ use App\Mail\TestMail;
 use App\Models\Role;
 use App\Rules\TrustedProxyList;
 use App\Services\ActivityLogger;
+use App\Support\ActivityChanges;
 use App\Support\Customization;
 use App\Support\HtmlSanitizer;
 use App\Support\ReservationLimits;
@@ -32,6 +33,7 @@ class SettingController extends Controller
 
     public function updateGeneral(Request $request)
     {
+        $before = $this->settings->snapshot();
         $data = $request->validate([
             'app_name'         => 'required|string|max:100',
             'site_url'         => 'nullable|url|max:255',
@@ -41,7 +43,7 @@ class SettingController extends Controller
             'locale'           => 'nullable|in:fr,en',
         ] + Customization::rules());
         foreach ($data as $key => $value) $this->settings->set($key, $value ?? '');
-        ActivityLogger::log('Paramètres modifiés', 'Général');
+        $this->logSettings('Général', $before);
         return back()->with('success', 'Paramètres généraux enregistrés.');
     }
 
@@ -104,6 +106,7 @@ class SettingController extends Controller
 
     public function updateAuth(Request $request)
     {
+        $before = $this->settings->snapshot();
         $request->validate([
             'registration_terms'          => 'nullable|string',
             'registration_open'           => 'boolean',
@@ -129,7 +132,7 @@ class SettingController extends Controller
         $this->settings->set('allow_name_change',      $request->boolean('allow_name_change') ? '1' : '0');
         $this->settings->set('allow_account_deletion', $request->boolean('allow_account_deletion') ? '1' : '0');
 
-        ActivityLogger::log('Paramètres modifiés', 'Authentification');
+        $this->logSettings('Authentification', $before);
         return back()->with('success', 'Paramètres d\'authentification enregistrés.');
     }
 
@@ -147,10 +150,11 @@ class SettingController extends Controller
 
     public function updateProxies(Request $request)
     {
+        $before = $this->settings->snapshot();
         $data = $request->validate(['trusted_proxies' => ['nullable', 'string', 'max:255', new TrustedProxyList]]);
 
         $this->settings->set('trusted_proxies', implode(',', TrustedProxyList::parse((string) ($data['trusted_proxies'] ?? ''))));
-        ActivityLogger::log('Paramètres modifiés', 'Proxys de confiance');
+        $this->logSettings('Proxys de confiance', $before);
         return back()->with('success', 'Proxys de confiance enregistrés. Rechargez la page pour vérifier l\'adresse détectée.');
     }
 
@@ -176,6 +180,7 @@ class SettingController extends Controller
 
     public function updateSecurity(Request $request)
     {
+        $before = $this->settings->snapshot();
         // Toggles
         if (!$request->has('_sms_save')) {
             $keys = ['force_email_verification', 'require_2fa_admin'];
@@ -204,7 +209,7 @@ class SettingController extends Controller
             $this->storeSettings($data);
         }
 
-        ActivityLogger::log('Paramètres modifiés', 'Sécurité');
+        $this->logSettings('Sécurité', $before);
         return back()->with('success', 'Paramètres de sécurité enregistrés.');
     }
 
@@ -240,6 +245,7 @@ class SettingController extends Controller
 
     public function updateMail(Request $request)
     {
+        $before = $this->settings->snapshot();
         $data = $request->validate([
             'mail_driver'          => 'required|in:disabled,sendmail,smtp',
             'mail_from_address'    => 'nullable|email|max:255',
@@ -261,7 +267,7 @@ class SettingController extends Controller
         }
         unset($data['mail_use_site_color']);
         $this->storeSettings($data);
-        ActivityLogger::log('Paramètres modifiés', 'E-mail');
+        $this->logSettings('E-mail', $before);
         return back()->with('success', 'Paramètres e-mail enregistrés.');
     }
 
@@ -287,9 +293,10 @@ class SettingController extends Controller
 
     public function updateMaintenance(Request $request)
     {
+        $before = $this->settings->snapshot();
         $this->settings->set('maintenance_mode', $request->boolean('maintenance_mode') ? '1' : '0');
         $this->settings->set('maintenance_message', $request->input('maintenance_message', ''));
-        ActivityLogger::log('Paramètres modifiés', 'Maintenance');
+        $this->logSettings('Maintenance', $before);
         return back()->with('success', 'Paramètres de maintenance enregistrés.');
     }
 
@@ -319,6 +326,13 @@ class SettingController extends Controller
     // ---------------------------------------------------------------
     // Internal
     // ---------------------------------------------------------------
+    /** Journal : "Parametres modifies" avec l'avant / apres de chaque reglage change (secrets masques). */
+    private function logSettings(string $section, array $before): void
+    {
+        $changes = ActivityChanges::diff($before, $this->settings->snapshot(), SettingService::SECRET_KEYS);
+        ActivityLogger::log('Paramètres modifiés', $section, $changes);
+    }
+
     private function applyMailConfig(): void
     {
         $driver = $this->settings->get('mail_driver', 'log');

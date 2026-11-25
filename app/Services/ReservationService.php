@@ -26,7 +26,20 @@ class ReservationService {
     public function __construct(private SiteNotifier $notifier, private WebhookDispatcher $webhooks) {}
 
     public function create(User $user, int $slotId, string $date): array {
-        $result = DB::transaction(fn () => $this->book($user, $slotId, $date));
+        return $this->createChecked($user, $slotId, $date, fn (Slot $slot) => $this->checkBookable($user, $slot, $date));
+    }
+
+    /**
+     * Reservation faite par le personnel pour un compte (eleve sans acces a son compte...) : ni limites du role,
+     * ni fenetre d'ouverture, ni suspension. Restent : creneau actif, pas dans le passe, pas termine, place libre, pas de doublon.
+     */
+    public function createByStaff(User $user, int $slotId, string $date): array {
+        return $this->createChecked($user, $slotId, $date, fn (Slot $slot) => $this->checkStaffBookable($user, $slot, $date));
+    }
+
+    /** @param callable(Slot): ?array $check */
+    private function createChecked(User $user, int $slotId, string $date, callable $check): array {
+        $result = DB::transaction(fn () => $this->book($user, $slotId, $date, $check));
         if ($result['ok']) {
             $this->notify($user, new ReservationConfirmed($result['reservation']));
             $this->webhooks->dispatch(WebhookEvent::RESERVATION_CREATED, WebhookPayload::reservation($result['reservation']));
@@ -35,10 +48,10 @@ class ReservationService {
     }
 
     /** Verrouille le creneau pour que deux demandes simultanees ne depassent pas sa capacite. */
-    private function book(User $user, int $slotId, string $date): array {
+    private function book(User $user, int $slotId, string $date, callable $check): array {
         $slot = Slot::with('resource')->lockForUpdate()->findOrFail($slotId);
 
-        if ($failure = $this->checkBookable($user, $slot, $date)) return $failure;
+        if ($failure = $check($slot)) return $failure;
 
         $reservation = Reservation::create(['user_id'=>$user->id,'slot_id'=>$slot->id,'reservation_date'=>$date]);
         $reservation->load('slot.resource');
@@ -97,6 +110,20 @@ class ReservationService {
         if (Reservation::where('user_id',$user->id)->where('slot_id',$slot->id)->where('reservation_date',$date)->exists())
             return $this->failure('already_booked', 'Vous avez déjà réservé ce créneau.');
 
+        return null;
+    }
+
+    private function checkStaffBookable(User $user, Slot $slot, string $date): ?array {
+        if (!$slot->is_active || !$slot->resource->is_active)
+            return $this->failure('slot_unavailable', "Ce créneau n'est pas disponible.");
+        if ($date < Carbon::today()->toDateString())
+            return $this->failure('date_past', 'Cette date est passée.');
+        if ($date === Carbon::today()->toDateString() && Carbon::now()->format('H:i:s') >= $slot->end_time)
+            return $this->failure('slot_started', 'Ce créneau est terminé.');
+        if (Reservation::where('user_id',$user->id)->where('slot_id',$slot->id)->where('reservation_date',$date)->exists())
+            return $this->failure('already_booked', "{$user->name} a déjà réservé ce créneau.");
+        if ($slot->availableCountFor($date) <= 0)
+            return $this->failure('slot_full', 'Ce créneau est complet.');
         return null;
     }
 

@@ -13,9 +13,9 @@ trait CreatesStaff
         return User::factory()->create(['role_id' => Role::where('name', 'admin')->value('id'), 'is_admin' => true]);
     }
 
-    private function student(): User
+    private function student(array $attributes = []): User
     {
-        return User::factory()->create(['role_id' => Role::defaultUser()->id]);
+        return User::factory()->create($attributes + ['role_id' => Role::defaultUser()->id]);
     }
 
     /** @param list<string> $permissions */

@@ -145,6 +145,8 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
 
     Route::middleware('permission:'.Permission::RESERVATIONS)->group(function () {
         Route::get('/reservations', [\App\Http\Controllers\Admin\ReservationController::class, 'index'])->name('reservations.index');
+        Route::post('/reservations', [\App\Http\Controllers\Admin\ReservationController::class, 'store'])->name('reservations.store');
+        Route::get('/reservations/users', [\App\Http\Controllers\Admin\ReservationController::class, 'searchUsers'])->middleware('throttle:60,1')->name('reservations.users');
         Route::delete('/reservations/{reservation}', [\App\Http\Controllers\Admin\ReservationController::class, 'destroy'])->name('reservations.destroy');
     });
 

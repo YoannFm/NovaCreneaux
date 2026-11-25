@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Services\AccountDeletionNotice;
 use App\Services\ActivityLogger;
 use App\Services\UserExporter;
+use App\Support\ActivityChanges;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Hash;
@@ -51,7 +52,7 @@ class UserController extends Controller {
         ]);
 
         $role = $this->assignableRole($data['role_id']);
-        User::create([
+        $user = User::create([
             'name'              => $data['name'],
             'email'             => $data['email'],
             'email_verified_at' => now(),
@@ -62,7 +63,8 @@ class UserController extends Controller {
             'password'          => Hash::make($data['password'] ?? Str::random(12)),
         ]);
 
-        ActivityLogger::log('Utilisateur créé', "{$data['name']} ({$data['email']})");
+        ActivityLogger::log('Utilisateur créé', "{$data['name']} ({$data['email']})",
+            array_map(fn ($value) => ['new' => $value], $this->activitySnapshot($user)));
         return redirect()->route('admin.users.index')->with('success', 'Utilisateur créé avec succès.');
     }
 
@@ -101,10 +103,23 @@ class UserController extends Controller {
         if (!empty($data['password'])) {
             $update['password'] = Hash::make($data['password']);
         }
+        $before = $this->activitySnapshot($user);
         $user->update($update);
+        $changes = ActivityChanges::diff($before, $this->activitySnapshot($user->refresh()));
+        if (!empty($data['password'])) {
+            $changes['password'] = ['old' => ActivityChanges::MASKED, 'new' => ActivityChanges::MASKED];
+        }
 
-        ActivityLogger::log('Utilisateur modifié', "{$user->name} ({$user->email})");
+        ActivityLogger::log('Utilisateur modifié', "{$user->name} ({$user->email})", $changes);
         return redirect()->route('admin.users.index')->with('success', 'Utilisateur mis à jour.');
+    }
+
+    /** Champs d'un compte montres dans le detail du journal (jamais le mot de passe). */
+    private function activitySnapshot(User $user): array {
+        return [
+            'name' => $user->name, 'email' => $user->email, 'classe' => $user->classe,
+            'role' => $user->role?->label, 'is_active' => (bool) $user->is_active,
+        ];
     }
 
     public function verifyEmail(User $user) {

@@ -6,7 +6,8 @@ use App\Models\ActivityLog;
 
 class ActivityLogger
 {
-    public static function log(string $action, ?string $context = null): void
+    /** @param array<string, array{old?: mixed, new?: mixed}> $changes detail affiche par l'oeil du journal (App\Support\ActivityChanges) */
+    public static function log(string $action, ?string $context = null, array $changes = []): void
     {
         try {
             ActivityLog::create([
@@ -14,6 +15,7 @@ class ActivityLogger
                 'user_name'  => auth()->user()?->name ?? 'Système',
                 'action'     => $action,
                 'context'    => $context,
+                'changes'    => $changes ?: null,
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
             ]);
