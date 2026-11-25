@@ -14,11 +14,18 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 class ReservationController extends Controller {
+    /** Mises en page de l'export PDF, au choix de la personne qui exporte. */
+    public const PDF_LAYOUTS = ['list' => 'Une seule liste', 'slots' => 'Un bloc par créneau', 'pages' => 'Une page par créneau'];
+
     public function __construct(private ReservationService $service, private PdfRenderer $pdf) {}
 
     public function index(Request $request) {
         // La date sert aussi au nom du fichier exporte : format strict
-        $filters = $request->validate(['date' => 'nullable|date_format:Y-m-d', 'resource_id' => 'nullable|integer']);
+        $filters = $request->validate([
+            'date' => 'nullable|date_format:Y-m-d',
+            'resource_id' => 'nullable|integer',
+            'layout' => 'nullable|in:' . implode(',', array_keys(self::PDF_LAYOUTS)),
+        ]);
         $date = $filters['date'] ?? now()->toDateString();
         $resourceId = $filters['resource_id'] ?? null;
         $query = Reservation::with(['user','slot.resource'])->whereDate('reservation_date',$date);
@@ -26,7 +33,7 @@ class ReservationController extends Controller {
         $reservations = $query->orderBy('created_at')->get();
         $resources = Resource::orderBy('name')->get();
         if ($request->get('export') === 'csv') return $this->exportCsv($reservations,$date);
-        if ($request->get('export') === 'pdf') return $this->exportPdf($reservations, $date, $resources->firstWhere('id', $resourceId));
+        if ($request->get('export') === 'pdf') return $this->exportPdf($reservations, $date, $resources->firstWhere('id', $resourceId), $filters['layout'] ?? 'list');
 
         return view('admin.reservations.index', [
             'date' => Carbon::parse($date),
@@ -34,6 +41,7 @@ class ReservationController extends Controller {
             'resources' => $resources,
             'planning' => $this->planning($reservations, $resources, $resourceId),
             'total' => $reservations->count(),
+            'pdfLayouts' => self::PDF_LAYOUTS,
         ]);
     }
 
@@ -109,9 +117,12 @@ class ReservationController extends Controller {
         ActivityLogger::log('Réservation supprimée (admin)', "#{$reservation->id}" . ($reason ? ", motif : {$reason}" : ''));
         return back()->with('success','Réservation supprimée.');
     }
-    /** Liste a imprimer : classee par ressource, horaire du creneau puis nom, comme une feuille d'appel. */
-    private function exportPdf($reservations, string $date, ?Resource $resource) {
-        ActivityLogger::log('Export PDF des réservations', $date . ($resource ? ", {$resource->name}" : ''));
+    /**
+     * Liste a imprimer : classee par ressource, horaire du creneau puis nom. $layout (PDF_LAYOUTS) : une seule liste,
+     * un bloc par creneau, ou une page par creneau (feuille d'appel avec une case de presence).
+     */
+    private function exportPdf($reservations, string $date, ?Resource $resource, string $layout) {
+        ActivityLogger::log('Export PDF des réservations', $date . ($resource ? ", {$resource->name}" : '') . ($layout !== 'list' ? ', ' . mb_strtolower(self::PDF_LAYOUTS[$layout]) : ''));
 
         return $this->pdf->download('admin.reservations.pdf', [
             'reservations' => $reservations->sortBy([
@@ -121,6 +132,7 @@ class ReservationController extends Controller {
             ])->values(),
             'date' => Carbon::parse($date),
             'resource' => $resource,
+            'layout' => $layout,
         ], "reservations_{$date}.pdf");
     }
 

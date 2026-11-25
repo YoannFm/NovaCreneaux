@@ -2,7 +2,7 @@
 @php
     $pageTitle = 'Réservations';
     $day = fn (\Carbon\Carbon $d) => route('admin.reservations.index', array_filter(['date' => $d->toDateString(), 'resource_id' => $resourceId]));
-    $exportUrl = fn (string $format) => route('admin.reservations.index', array_filter(['date' => $date->toDateString(), 'resource_id' => $resourceId, 'export' => $format]));
+    $exportUrl = fn (string $format, ?string $layout = null) => route('admin.reservations.index', array_filter(['date' => $date->toDateString(), 'resource_id' => $resourceId, 'export' => $format, 'layout' => $layout]));
     $addErrors = $errors->add->all();
 @endphp
 @section('content')
@@ -42,7 +42,16 @@
         <div class="d-flex flex-wrap align-items-center gap-2 ms-lg-auto">
             <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ $total }} réservation{{ $total > 1 ? 's' : '' }}</span>
             <a href="{{ $exportUrl('csv') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> CSV</a>
-            <a href="{{ $exportUrl('pdf') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+            <div class="dropdown">
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    @foreach($pdfLayouts as $layout => $label)
+                        <li><a class="dropdown-item" href="{{ $exportUrl('pdf', $layout) }}">{{ $label }}</a></li>
+                    @endforeach
+                </ul>
+            </div>
             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#add-modal">
                 <i class="bi bi-person-plus me-1"></i> Ajouter
             </button>
