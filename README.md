@@ -1,47 +1,71 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# NovaCreneaux
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Logiciel libre de réservation de créneaux pour un établissement : CDI, médiathèque, salle de travail, postes informatiques, matériel. Les élèves (ou adhérents, agents…) réservent en quelques clics ; le personnel gère les ressources, les créneaux et les présences depuis une administration complète.
 
-## About Laravel
+Interface en français, thème clair et sombre, utilisable sur téléphone.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Fonctionnalités
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Pour les personnes qui réservent**
+- Réservation d'un créneau par jour, avec les places restantes en direct
+- « Mes réservations » : historique et annulation jusqu'à l'heure limite affichée
+- E-mail de confirmation et d'annulation, notifications sur le site
+- Double authentification facultative (application, e-mail, SMS, clé physique)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**Pour le personnel**
+- Ressources (salles, postes, matériel) et créneaux, jours de fermeture, ouverture des réservations la veille à l'heure choisie
+- Planning du jour par ressource et par créneau, export CSV et PDF
+- Réservation pour le compte d'un élève qui n'a pas accès au sien
+- Limites par rôle : réservations par jour et par semaine, délai d'annulation, nombre de jours à l'avance
+- Comptes : import CSV, actions groupées, suspension (raison, gravité, durée ou définitive)
+- Rôles et permissions délégables : un membre du personnel n'accède qu'à ce qu'on lui confie
+- Journal d'activité détaillé (qui, quand, depuis quelle adresse, avant / après de chaque modification)
 
-## Learning Laravel
+**Pour l'administrateur**
+- Personnalisation sans toucher au code : nom, logo, couleurs, vocabulaire (« élève », « classe »…), textes et signature des e-mails
+- Mises à jour en un clic depuis l'administration, par archive signée
+- Sauvegardes automatiques de la base de données
+- API REST documentée (jetons, droits par rôle) et webhooks vers d'autres services
+- Extensions signées, installables depuis un catalogue
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Prérequis
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP 8.3 ou plus, avec les extensions `pdo_mysql`, `mbstring`, `openssl`, `zip`, `sodium` et `dom`
+- MySQL ou MariaDB
+- Un serveur web dont la racine pointe sur le dossier `public/`
+- Node.js n'est **pas** nécessaire : les fichiers compilés sont fournis
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Installation
 
+1. Téléchargez l'archive `novacreneaux-X.Y.Z.zip` de la [dernière version](https://github.com/YoannFm/NovaCreneaux/releases/latest) et décompressez-la sur le serveur.
+2. Faites pointer la racine du site sur le dossier `public/`.
+3. Créez le fichier de configuration et la clé de l'application :
 
-## Contributing
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+4. Donnez au serveur web le droit d'écrire dans `storage/` et `bootstrap/cache/`.
+5. Ouvrez le site dans un navigateur : l'assistant d'installation vérifie les prérequis, configure la base de données et crée le compte administrateur.
+6. Ajoutez la tâche planifiée (sauvegardes automatiques, envoi des webhooks) :
 
-## Code of Conduct
+   ```
+   * * * * * cd /chemin/vers/novacreneaux && php artisan schedule:run >> /dev/null 2>&1
+   ```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+   Sans elle, ces tâches se lancent à la visite suivante du site.
 
-## Security Vulnerabilities
+Conservez une copie du fichier `.env` : la clé `APP_KEY` chiffre certains réglages (mot de passe SMTP, jetons SMS) et ne doit jamais changer.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Mises à jour
 
-## License
+Dans **Administration > Mise à jour** : le site télécharge la nouvelle version, vérifie sa signature, sauvegarde la base et les fichiers remplacés, puis installe. Un retour en arrière est possible. Aucune donnée n'est envoyée.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## API
+
+La documentation interactive de l'API est disponible sur votre site, à l'adresse `/api/docs`. Les jetons se créent dans **Administration > Intégrations API** ou, pour chaque compte autorisé, depuis son profil.
+
+## Licence
+
+NovaCreneaux est distribué sous [licence MIT](LICENSE).
