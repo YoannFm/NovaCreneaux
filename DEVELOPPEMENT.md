@@ -232,6 +232,7 @@ Tout ce qui touche l'API et les webhooks est dans Admin > Activite (filtrable pa
 
 ## Authentification
 
+- **Adresses e-mail en minuscules** : mutateur `User::email` (`User::normalizeEmail()`, tous les chemins : inscription, import CSV, administration, profil, installation) et middleware `NormalizeEmailInput` (groupe web) qui met le champ `email` en minuscules avant la validation (regle d'unicite, connexion, mot de passe oublie). La migration `lowercase_user_emails` a converti les adresses existantes, sauf deux comptes qui ne different que par les majuscules (signales dans les logs).
 - Pages de connexion, mot de passe oublie et nouveau mot de passe : layout `layouts/auth` (sections `title`, `heading`, `subtitle`, `content` ; messages de session et premiere erreur affiches par le layout).
 - Mot de passe oublie : `User::sendPasswordResetNotification()` envoie l'e-mail francais `Mail\PasswordResetLink` (vue `emails/password-reset`, lien valable `auth.passwords.users.expire` minutes) au lieu de la notification anglaise de Laravel ; l'action groupee de l'administration l'utilise aussi. Meme reponse que l'adresse existe ou non, meme si l'envoi echoue (erreur journalisee). 6 demandes par minute et par IP.
 

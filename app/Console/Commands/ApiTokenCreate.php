@@ -18,7 +18,7 @@ class ApiTokenCreate extends Command
 
     public function handle(ApiTokenService $tokens): int
     {
-        $user = User::where('email', $this->argument('email'))->first();
+        $user = User::where('email', User::normalizeEmail($this->argument('email')))->first();
         if (!$user) {
             $this->error('Aucun compte avec cet e-mail.');
             return self::FAILURE;

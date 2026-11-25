@@ -193,6 +193,7 @@ class UserController extends Controller {
         foreach ($lines as $i => $row) {
             if ($i === 0 && strtolower(trim($row[0])) === 'nom') continue;
             [$nom,$prenom,$classe,$email] = array_pad(array_map('trim',$row),4,'');
+            $email = User::normalizeEmail($email); // "Lea.Martin@..." et "lea.martin@..." sont le meme compte
             if (!$email || !filter_var($email,FILTER_VALIDATE_EMAIL)) { $skipped++; continue; }
             if (User::where('email',$email)->exists()) { $skipped++; continue; }
             User::create([

@@ -1,6 +1,7 @@
 <?php
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Mail\PasswordResetLink;
 use App\Services\ApiTokenService;
@@ -18,6 +19,18 @@ class User extends Authenticatable
 
     /** Reservation a l'avance d'un compte sans role. */
     public const DEFAULT_ADVANCE_DAYS = 30;
+
+    /** Adresse e-mail telle qu'elle est enregistree : sans espaces autour, en minuscules. */
+    public static function normalizeEmail(string $email): string
+    {
+        return mb_strtolower(trim($email));
+    }
+
+    /** Quel que soit le chemin (inscription, import, administration, profil), l'adresse est enregistree en minuscules. */
+    protected function email(): Attribute
+    {
+        return Attribute::make(set: fn (?string $value) => $value === null ? null : self::normalizeEmail($value));
+    }
 
     protected $fillable = [
         'name', 'email', 'password', 'classe', 'is_admin', 'is_active', 'role_id',
