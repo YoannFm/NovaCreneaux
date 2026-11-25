@@ -46,6 +46,17 @@ final class ReservationLimits
         return $rules;
     }
 
+    /** Valeur acceptable telle qu'enregistree en base (UNLIMITED compris) : pour l'import de configuration. */
+    public static function accepts(string $key, mixed $value): bool
+    {
+        $field = self::fields()[$key] ?? null;
+        if ($field === null || !is_int($value)) {
+            return false;
+        }
+
+        return ($value === self::UNLIMITED && $field['unlimited'] !== null) || ($value >= $field['min'] && $value <= $field['max']);
+    }
+
     /** Noms des champs dans les messages d'erreur. */
     public static function attributes(): array
     {

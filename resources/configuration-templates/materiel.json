@@ -1,0 +1,99 @@
+{
+  "format": "novacreneaux-configuration",
+  "version": 1,
+  "title": "Prêt de matériel",
+  "icon": "bi-laptop",
+  "description": "Ordinateurs portables, tablettes et appareil photo, empruntés à la demi-journée. Une réservation par jour et trois par semaine, deux semaines à l'avance, annulation jusqu'à la veille.",
+  "roles": [
+    {
+      "name": "user",
+      "max_reservations_day": 1,
+      "max_reservations_week": 3,
+      "cancel_deadline_minutes": 1440,
+      "advance_days": 14
+    }
+  ],
+  "resources": [
+    {
+      "name": "Ordinateurs portables",
+      "description": "À retirer et à rendre à l'accueil.",
+      "is_active": true,
+      "open_time": "17:00",
+      "close_time": "11:30",
+      "closed_days": [
+        6,
+        7
+      ],
+      "slots": [
+        {
+          "name": "Matin",
+          "start_time": "08:00",
+          "end_time": "12:00",
+          "max_capacity": 10,
+          "is_active": true
+        },
+        {
+          "name": "Après-midi",
+          "start_time": "13:00",
+          "end_time": "17:00",
+          "max_capacity": 10,
+          "is_active": true
+        }
+      ]
+    },
+    {
+      "name": "Tablettes",
+      "description": "À retirer et à rendre à l'accueil.",
+      "is_active": true,
+      "open_time": "17:00",
+      "close_time": "11:30",
+      "closed_days": [
+        6,
+        7
+      ],
+      "slots": [
+        {
+          "name": "Matin",
+          "start_time": "08:00",
+          "end_time": "12:00",
+          "max_capacity": 10,
+          "is_active": true
+        },
+        {
+          "name": "Après-midi",
+          "start_time": "13:00",
+          "end_time": "17:00",
+          "max_capacity": 10,
+          "is_active": true
+        }
+      ]
+    },
+    {
+      "name": "Appareil photo",
+      "description": "Avec sa carte mémoire et son chargeur.",
+      "is_active": true,
+      "open_time": "17:00",
+      "close_time": "11:30",
+      "closed_days": [
+        6,
+        7
+      ],
+      "slots": [
+        {
+          "name": "Matin",
+          "start_time": "08:00",
+          "end_time": "12:00",
+          "max_capacity": 1,
+          "is_active": true
+        },
+        {
+          "name": "Après-midi",
+          "start_time": "13:00",
+          "end_time": "17:00",
+          "max_capacity": 1,
+          "is_active": true
+        }
+      ]
+    }
+  ]
+}

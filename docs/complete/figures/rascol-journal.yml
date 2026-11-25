@@ -1,0 +1,8 @@
+image: rascol-journal.jpg
+legende: Journal d'activité filtré sur « Ressource modifiée » (menu Activité)
+marques:
+  - {n: 1, cadre: [240, 129, 523, 82], bulle: [236, 125], texte: "Filtres : nom, type d'action (ici « Ressource modifiée »), période."}
+  - {n: 2, cadre: [240, 315, 523, 94], bulle: [236, 311], texte: "Date et heure, auteur, action et contexte : ici, trois modifications de la ressource CDI."}
+  - {n: 3, masque: [744, 318, 20, 88], bulle: [778, 362], texte: "Adresse IP (masquée sur cette capture). Le bouton de détail est à droite : faites défiler le tableau."}
+  - {n: 4, cadre: [611, 241, 134, 26], bulle: [605, 237], texte: "Purge des lignes de plus de 90 jours."}
+  - {n: 5, cadre: [2, 541, 200, 30], bulle: [192, 541], texte: "Menu « Activité »."}

@@ -4,6 +4,7 @@ namespace Tests\Support;
 
 use App\Services\Backup\BackupManager;
 use App\Services\Backup\DatabaseDumper;
+use App\Services\Backup\DatabaseRestorer;
 use App\Services\SettingService;
 use App\Services\Update\FileInstaller;
 use App\Services\Update\ReleaseClient;
@@ -61,6 +62,7 @@ trait BuildsReleases
             $this->app->make(FileInstaller::class),
             $this->app->make(SettingService::class),
             $databaseBackups ?? $this->databaseBackups(),
+            $this->app->make(DatabaseRestorer::class),
             $this->siteDir,
             $this->storageDir,
         );

@@ -257,7 +257,7 @@ class WebAuthnService
 }
 
 // ──────────────────────────────────────────────────────────────────
-// Minimal CBOR decoder (RFC 7049) — WebAuthn use only
+// Minimal CBOR decoder (RFC 7049) - WebAuthn use only
 // ──────────────────────────────────────────────────────────────────
 final class CborDecoder
 {

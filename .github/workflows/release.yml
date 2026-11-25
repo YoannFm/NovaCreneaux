@@ -1,6 +1,6 @@
 name: Release
 
-# Publier une version : voir DEVELOPPEMENT.md ("Publier une version"). Declenche par une etiquette vX.Y.Z.
+# Publication d'une version, declenchee par une etiquette vX.Y.Z (identique a 'version' dans config/nova.php).
 on:
   push:
     tags: ['v*']

@@ -1,0 +1,94 @@
+{
+  "format": "novacreneaux-configuration",
+  "version": 1,
+  "title": "CDI",
+  "icon": "bi-book",
+  "description": "Un CDI ouvert de 8 h à 17 h, réservable par heure (24 places). Deux réservations par jour et six par semaine, une semaine à l'avance, annulation jusqu'à une heure avant.",
+  "roles": [
+    {
+      "name": "user",
+      "max_reservations_day": 2,
+      "max_reservations_week": 6,
+      "cancel_deadline_minutes": 60,
+      "advance_days": 7
+    }
+  ],
+  "resources": [
+    {
+      "name": "CDI",
+      "description": "Lecture, recherches documentaires et travail personnel.",
+      "is_active": true,
+      "open_time": "17:00",
+      "close_time": "11:30",
+      "closed_days": [
+        6,
+        7
+      ],
+      "slots": [
+        {
+          "name": "8h - 9h",
+          "start_time": "08:00",
+          "end_time": "09:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "9h - 10h",
+          "start_time": "09:00",
+          "end_time": "10:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "10h - 11h",
+          "start_time": "10:00",
+          "end_time": "11:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "11h - 12h",
+          "start_time": "11:00",
+          "end_time": "12:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "12h - 13h",
+          "start_time": "12:00",
+          "end_time": "13:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "13h - 14h",
+          "start_time": "13:00",
+          "end_time": "14:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "14h - 15h",
+          "start_time": "14:00",
+          "end_time": "15:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "15h - 16h",
+          "start_time": "15:00",
+          "end_time": "16:00",
+          "max_capacity": 24,
+          "is_active": true
+        },
+        {
+          "name": "16h - 17h",
+          "start_time": "16:00",
+          "end_time": "17:00",
+          "max_capacity": 24,
+          "is_active": true
+        }
+      ]
+    }
+  ]
+}

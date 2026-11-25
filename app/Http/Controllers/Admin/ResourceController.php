@@ -28,15 +28,7 @@ class ResourceController extends Controller {
         return redirect()->route('admin.resources.index')->with('success', 'Ressource supprimée.' . $this->cancelledNote($cancelled));
     }
     private function validated(Request $request): array {
-        $data = $request->validate([
-            'name'=>'required|string|max:100',
-            'description'=>'nullable|string|max:500',
-            'is_active'=>'boolean',
-            'open_time'=>'required|date_format:H:i',
-            'close_time'=>'required|date_format:H:i',
-            'closed_days'=>'nullable|array',
-            'closed_days.*'=>'integer|between:1,7',
-        ]);
+        $data = $request->validate(Resource::rules());
         $data['is_active'] = $request->boolean('is_active');
         $data['closed_days'] = $data['closed_days'] ?? [];
         return $data;

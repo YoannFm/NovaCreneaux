@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Auth\Concerns\StartsMfaChallenge;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
+    use StartsMfaChallenge;
+
     /**
      * Display the login view.
      */
@@ -35,14 +38,10 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        // MFA challenge
-        if (auth()->user()->hasAnyMfa()) {
-            $userId   = auth()->id();
-            $remember = $request->boolean('remember');
+        $user = auth()->user();
+        if ($user->hasAnyMfa()) {
             auth()->logout();
-            $request->session()->put('mfa_user_id', $userId);
-            $request->session()->put('mfa_remember', $remember);
-            return redirect()->route('mfa.challenge.form');
+            return $this->startMfaChallenge($request, $user, $request->boolean('remember'));
         }
 
         $request->session()->regenerate();

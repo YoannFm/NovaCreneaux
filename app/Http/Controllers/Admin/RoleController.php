@@ -5,7 +5,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Services\ActivityLogger;
 use App\Support\Permission;
-use App\Support\ReservationLimits;
 use Illuminate\Http\Request;
 
 class RoleController extends Controller
@@ -23,21 +22,12 @@ class RoleController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name'                    => 'required|string|max:50|unique:roles,name|regex:/^[a-z0-9_]+$/',
-            'label'                   => 'required|string|max:100',
-            'icon'                    => 'nullable|string|max:60',
-            'color'                   => 'required|string|regex:/^#[0-9a-fA-F]{6}$/',
-            'is_admin'                => 'boolean',
-            'api_access'              => 'boolean',
-            'permissions'             => 'nullable|array',
-            'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
-        ]);
+        $data = $request->validate(['name' => Role::NAME_RULE . '|unique:roles,name'] + $this->rules());
 
         Role::create([
             'name'                    => $data['name'],
             'label'                   => $data['label'],
-            'icon'                    => ($data['icon'] ?? null) ?: 'bi bi-star',
+            'icon'                    => ($data['icon'] ?? null) ?: Role::DEFAULT_ICON,
             'color'                   => $data['color'],
             'is_admin'                => $request->boolean('is_admin'),
             'permissions'             => $this->permissions($request),
@@ -45,7 +35,7 @@ class RoleController extends Controller
             'locked'                  => false,
             'power'                   => 0,
             // Limites de reservation : celles du role par defaut, a ajuster dans Parametres > Reservations
-            ...$this->defaultLimits(),
+            ...Role::defaultLimits(),
         ]);
 
         return redirect()->route('admin.roles.index')->with('success', "Rôle \"{$data['label']}\" créé.");
@@ -58,19 +48,11 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role)
     {
-        $data = $request->validate([
-            'label'                   => 'required|string|max:100',
-            'icon'                    => 'nullable|string|max:60',
-            'color'                   => 'required|string|regex:/^#[0-9a-fA-F]{6}$/',
-            'is_admin'                => 'boolean',
-            'api_access'              => 'boolean',
-            'permissions'             => 'nullable|array',
-            'permissions.*'           => 'string|in:'.implode(',', array_keys(Permission::all())),
-        ]);
+        $data = $request->validate($this->rules());
 
         $update = [
             'label'                   => $data['label'],
-            'icon'                    => ($data['icon'] ?? null) ?: 'bi bi-star',
+            'icon'                    => ($data['icon'] ?? null) ?: Role::DEFAULT_ICON,
             'color'                   => $data['color'],
         ];
         if ($request->has('api_access')) {
@@ -88,15 +70,13 @@ class RoleController extends Controller
         return redirect()->route('admin.roles.index')->with('success', "Rôle \"{$role->label}\" mis à jour.");
     }
 
-    /** Un role administrateur a deja tous les droits : ses permissions detaillees ne servent a rien. */
-    /** Limites du role par defaut ("Utilisateur") ; sans lui, celles de la base (sans limite). */
-    private function defaultLimits(): array
+    /** Le formulaire refuse une permission inconnue (l'import, lui, l'ecarte sans erreur). */
+    private function rules(): array
     {
-        $default = Role::defaultUser();
-
-        return $default ? $default->only(array_keys(ReservationLimits::fields())) : [];
+        return ['is_admin' => 'boolean', 'permissions.*' => 'string|in:' . implode(',', array_keys(Permission::all()))] + Role::rules();
     }
 
+    /** Un role administrateur a deja tous les droits : ses permissions detaillees ne servent a rien. */
     private function permissions(Request $request, ?bool $isAdmin = null): ?array
     {
         if ($isAdmin ?? $request->boolean('is_admin')) {

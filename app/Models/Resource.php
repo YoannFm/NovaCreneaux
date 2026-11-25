@@ -15,6 +15,19 @@ class Resource extends Model {
     }
 
     protected $fillable = ['name','description','is_active','open_time','close_time','closed_days'];
+
+    /** Regles d'une ressource (formulaire et import de configuration) ; $prefix pour un tableau, ex. "resources.*.". */
+    public static function rules(string $prefix = ''): array {
+        return [
+            "{$prefix}name" => 'required|string|max:100',
+            "{$prefix}description" => 'nullable|string|max:500',
+            "{$prefix}is_active" => 'boolean',
+            "{$prefix}open_time" => 'required|date_format:H:i',
+            "{$prefix}close_time" => 'required|date_format:H:i',
+            "{$prefix}closed_days" => 'nullable|array',
+            "{$prefix}closed_days.*" => 'integer|between:1,7',
+        ];
+    }
     protected function casts(): array {
         return ['is_active'=>'boolean','closed_days'=>'array'];
     }

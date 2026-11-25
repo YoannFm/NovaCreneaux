@@ -15,6 +15,17 @@ class Slot extends Model {
     }
 
     protected $fillable = ['resource_id','name','start_time','end_time','max_capacity','is_active'];
+
+    /** Regles d'un creneau (formulaire et import de configuration) ; $prefix pour un tableau, ex. "slots.*.". */
+    public static function rules(string $prefix = ''): array {
+        return [
+            "{$prefix}name" => 'required|string|max:50',
+            "{$prefix}start_time" => 'required|date_format:H:i',
+            "{$prefix}end_time" => "required|date_format:H:i|after:{$prefix}start_time",
+            "{$prefix}max_capacity" => 'required|integer|min:1|max:500',
+            "{$prefix}is_active" => 'boolean',
+        ];
+    }
     protected function casts(): array { return ['is_active'=>'boolean','max_capacity'=>'integer']; }
     public function resource() { return $this->belongsTo(Resource::class); }
     public function reservations() { return $this->hasMany(Reservation::class); }

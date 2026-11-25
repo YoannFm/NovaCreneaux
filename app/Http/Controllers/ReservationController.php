@@ -32,7 +32,7 @@ class ReservationController extends Controller {
         $result = $this->service->create(auth()->user(), $data['slot_id'], $data['reservation_date']);
         if (!$result['ok']) return back()->withErrors(['reservation'=>$result['error']]);
         $slot = Slot::with('resource')->find($data['slot_id']);
-        ActivityLogger::log('Réservation créée', "{$slot?->resource?->name} — {$slot?->name} le {$data['reservation_date']}");
+        ActivityLogger::log('Réservation créée', "{$slot?->resource?->name} - {$slot?->name} le {$data['reservation_date']}");
         return back()->with('success','Réservation confirmée !');
     }
     public function my() {

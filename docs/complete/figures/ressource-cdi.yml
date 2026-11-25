@@ -1,0 +1,11 @@
+image: ressource-cdi.png
+legende: Ressource CDI du lycée Louis Rascol (Ressources > Modifier une ressource)
+marques:
+  - {n: 1, cadre: [108, 660, 750, 64], bulle: [86, 692], texte: "Ouverture d'un nouveau jour : 17:00. Chaque jour à 17 h, le lendemain devient réservable."}
+  - {n: 2, cadre: [880, 660, 750, 64], bulle: [1652, 692], texte: "Heure fermeture (jour J) : 11:30. Ensuite, plus de réservation pour le jour même."}
+  - {n: 3, cadre: [310, 856, 92, 40], bulle: [356, 834], texte: "Jours fermés cochés : mercredi, samedi et dimanche."}
+  - {n: 3, cadre: [622, 856, 96, 40], bulle: aucune}
+  - {n: 3, cadre: [733, 856, 94, 40], bulle: aucune}
+  - {n: 4, rond: [134, 943, 34], bulle: [80, 943], texte: "« Ressource active » : désactivée, le CDI disparaît de la page de réservation."}
+  - {n: 5, fleche: [193, 1132, 193, 1068], bulle: [235, 1116], texte: "« Enregistrer » : le changement s'applique tout de suite."}
+  - {n: 6, cadre: [112, 41, 360, 52], bulle: [490, 67], texte: "« Support » et « Documentation » de l'administration."}

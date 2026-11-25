@@ -32,7 +32,7 @@ class MfaController extends Controller
     ) {}
 
     // ══════════════════════════════════════════════════════════════════
-    // PROFILE — TOTP
+    // PROFILE - TOTP
     // ══════════════════════════════════════════════════════════════════
 
     public function totpEnableForm(Request $request): View
@@ -131,7 +131,7 @@ class MfaController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // PROFILE — EMAIL OTP
+    // PROFILE - EMAIL OTP
     // ══════════════════════════════════════════════════════════════════
 
     public function emailEnable(Request $request): RedirectResponse
@@ -176,7 +176,7 @@ class MfaController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // PROFILE — SMS OTP
+    // PROFILE - SMS OTP
     // ══════════════════════════════════════════════════════════════════
 
     public function smsSetupForm(Request $request): View
@@ -252,7 +252,7 @@ class MfaController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // PROFILE — WebAuthn
+    // PROFILE - WebAuthn
     // ══════════════════════════════════════════════════════════════════
 
     public function webAuthnRegisterOptions(Request $request): JsonResponse
@@ -442,7 +442,7 @@ class MfaController extends Controller
         $found = false;
         foreach ($storedCodes as $i => $code) {
             if ($code !== null && $code === $hashed) {
-                $storedCodes[$i] = null; // code utilisé — invalide pour la prochaine fois
+                $storedCodes[$i] = null; // code utilisé - invalide pour la prochaine fois
                 $found = true;
                 break;
             }

@@ -30,13 +30,7 @@ class SlotController extends Controller {
         return redirect()->route('admin.slots.index',$resource)->with('success','Créneau supprimé.' . $note);
     }
     private function validated(Request $request): array {
-        $data = $request->validate([
-            'name'=>'required|string|max:50',
-            'start_time'=>'required|date_format:H:i',
-            'end_time'=>'required|date_format:H:i|after:start_time',
-            'max_capacity'=>'required|integer|min:1|max:500',
-            'is_active'=>'boolean',
-        ]);
+        $data = $request->validate(Slot::rules());
         $data['is_active'] = $request->boolean('is_active');
         return $data;
     }

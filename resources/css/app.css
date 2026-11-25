@@ -68,7 +68,7 @@ body {
     box-shadow: var(--shadow-blue);
     color: var(--dark-text);
 }
-/* Nested cards (inside a card-body) have no shadow — matches Azuriom */
+/* Nested cards (inside a card-body) have no shadow - matches Azuriom */
 .card-body .card { box-shadow: none; }
 .card-header {
     background: transparent;
@@ -408,7 +408,7 @@ a:hover { color: var(--primary-dark); }
 }
 
 /* ============================================================
-   DARK MODE — variables Bootstrap (admin.css Azuriom)
+   DARK MODE - variables Bootstrap (admin.css Azuriom)
    --bs-body-bg: #343a40 (fond page)  |  --bs-secondary-bg: #212529 (cards)
    Utiliser var() pour rester aligné automatiquement avec Bootstrap
    ============================================================ */

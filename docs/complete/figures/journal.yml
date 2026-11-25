@@ -1,0 +1,8 @@
+image: journal.png
+legende: Détail d'une ligne du journal (menu Activité)
+marques:
+  - {n: 1, cadre: [202, 95, 640, 28], bulle: [196, 90], texte: "Qui, quelle action, quand et depuis quelle adresse IP."}
+  - {n: 2, cadre: [204, 162, 872, 58], bulle: [198, 157], texte: "Champ modifié, valeur avant et valeur après."}
+  - {n: 3, rond: [1207, 416, 17], bulle: [1242, 400], texte: "Ouvrir le détail d'une ligne."}
+  - {n: 4, cadre: [1002, 307, 214, 28], bulle: [996, 302], texte: "Purge automatique des lignes de plus de 90 jours."}
+  - {n: 5, cadre: [3, 692, 257, 40], bulle: [242, 692], texte: "Menu « Activité »."}

@@ -45,9 +45,15 @@ class UpdateController extends Controller
         return $this->run(fn () => $this->updates->finalize(), 'Mise à jour terminée.', flash: true);
     }
 
-    public function restore(): JsonResponse
+    public function restore(Request $request): JsonResponse
     {
-        return $this->run(fn () => $this->updates->restore(), 'Fichiers de la version précédente restaurés.', flash: true);
+        $withDatabase = $request->boolean('restore_database');
+
+        return $this->run(
+            fn () => $this->updates->restore($withDatabase),
+            $withDatabase ? 'Fichiers et base de données de la version précédente restaurés.' : 'Fichiers de la version précédente restaurés.',
+            flash: true,
+        );
     }
 
     /** Reponse JSON commune : un echec previsible devient un 422 avec un message lisible. */

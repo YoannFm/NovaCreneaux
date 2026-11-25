@@ -1,0 +1,7 @@
+image: tableau-de-bord.png
+legende: Tableau de bord de l'administration (thème sombre)
+marques:
+  - {n: 1, cadre: [305, 162, 930, 193], bulle: [300, 157], texte: "Compteurs : comptes, ressources, créneaux, réservations du jour et total."}
+  - {n: 2, cadre: [308, 400, 924, 54], texte: "Dernières réservations : élève, classe, ressource, créneau, date."}
+  - {n: 3, cadre: [330, 21, 225, 33], bulle: [572, 38], texte: "« Support » (Discord) et « Documentation » (documentation générale)."}
+  - {n: 4, cadre: [3, 84, 257, 40], bulle: [242, 84], texte: "Menu de l'administration, regroupé par rubriques."}
