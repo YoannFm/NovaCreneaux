@@ -1,112 +1,30 @@
-<!DOCTYPE html>
-<html lang="fr" id="html-root">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Vérification - {{ setting('app_name','NovaCreneaux') }}</title>
-    @include('partials.theme-init')
-    <link href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/vendor/admin.css') }}" rel="stylesheet">
-    <style>
-        :root {
-            --accent:       {{ setting('theme_accent', '#efb703') }};
-            --accent-hover: color-mix(in srgb, var(--accent) 82%, black);
-            --accent-light: color-mix(in srgb, var(--accent) 15%, transparent);
-            --body-bg:      {{ setting('theme_body_bg',    '#111113') }};
-            --card-bg:      {{ setting('theme_card_bg',    '#212227') }};
-            --text-primary: {{ setting('theme_text_color', '#e2e8f0') }};
-            --text-muted:   #9ca3af;
-        }
-        [data-bs-theme="light"] {
-            --body-bg:      {{ setting('theme_light_body_bg',    '#f4f5f7') }};
-            --card-bg:      {{ setting('theme_light_card_bg',    '#ffffff') }};
-            --text-primary: {{ setting('theme_light_text_color', '#1a1a2e') }};
-            --text-muted:   #6c757d;
-        }
-        *, *::before, *::after { box-sizing: border-box; }
-        body { min-height: 100vh; background: var(--body-bg); color: var(--text-primary);
-               display: flex; align-items: center; justify-content: center; padding: 1rem;
-               font-family: system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-        .auth-wrap { width: 100%; max-width: 460px; }
-        .auth-brand { text-align: center; margin-bottom: 2rem; }
-        .auth-brand .brand-name { font-size: 2rem; font-weight: 800; color: var(--accent); text-decoration: none; letter-spacing: -.5px; }
-        .auth-brand .brand-sub  { font-size: .78rem; color: var(--text-muted); margin-top: .2rem; text-transform: uppercase; letter-spacing: 1px; }
-        .auth-card { background: var(--card-bg); border: 2px solid var(--accent); border-radius: 4px; padding: 2.25rem 2rem; }
-        .auth-card h5 { font-size: 1.05rem; font-weight: 700; margin-bottom: .2rem; }
-        .auth-sub   { font-size: .8rem; color: var(--text-muted); margin-bottom: 1.5rem; }
-        .form-label { font-size: .72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .7px; margin-bottom: .35rem; display: block; }
-        .form-control { background: var(--body-bg) !important; border: 2px solid color-mix(in srgb, var(--accent) 40%, transparent) !important;
-                        color: var(--text-primary) !important; border-radius: 0 !important; padding: .65rem .9rem; font-size: .9rem; width: 100%; transition: border-color .15s !important; }
-        .form-control:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 3px var(--accent-light) !important; outline: none !important; }
-        .form-control.is-invalid { border-color: #ef4444 !important; }
-        .form-control.code-input { font-size: 1.4rem; letter-spacing: .3rem; text-align: center; }
-        .btn-auth { width: 100%; padding: .72rem; background: var(--accent); border: none; border-radius: 0;
-                    color: #212227; font-weight: 800; font-size: .85rem; text-transform: uppercase; letter-spacing: .8px;
-                    cursor: pointer; transition: background .15s; display: flex; align-items: center; justify-content: center; gap: .5rem; }
-        .btn-auth:hover { background: var(--accent-hover); }
-        .btn-secondary-auth { width: 100%; padding: .65rem; background: transparent;
-                              border: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-                              border-radius: 0; color: var(--text-muted); font-weight: 600; font-size: .82rem;
-                              cursor: pointer; transition: border-color .15s, color .15s; display: flex; align-items: center; justify-content: center; gap: .5rem; }
-        .btn-secondary-auth:hover { border-color: var(--accent); color: var(--accent); }
-        .auth-error   { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 3px; color: #ef4444; font-size: .82rem; padding: .65rem .9rem; margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: .5rem; }
-        .auth-success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); border-radius: 3px; color: #22c55e; font-size: .82rem; padding: .65rem .9rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: .5rem; }
-        .method-tab { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-        .method-btn { flex: 1; min-width: 80px; padding: .5rem .6rem; background: var(--body-bg);
-                      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 4px;
-                      color: var(--text-muted); font-size: .75rem; font-weight: 600; cursor: pointer;
-                      text-align: center; transition: border-color .15s, color .15s; }
-        .method-btn:hover, .method-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-        .method-btn i { display: block; font-size: 1.2rem; margin-bottom: .25rem; }
-        .method-panel { display: none; }
-        .method-panel.active { display: block; }
-        .mfa-icon { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 15%, transparent);
-                    display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--accent); margin: 0 auto 1.5rem; }
-        .auth-links { display: flex; justify-content: center; margin-top: 1.25rem; font-size: .8rem; }
-        .auth-links a { color: var(--text-muted); text-decoration: none; }
-        .auth-links a:hover { color: var(--accent); }
-        .theme-btn { position: fixed; top: 1rem; right: 1rem; background: var(--card-bg);
-                     border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-                     border-radius: 50%; width: 36px; height: 36px;
-                     display: flex; align-items: center; justify-content: center;
-                     cursor: pointer; color: var(--text-muted); font-size: .9rem; transition: color .15s, border-color .15s; }
-        .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
-    </style>
-</head>
-<body>
+@extends('layouts.auth')
+@section('title', 'Double authentification')
+@section('icon', 'bi-shield-lock-fill')
+@section('heading', 'Double authentification')
+@section('subtitle', 'Choisissez votre méthode de vérification.')
 
-<button class="theme-btn" id="theme-toggle" title="Changer le thème">
-    <i class="bi bi-sun-fill" id="theme-icon"></i>
-</button>
+@push('styles')
+<style>
+    .auth-card h5, .auth-card .auth-sub { text-align: center; }
+    .form-control.code-input { font-size: 1.4rem; letter-spacing: .3rem; text-align: center; }
+    .method-tab { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .method-btn { flex: 1; min-width: 80px; padding: .5rem .6rem; background: var(--body-bg);
+                  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 4px;
+                  color: var(--text-muted); font-size: .75rem; font-weight: 600; cursor: pointer;
+                  text-align: center; transition: border-color .15s, color .15s; }
+    .method-btn:hover, .method-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+    .method-btn i { display: block; font-size: 1.2rem; margin-bottom: .25rem; }
+    .method-panel { display: none; }
+    .method-panel.active { display: block; }
+</style>
+@endpush
 
-<div class="auth-wrap">
-    <div class="auth-brand">
-        <a href="{{ url('/') }}" class="brand-name">{{ setting('app_name','NovaCreneaux') }}</a>
-        <div class="brand-sub">{{ \App\Support\Customization::get('app_tagline') }}</div>
-    </div>
-
-    <div class="auth-card">
-        <div class="mfa-icon"><i class="bi bi-shield-lock-fill"></i></div>
-        <h5 class="text-center">Double authentification</h5>
-        <div class="auth-sub text-center">Choisissez votre méthode de vérification.</div>
-
-        @if($errors->any())
-        <div class="auth-error">
-            <i class="bi bi-exclamation-circle-fill flex-shrink-0" style="margin-top:.1rem;"></i>
-            <span>{{ $errors->first() }}</span>
-        </div>
-        @endif
-        @if(session('error'))
-        <div class="auth-error">
-            <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>
-            <span>{{ session('error') }}</span>
-        </div>
-        @endif
+@section('content')
         @if(session('code_sent'))
         <div class="auth-success">
             <i class="bi bi-check-circle-fill"></i>
-            Code envoyé {{ session('code_sent') === 'email' ? 'par email' : 'par SMS' }}. Vérifiez votre boîte.
+            Code envoyé {{ session('code_sent') === 'email' ? 'par e-mail' : 'par SMS' }}. Vérifiez votre boîte.
         </div>
         @endif
 
@@ -124,7 +42,7 @@
                     'webauthn' => 'bi-usb-symbol',
                     default    => 'bi-shield',
                 } }}"></i>
-                {{ match($m) { 'totp' => 'Application', 'email' => 'Email', 'sms' => 'SMS', 'webauthn' => 'Clé physique', default => $m } }}
+                {{ match($m) { 'totp' => 'Application', 'email' => 'E-mail', 'sms' => 'SMS', 'webauthn' => 'Clé physique', default => $m } }}
             </button>
             @endforeach
         </div>
@@ -153,14 +71,14 @@
         @if(in_array('email', $methods))
         <div class="method-panel {{ !in_array('totp', $methods) && $methods[0] === 'email' ? 'active' : '' }}" id="panel-email">
             <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem;">
-                <i class="bi bi-envelope me-1"></i> Un code vous sera envoyé par email.
+                <i class="bi bi-envelope me-1"></i> Un code vous sera envoyé par e-mail.
             </p>
             @if(!session('code_sent') || session('code_sent') !== 'email')
             <form method="POST" action="{{ route('mfa.challenge.send') }}" class="mb-3">
                 @csrf
                 <input type="hidden" name="method" value="email">
                 <button type="submit" class="btn-secondary-auth">
-                    <i class="bi bi-send"></i> Envoyer le code par email
+                    <i class="bi bi-send"></i> Envoyer le code par e-mail
                 </button>
             </form>
             @endif
@@ -168,7 +86,7 @@
                 @csrf
                 <input type="hidden" name="method" value="email">
                 <div class="mb-4">
-                    <label for="code_email" class="form-label">Code reçu par email</label>
+                    <label for="code_email" class="form-label">Code reçu par e-mail</label>
                     <input id="code_email" type="text" name="code" inputmode="numeric"
                            class="form-control code-input" maxlength="6" placeholder="000000">
                 </div>
@@ -230,22 +148,10 @@
             </a>
             @endif
         </div>
-    </div>
-</div>
+@endsection
 
-<script src="{{ asset('assets/vendor/admin.js') }}" defer></script>
+@push('scripts')
 <script>
-// Theme toggle
-(function(){
-    var root=document.getElementById('html-root'),icon=document.getElementById('theme-icon');
-    function apply(){var t=root.getAttribute('data-bs-theme')||'dark';icon.className=t==='dark'?'bi bi-sun-fill':'bi bi-moon-fill';}
-    apply();
-    document.getElementById('theme-toggle').addEventListener('click',function(){
-        var next=root.getAttribute('data-bs-theme')==='dark'?'light':'dark';
-        root.setAttribute('data-bs-theme',next);localStorage.setItem('nc-theme',next);apply();
-    });
-})();
-
 // Method tabs
 function switchMethod(method) {
     document.querySelectorAll('.method-btn').forEach(b => b.classList.toggle('active', b.dataset.target === method));
@@ -327,5 +233,4 @@ function arrayBufferToBase64url(buf) {
 window.addEventListener('load', function() { setTimeout(startWebAuthn, 500); });
 @endif
 </script>
-</body>
-</html>
+@endpush

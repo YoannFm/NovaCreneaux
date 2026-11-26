@@ -29,6 +29,7 @@
     .date-tab .dt-day  { font-size: 1.6rem; font-weight: 800; line-height: 1; color: var(--accent-text); }
     .date-tab .dt-label{ font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); }
     .date-tab .dt-name { font-size: .9rem; font-weight: 600; text-transform: capitalize; }
+    .date-tab .dt-name.is-today { color: var(--accent-text); }
 
     /* ── Resource card ── */
     .resource-card {
@@ -148,14 +149,9 @@
             <div class="dt-day">{{ $dt->format('d') }}</div>
         </div>
         <div>
-            <div class="dt-name">{{ $label }}</div>
+            <div class="dt-name {{ $d === $today ? 'is-today' : '' }}">{{ $label }}</div>
             <div class="dt-label">{{ $dt->isoFormat('MMMM YYYY') }}</div>
         </div>
-        @if($d === $today)
-            <span style="margin-left:auto;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-text);">Aujourd'hui</span>
-        @elseif($d === $tomorrow)
-            <span style="margin-left:auto;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Demain</span>
-        @endif
     </a>
     @endforeach
 

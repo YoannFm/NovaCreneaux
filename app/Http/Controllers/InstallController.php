@@ -12,6 +12,17 @@ use Illuminate\Support\Facades\Hash;
 class InstallController extends Controller {
     public function __construct(private InstallationState $installation, private EnvFile $env) {}
 
+    /** Extensions PHP exigees => usage affiche (null : evident). */
+    private const EXTENSIONS = [
+        'pdo' => null,
+        'pdo_mysql' => null,
+        'mbstring' => null,
+        'openssl' => null,
+        'zip' => 'mises à jour et extensions',
+        'sodium' => 'vérification de la signature des mises à jour',
+        'dom' => 'nettoyage du contenu des pages, export PDF',
+    ];
+
     public function index() {
         if ($this->isInstalled()) return redirect('/');
         return view('install.welcome');
@@ -21,10 +32,9 @@ class InstallController extends Controller {
         if ($this->isInstalled()) return redirect('/');
         $checks = [
             ['name'=>'PHP 8.3+','passed'=>version_compare(PHP_VERSION,'8.3.0','>='),'detail'=>PHP_VERSION],
-            ['name'=>'Extension PDO','passed'=>extension_loaded('pdo'),'detail'=>null],
-            ['name'=>'Extension PDO MySQL','passed'=>extension_loaded('pdo_mysql'),'detail'=>null],
-            ['name'=>'Extension mbstring','passed'=>extension_loaded('mbstring'),'detail'=>null],
-            ['name'=>'Extension openssl','passed'=>extension_loaded('openssl'),'detail'=>null],
+            ...array_map(fn (string $extension, ?string $usage) => [
+                'name' => "Extension {$extension}", 'passed' => extension_loaded($extension), 'detail' => $usage,
+            ], array_keys(self::EXTENSIONS), self::EXTENSIONS),
             ['name'=>'Dossier storage/ accessible en écriture','passed'=>is_writable(storage_path()),'detail'=>null],
             ['name'=>'Dossier bootstrap/ accessible en écriture','passed'=>is_writable(base_path('bootstrap')),'detail'=>null],
         ];
