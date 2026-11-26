@@ -49,7 +49,7 @@ def generated():
         'theme': S.theme_table(), 'manifest': S.manifest_example(), 'plugin_api': re.search(r'API_VERSION = (\d+)', S.read('app/Plugins/PluginManager.php')).group(1),
         'protected_dirs': ', '.join(S.code(d + '/') for d in dirs), 'protected_files': ', '.join(S.code(f) for f in files),
         'backup_before_update': S.backup_constants()['before_update'],
-        'admin_menu': S.admin_menu_table(), 'tests_table': tests, 'tests_files': str(n_files), 'tests_count': str(n_tests), 'changelog': S.changelog_md(),
+        'admin_menu': S.admin_menu_table(), 'config_templates': S.config_templates_table(), 'tests_table': tests, 'tests_files': str(n_files), 'tests_count': str(n_tests), 'changelog': S.changelog_md(),
     }
     for path in glob.glob(os.path.join(DOCS, 'complete', 'figures', '*.yml')):  # [[fig planning]] : capture annotée
         g['fig ' + os.path.basename(path)[:-4]] = '```annoter\n' + open(path, encoding='utf-8').read() + '```'
@@ -96,7 +96,7 @@ EDITIONS = {
         'out': 'NovaCreneaux - Lycee Louis Rascol - Documentation du CDI.pdf',
         'header': 'NovaCreneaux - CDI du lycée Louis Rascol',
         'cover_top': 'LYCÉE LOUIS RASCOL · ALBI · CDI',
-        'cover_sub': 'Documentation et guide de formation',
+        'cover_sub': 'Guide du CDI',
         'cover_desc': "Réserver une place au CDI, gérer le CDI au quotidien et maintenir le site : un guide pour les élèves, "
                       "un guide pour les documentalistes et une partie technique.",
         'parts': [

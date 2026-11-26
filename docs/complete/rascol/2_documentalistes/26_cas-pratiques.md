@@ -1,11 +1,11 @@
 # Cas pratiques au CDI
 
-Ces fiches suivent les situations courantes au CDI, pas à pas. Elles peuvent servir d'exercices de formation.
+Ces fiches suivent les situations courantes au CDI, pas à pas.
 
 ## Préparer la journée
 
 1. Ouvrez **Réservations** : le planning du jour s'affiche, créneau par créneau.
-2. Cliquez sur **PDF** pour imprimer la liste des élèves attendus, à garder à l'accueil. **CSV** donne la même liste pour un tableur.
+2. Cliquez sur **PDF > Une page par créneau** pour imprimer une feuille d'appel par créneau, avec une case de présence ; **PDF > Une seule liste** imprime tous les élèves attendus, à garder à l'accueil. **CSV** donne la même liste pour un tableur.
 3. Pour préparer le lendemain, changez la date. Après 17 h, la liste du lendemain se remplit.
 
 ## Accueillir un élève sans réservation

@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -33,13 +33,11 @@
         }
     };
     const isType = (type) => (value) => typeOf(value) === type;
-    const isSimpleType = (type) => (value) => typeof value === type;
     const isString = isType('string');
     const isObject = isType('object');
     const isArray = isType('array');
     const isNullable = (a) => a === null || a === undefined;
     const isNonNullable = (a) => !isNullable(a);
-    const isFunction = isSimpleType('function');
 
     /**
      * The `Optional` type represents a value (of any type) that potentially does
@@ -294,7 +292,6 @@
         }
     }
 
-    const nativeSlice = Array.prototype.slice;
     const nativePush = Array.prototype.push;
     // Unwound implementing other functions in terms of each.
     // The code size is roughly the same, and it should allow for better optimisation.
@@ -320,7 +317,6 @@
         }
         return r;
     };
-    isFunction(Array.from) ? Array.from : (x) => nativeSlice.call(x);
 
     // There are many variations of Object iteration that are faster than the 'for-in' style:
     // http://jsperf.com/object-keys-iteration/107
@@ -355,7 +351,7 @@
         };
     };
 
-    const checkRange = (str, substr, start) => substr === '' || str.length >= substr.length && str.substr(start, start + substr.length) === substr;
+    const checkRange = (str, substr, start) => str.length >= substr.length && str.substr(start, start + substr.length) === substr;
     /** Does 'str' start with 'prefix'?
      *  Note: all strings start with the empty string.
      *        More formally, for all strings x, startsWith(x, "").
@@ -1294,9 +1290,18 @@
         return Parser(editor.schema, { sanitize, validate }).parse(html);
     };
 
+    let nonNonScriptingDocument;
+    const createNonScriptingDocument = () => {
+        if (isNonNullable(nonNonScriptingDocument)) {
+            return nonNonScriptingDocument;
+        }
+        nonNonScriptingDocument = new DOMParser().parseFromString('', 'text/html');
+        return nonNonScriptingDocument;
+    };
     const buildMediaElement = (editor, node) => {
+        const doc = createNonScriptingDocument();
         const realElmName = node.attr('data-mce-object');
-        const element = document.createElement(realElmName);
+        const element = doc.createElement(realElmName);
         // Add width/height to everything but audio
         if (realElmName !== 'audio') {
             const className = node.attr('class');
@@ -1445,15 +1450,19 @@
         });
     };
 
+    const PLUGIN_CODE = 'media';
     var Plugin = () => {
-        global$6.add('media', (editor) => {
+        global$6.add(PLUGIN_CODE, (editor) => {
             register$2(editor);
             register$1(editor);
             register(editor);
             setup(editor);
             setup$1(editor);
             setup$2(editor);
-            return get(editor);
+            return {
+                ...get(editor),
+                getMetadata: () => ({ name: 'Media', type: 'opensource', slug: PLUGIN_CODE })
+            };
         });
     };
 

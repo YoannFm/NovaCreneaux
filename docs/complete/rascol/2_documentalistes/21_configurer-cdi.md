@@ -71,6 +71,7 @@ Le rôle **Administrateur** (documentalistes) a aussi des limites, mais elles ne
 | Paramètres > Général | Qui contacter | « le personnel du CDI », repris dans les messages de refus |
 | Paramètres > Général | Vocabulaire | « élève », « élèves », « Classe » (valeurs par défaut, à garder) |
 | Paramètres > Général | Exemple d'adresse e-mail | « prenom.nom@e.rascol.net », le format des adresses des élèves |
+| Paramètres > Compte de l'établissement | Méthode | **Désactivée** : les élèves se connectent avec leur adresse e-mail et le mot de passe du site |
 | Paramètres > Authentification | Autoriser l'inscription des utilisateurs | **désactivé** : seuls les documentalistes créent les comptes (un à un ou par import CSV) |
 | Paramètres > Accueil | Message en haut de la page de réservation | vide aujourd'hui. Suggestion : « Réservez votre place la veille à partir de 17 h. Le CDI est fermé aux réservations le mercredi. » |
 | Paramètres > E-mail | Signature des e-mails | « L'équipe du CDI - Lycée Louis Rascol, Albi » |

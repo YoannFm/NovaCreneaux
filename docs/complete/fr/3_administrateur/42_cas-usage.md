@@ -84,4 +84,4 @@ NovaCreneaux [[version]] est une application web de réservation de créneaux. E
 - la clé publique des extensions est vide, donc aucune extension n'est installable ;
 - la méthode SMS `ntfy` envoie une notification et non un SMS ; `free_mobile` n'envoie qu'à la ligne propriétaire de la clé ;
 - la passerelle SMS Android ne vérifie pas le certificat HTTPS ;
-- la base de données ne se restaure qu'en ligne de commande.
+- hors retour en arrière après une mise à jour, la base de données ne se restaure qu'en ligne de commande.

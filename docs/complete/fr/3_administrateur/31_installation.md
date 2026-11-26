@@ -73,7 +73,7 @@ La valeur `APP_KEY` du fichier `.env` chiffre les sessions, les réglages secret
 Dans l'ordre conseillé :
 
 1. **Paramètres > E-mail** : configurez l'envoi, puis envoyez un e-mail de test (chapitre [[n parametres]]).
-2. **Paramètres > Général** : nom, logo, vocabulaire, fuseau horaire.
+2. **Paramètres > Général** : nom, logo, vocabulaire, fuseau horaire. Pour démarrer vite, importez un modèle (CDI, salle informatique...) dans **Paramètres > Configuration** (chapitre [[n parametres]]).
 3. **Ressources** : créez les ressources et leurs créneaux (chapitre [[n guide-personnel]]).
 4. **Paramètres > Réservations** : réglez les limites de chaque rôle (chapitre [[n regles]]).
 5. **Comptes** : importez les comptes ou ouvrez l'inscription (chapitre [[n guide-personnel]]).

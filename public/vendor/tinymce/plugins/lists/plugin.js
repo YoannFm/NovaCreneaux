@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -14,10 +14,8 @@
     });
 
     /* eslint-disable @typescript-eslint/no-wrapper-object-types */
-    const isSimpleType = (type) => (value) => typeof value === type;
     const isNullable = (a) => a === null || a === undefined;
     const isNonNullable = (a) => !isNullable(a);
-    const isFunction = isSimpleType('function');
 
     const constant = (value) => {
         return () => {
@@ -338,7 +336,6 @@
         r.reverse();
         return r;
     };
-    isFunction(Array.from) ? Array.from : (x) => nativeSlice.call(x);
 
     /**
      * **Is** the value stored inside this Optional object equal to `rhs`?
@@ -583,12 +580,16 @@
         });
     };
 
+    const PLUGIN_CODE = 'lists';
     var Plugin = () => {
-        global.add('lists', (editor) => {
+        global.add(PLUGIN_CODE, (editor) => {
             register$2(editor);
             register$1(editor);
             register(editor);
-            return get(editor);
+            return {
+                ...get(editor),
+                getMetadata: () => ({ name: 'Lists', type: 'opensource', slug: PLUGIN_CODE })
+            };
         });
     };
 

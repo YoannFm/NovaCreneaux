@@ -9,6 +9,7 @@ Ouvrez l'adresse du site de réservation du CDI, `https://cdi.rascol.net`. Saisi
 - L'adresse e-mail ne tient pas compte des majuscules : `Lea.Martin@e.rascol.net` et `lea.martin@e.rascol.net` désignent le même compte.
 - Après **5 essais** de connexion manqués, le formulaire bloque les tentatives pendant un court moment.
 - Un compte désactivé par les documentalistes ne peut plus se connecter.
+- La connexion se fait uniquement avec l'adresse e-mail et le mot de passe du site : la connexion avec le compte de l'ENT n'est pas activée.
 
 ## Votre premier mot de passe
 
@@ -41,7 +42,7 @@ Après connexion, l'accueil affiche :
 
 [[fig rascol-reservation]]
 
-Les captures viennent du site du CDI (`cdi.rascol.net`), affiché depuis le compte documentaliste. Un élève voit la même page, avec seulement aujourd'hui et demain.
+La capture vient du site du CDI (`cdi.rascol.net`), sur un écran de largeur moyenne : les liens du haut de la page sont alors regroupés derrière le bouton de menu.
 
 > **Exemple : Léa, en 2nde 3, veut venir au CDI jeudi pendant la première heure du midi.**
 >

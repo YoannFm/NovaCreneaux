@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -444,19 +444,6 @@
 
     const punctuation$1 = constant(punctuationStr);
 
-    // tslint:disable-next-line:variable-name
-    const Custom = (regex, prefix, suffix, flags) => {
-        const term = () => {
-            return new RegExp(regex, flags.getOr('g'));
-        };
-        return {
-            term,
-            prefix,
-            suffix
-        };
-    };
-
-    Custom;
     const punctuation = punctuation$1;
 
     var global$2 = tinymce.util.Tools.resolve('tinymce.Env');
@@ -1341,8 +1328,9 @@
         editor.shortcuts.add('Meta+F', '', showDialog(editor, currentSearchState));
     };
 
+    const PLUGIN_CODE = 'searchreplace';
     var Plugin = () => {
-        global$3.add('searchreplace', (editor) => {
+        global$3.add(PLUGIN_CODE, (editor) => {
             const currentSearchState = Cell({
                 index: -1,
                 count: 0,
@@ -1353,7 +1341,10 @@
             });
             register$1(editor, currentSearchState);
             register(editor, currentSearchState);
-            return get(editor, currentSearchState);
+            return {
+                ...get(editor, currentSearchState),
+                getMetadata: () => ({ name: 'Search and Replace', type: 'opensource', slug: PLUGIN_CODE })
+            };
         });
     };
 

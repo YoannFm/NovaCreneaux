@@ -44,7 +44,7 @@
                     <td>{{ $r->slot->resource->name ?? '-' }}</td>
                     <td>{{ $r->slot->name ?? '-' }}</td>
                     <td class="text-muted" style="font-size:.85rem;">
-                        {{ substr($r->slot->start_time ?? '', 0, 5) }} – {{ substr($r->slot->end_time ?? '', 0, 5) }}
+                        {{ substr($r->slot->start_time ?? '', 0, 5) }} - {{ substr($r->slot->end_time ?? '', 0, 5) }}
                     </td>
                 </tr>
                 @empty

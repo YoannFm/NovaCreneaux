@@ -21,7 +21,7 @@ Le menu de gauche regroupe toutes les pages de l'administration. Liste lue dans 
 | Utilisateurs, Sanctions | Les comptes des élèves, l'import en début d'année, les avertissements et suspensions | [[n guide-documentaliste]] |
 | Notifications, Pages, Navigation | Informer les élèves, publier le règlement du CDI | [[n guide-documentaliste]] |
 | Activité | Le journal de tout ce qui se fait sur le site | [[n guide-documentaliste]] |
-| Paramètres | Nom du site, e-mails, sécurité, limites de réservation des élèves | [[n parametres]] |
+| Paramètres | Nom du site, e-mails, sécurité, limites de réservation des élèves, connexion avec le compte de l'établissement, export et import de la configuration | [[n parametres]] |
 | Rôles | Les rôles Administrateur et Utilisateur, et d'éventuels rôles intermédiaires | [[n roles]] |
 | Mise à jour | Mises à jour du logiciel et sauvegardes de la base | [[n exploitation-site]] |
 | Intégrations API, Webhooks, Extensions | Liens avec d'autres logiciels : usage technique | [[n integrations]], [[n extensions]] |

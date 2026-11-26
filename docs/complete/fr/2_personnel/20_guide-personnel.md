@@ -48,6 +48,8 @@ Le lien « Panel administrateur » de l'accueil, ou l'adresse `/admin`, ouvre le
 - **Supprimer la réservation** (icône corbeille) : un motif facultatif est transmis à la personne par e-mail et par notification.
 - **Exporter** le planning de la date : en **CSV** (`reservations_AAAA-MM-JJ.csv`, séparateur point-virgule, colonnes Nom, Email, Classe, Ressource, Créneau, Date, Réservé le) ou en **PDF** (`reservations_AAAA-MM-JJ.pdf`), à imprimer pour l'accueil.
 
+  Le bouton **PDF** propose trois mises en page : **Une seule liste** (tous les inscrits, classés par créneau puis par nom), **Un bloc par créneau**, ou **Une page par créneau** : une feuille d'appel par créneau, avec une case de présence à cocher à la main.
+
 ## Comptes
 
 *Permission : Utilisateurs (comptes non administrateurs).*

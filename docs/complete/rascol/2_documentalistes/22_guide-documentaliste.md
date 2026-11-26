@@ -12,6 +12,8 @@ Ce chapitre décrit le travail courant dans l'administration : planning du jour,
 - **Supprimer la réservation** (icône corbeille) : un motif facultatif (« Absent », « CDI fermé pour réunion ») est transmis à l'élève par e-mail et par notification. Aucun délai ne s'applique.
 - **Exporter** le planning de la date : en **CSV** (`reservations_AAAA-MM-JJ.csv`, séparateur point-virgule, colonnes Nom, Email, Classe, Ressource, Créneau, Date, Réservé le) ou en **PDF** (`reservations_AAAA-MM-JJ.pdf`), à imprimer pour l'accueil du CDI.
 
+  Le bouton **PDF** propose trois mises en page : **Une seule liste** (tous les inscrits, classés par créneau puis par nom), **Un bloc par créneau**, ou **Une page par créneau** : une feuille d'appel par créneau, avec une case de présence à cocher à la main.
+
 **Ce qui s'applique quand un documentaliste réserve pour un élève.** Seuls ces contrôles restent :
 
 - créneau et CDI actifs ;
