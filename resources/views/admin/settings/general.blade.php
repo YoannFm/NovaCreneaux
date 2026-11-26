@@ -52,21 +52,12 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Description du site</label>
-                <textarea id="site_description" name="site_description"
+                <label class="form-label" for="site_description">Description du site</label>
+                <textarea id="site_description" name="site_description" maxlength="{{ \App\Support\Customization::DESCRIPTION_MAX }}"
                           class="form-control @error('site_description') is-invalid @enderror"
-                          rows="3">{{ old('site_description', $s['site_description'] ?? '') }}</textarea>
-                <div class="form-text">Utilisée pour le référencement (balise meta description).</div>
+                          rows="3">{{ old('site_description', setting('site_description', '')) }}</textarea>
+                <div class="form-text">Une ou deux phrases, en texte simple : affichées par les moteurs de recherche sous le nom du site.</div>
                 @error('site_description')<span class="invalid-feedback">{{ $message }}</span>@enderror
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Mots-clés</label>
-                <input type="text" name="site_keywords" class="form-control @error('site_keywords') is-invalid @enderror"
-                       value="{{ old('site_keywords', $s['site_keywords'] ?? '') }}"
-                       placeholder="réservation, créneau, salle" maxlength="500">
-                <div class="form-text">Séparés par des virgules.</div>
-                @error('site_keywords')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
 
             <div class="row gx-3">
@@ -78,14 +69,6 @@
                         @endforeach
                     </select>
                     @error('timezone')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                </div>
-                <div class="mb-3 col-md-6">
-                    <label class="form-label">Langue</label>
-                    <select name="locale" class="form-select @error('locale') is-invalid @enderror">
-                        <option value="fr" {{ old('locale', $s['locale'] ?? 'fr') === 'fr' ? 'selected' : '' }}>Français</option>
-                        <option value="en" {{ old('locale', $s['locale'] ?? 'fr') === 'en' ? 'selected' : '' }}>English</option>
-                    </select>
-                    @error('locale')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
             </div>
 
@@ -102,24 +85,4 @@
     </div>
 </div>
 
-@include('admin.partials.tinymce')
-<script>
-(function () {
-    function initTiny() {
-        var dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        if (tinymce.get('site_description')) tinymce.remove('#site_description');
-        tinymce.init({
-            selector: '#site_description',
-            height: 180,
-            plugins: 'searchreplace autolink code link',
-            toolbar: 'bold italic underline | link | removeformat code | undo redo',
-            skin: dark ? 'oxide-dark' : 'oxide',
-            content_css: dark ? 'dark' : 'default',
-        });
-    }
-    initTiny();
-    new MutationObserver(function(m) { m.forEach(function(mm) { if (mm.attributeName === 'data-bs-theme') initTiny(); }); })
-        .observe(document.documentElement, { attributes: true });
-})();
-</script>
 @endsection
