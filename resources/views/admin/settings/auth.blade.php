@@ -105,7 +105,7 @@
     </div>
 </div>
 
-<script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
+@include('admin.partials.tinymce')
 <script>
 (function () {
     // TinyMCE
@@ -114,8 +114,7 @@
         if (tinymce.get('registration_terms')) tinymce.remove('#registration_terms');
         tinymce.init({
             selector: '#registration_terms',
-            base_url: '{{ asset('vendor/tinymce') }}',
-            license_key: 'gpl', promotion: false, height: 280,
+            height: 280,
             plugins: 'searchreplace autolink code link lists',
             toolbar: 'blocks bold italic underline | link | bullist numlist | removeformat code | undo redo',
             skin: dark ? 'oxide-dark' : 'oxide',

@@ -3,6 +3,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Mail\EmailVerificationLink;
 use App\Mail\PasswordResetLink;
 use App\Services\ApiTokenService;
 use App\Services\Webhook\WebhookDispatcher;
@@ -11,6 +12,7 @@ use App\Support\WebhookEvent;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -181,6 +183,18 @@ class User extends Authenticatable
         $expires = (int) config('auth.passwords.' . config('auth.defaults.passwords') . '.expire');
 
         Mail::to($this->email)->send(new PasswordResetLink($this->name, $url, $expires));
+    }
+
+    /** E-mail francais de confirmation de l'adresse, a la place de la notification anglaise de Laravel. */
+    public function sendEmailVerificationNotification(): void
+    {
+        $expires = (int) config('auth.verification.expire', 60);
+        $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes($expires), [
+            'id' => $this->getKey(),
+            'hash' => sha1($this->getEmailForVerification()),
+        ]);
+
+        Mail::to($this->email)->send(new EmailVerificationLink($this->name, $url, $expires));
     }
 
     /** Nombre de jours a l'avance ou ce compte peut reserver (limite de son role ; sans role, 30). */

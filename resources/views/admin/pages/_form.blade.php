@@ -88,15 +88,12 @@
 </div>
 
 @push('footer-scripts')
-<script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
+@include('admin.partials.tinymce')
 <script>
 (function () {
     var dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
     tinymce.init({
         selector: '#pageContent',
-        base_url: '{{ asset("vendor/tinymce") }}',
-        license_key: 'gpl',
-        promotion: false,
         height: 420,
         plugins: 'autolink link lists table code',
         toolbar: 'styles bold italic underline strikethrough | link | alignleft aligncenter alignright | bullist numlist | removeformat | code | undo redo',

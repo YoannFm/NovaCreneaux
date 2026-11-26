@@ -37,7 +37,7 @@
     </div>
 </div>
 
-<script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
+@include('admin.partials.tinymce')
 <script>
 (function () {
     function initTiny() {
@@ -45,8 +45,7 @@
         if (tinymce.get('maintenance_message')) tinymce.remove('#maintenance_message');
         tinymce.init({
             selector: '#maintenance_message',
-            base_url: '{{ asset('vendor/tinymce') }}',
-            license_key: 'gpl', promotion: false, height: 220,
+            height: 220,
             plugins: 'searchreplace autolink code link',
             toolbar: 'bold italic underline | link | removeformat code | undo redo',
             skin: dark ? 'oxide-dark' : 'oxide',

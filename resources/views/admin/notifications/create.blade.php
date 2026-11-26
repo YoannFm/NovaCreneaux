@@ -121,7 +121,7 @@
 </div>
 
 @push('footer-scripts')
-<script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
+@include('admin.partials.tinymce')
 <script>
 document.querySelectorAll('.target-radio').forEach(function(radio) {
     radio.addEventListener('change', function() {
@@ -134,9 +134,6 @@ document.querySelectorAll('.target-radio').forEach(function(radio) {
     var dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
     tinymce.init({
         selector: '#content',
-        base_url: '{{ asset('vendor/tinymce') }}',
-        license_key: 'gpl',
-        promotion: false,
         height: 300,
         plugins: 'autolink link lists',
         toolbar: 'bold italic underline | link | bullist numlist | removeformat | undo redo',

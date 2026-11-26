@@ -1,5 +1,7 @@
-{{-- Habillage des pages d'authentification (connexion, mot de passe oublie, nouveau mot de passe) :
-     sections title, heading, subtitle et content ; messages de session et premiere erreur affiches ici. --}}
+{{-- Habillage des pages d'authentification (connexion, inscription, mot de passe oublie et nouveau, confirmation
+     de l'adresse ou du mot de passe, double authentification) : sections title, heading, subtitle, content et icon
+     (facultative, icone Bootstrap) ; piles styles et scripts. Messages de session (status, error) et premiere
+     erreur affiches ici. --}}
 <!DOCTYPE html>
 <html lang="fr" id="html-root">
 <head>
@@ -139,11 +141,28 @@
             transition: color .15s, border-color .15s;
         }
         .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+        .auth-icon {
+            width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 1.25rem;
+            background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent);
+            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+        }
+        .btn-secondary-auth {
+            width: 100%; padding: .65rem; background: transparent; border-radius: 0;
+            border: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+            color: var(--text-muted); font-weight: 600; font-size: .82rem; cursor: pointer;
+            transition: border-color .15s, color .15s;
+            display: flex; align-items: center; justify-content: center; gap: .5rem;
+        }
+        .btn-secondary-auth:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-link-auth { background: none; border: none; padding: 0; color: var(--text-muted); font-size: .8rem; cursor: pointer; }
+        .btn-link-auth:hover { color: var(--accent); }
     </style>
+    @stack('styles')
 </head>
 <body>
 
-<button class="theme-btn" id="theme-toggle" title="Changer le theme">
+<button class="theme-btn" id="theme-toggle" title="Changer le thème">
     <i class="bi bi-sun-fill" id="theme-icon"></i>
 </button>
 
@@ -155,12 +174,22 @@
     </div>
 
     <div class="auth-card">
+        @hasSection('icon')
+            <div class="auth-icon"><i class="bi @yield('icon')"></i></div>
+        @endif
         <h5>@yield('heading')</h5>
         <div class="auth-sub">@yield('subtitle')</div>
 
         @if(session('status'))
         <div class="auth-success">
             <i class="bi bi-check-circle-fill"></i> {{ session('status') }}
+        </div>
+        @endif
+
+        @if(session('error'))
+        <div class="auth-error">
+            <i class="bi bi-exclamation-circle-fill flex-shrink-0" style="margin-top:.1rem;"></i>
+            <span>{{ session('error') }}</span>
         </div>
         @endif
 
@@ -195,5 +224,6 @@
     });
 })();
 </script>
+@stack('scripts')
 </body>
 </html>

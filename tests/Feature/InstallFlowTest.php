@@ -40,6 +40,16 @@ class InstallFlowTest extends TestCase
         return ['name' => 'Admin', 'email' => $email, 'password' => 'MotDePasse-Solide-1', 'password_confirmation' => 'MotDePasse-Solide-1'];
     }
 
+    public function test_the_prerequisites_include_the_extensions_used_by_updates_signatures_and_html_cleaning(): void
+    {
+        $page = $this->get(route('install.prerequisites'))->assertOk();
+
+        foreach (['pdo_mysql', 'mbstring', 'openssl', 'zip', 'sodium', 'dom'] as $extension) {
+            $page->assertSee("Extension {$extension}");
+        }
+        $page->assertSee('vérification de la signature des mises à jour');
+    }
+
     public function test_creating_the_administrator_locks_the_installation_everywhere(): void
     {
         $this->post(route('install.admin.store'), $this->admin())->assertRedirect(route('login'))->assertSessionHas('success');

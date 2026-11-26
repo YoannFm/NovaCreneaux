@@ -1,31 +1,32 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn\'t receive the email, we will gladly send you another.') }}
-    </div>
+@extends('layouts.auth')
+@section('title', 'Confirmer votre adresse e-mail')
+@section('icon', 'bi-envelope-check')
+@section('heading', 'Confirmer votre adresse e-mail')
+@section('subtitle', 'Pour continuer, confirmez que cette adresse vous appartient.')
 
-    @if (session('status') == 'verification-link-sent')
-        <div class="mb-4 font-medium text-sm text-green-600">
-            {{ __('A new verification link has been sent to the email address you provided during registration.') }}
-        </div>
-    @endif
+@section('content')
+        <p style="font-size:.88rem;">
+            Un lien de confirmation est envoyé à <strong>{{ auth()->user()->email }}</strong>.
+            Cliquez dessus pour accéder au site.
+        </p>
 
-    <div class="mt-4 flex items-center justify-between">
         <form method="POST" action="{{ route('verification.send') }}">
             @csrf
-
-            <div>
-                <x-primary-button>
-                    {{ __('Resend Verification Email') }}
-                </x-primary-button>
-            </div>
-        </form>
-
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-
-            <button type="submit" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                {{ __('Log Out') }}
+            <button type="submit" class="btn-auth">
+                <i class="bi bi-send"></i> Envoyer le lien
             </button>
         </form>
-    </div>
-</x-guest-layout>
+
+        <p class="auth-note">
+            <i class="bi bi-info-circle me-1"></i>
+            Le lien reste valable {{ config('auth.verification.expire', 60) }} minutes. Pensez à regarder dans les courriers indésirables.
+            Adresse erronée ? Contactez {{ \App\Support\Customization::get('contact_label') }}.
+        </p>
+
+        <div class="auth-links">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="btn-link-auth"><i class="bi bi-box-arrow-left"></i> Se déconnecter</button>
+            </form>
+        </div>
+@endsection

@@ -19,7 +19,7 @@
     </div>
 </div>
 
-<script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
+@include('admin.partials.tinymce')
 <script>
 (function () {
     function initTiny() {
@@ -27,8 +27,7 @@
         if (tinymce.get('home_message')) tinymce.remove('#home_message');
         tinymce.init({
             selector: '#home_message',
-            base_url: '{{ asset('vendor/tinymce') }}',
-            license_key: 'gpl', promotion: false, height: 300,
+            height: 300,
             plugins: 'searchreplace autolink code link lists',
             toolbar: 'blocks bold italic underline | link | alignleft aligncenter alignright | bullist numlist | removeformat code | undo redo',
             skin: dark ? 'oxide-dark' : 'oxide',
