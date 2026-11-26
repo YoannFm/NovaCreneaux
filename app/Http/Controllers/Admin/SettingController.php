@@ -38,11 +38,10 @@ class SettingController extends Controller
         $data = $request->validate([
             'app_name'         => 'required|string|max:100',
             'site_url'         => 'nullable|url|max:255',
-            'site_description' => 'nullable|string',
-            'site_keywords'    => 'nullable|string|max:500',
+            'site_description' => 'nullable|string|max:' . Customization::DESCRIPTION_MAX,
             'timezone'         => 'nullable|string|max:100',
-            'locale'           => 'nullable|in:fr,en',
         ] + Customization::rules());
+        $data['site_description'] = Customization::plainText($data['site_description'] ?? '');
         foreach ($data as $key => $value) $this->settings->set($key, $value ?? '');
         $this->logSettings('Général', $before);
         return back()->with('success', 'Paramètres généraux enregistrés.');

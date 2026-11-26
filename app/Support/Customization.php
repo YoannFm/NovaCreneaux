@@ -26,6 +26,9 @@ final class Customization
 
     public const THEMES = ['system' => 'Celui du système', 'light' => 'Clair', 'dark' => 'Sombre'];
 
+    /** Longueur de la description du site (balise meta "description" des pages publiques). */
+    public const DESCRIPTION_MAX = 300;
+
     public static function get(string $key): string
     {
         $value = (string) setting($key, '');
@@ -73,6 +76,12 @@ final class Customization
         $length = (int) setting('password_min_length', self::PASSWORD_MIN_LENGTH['default']);
 
         return max(self::PASSWORD_MIN_LENGTH['min'], min(self::PASSWORD_MIN_LENGTH['max'], $length));
+    }
+
+    /** Texte simple sur une ligne : sans balise HTML ni entite, espaces regroupes. */
+    public static function plainText(string $text): string
+    {
+        return trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     }
 
     /** Couleur des e-mails : celle choisie dans Parametres > E-mail, sinon l'accent du site. */
