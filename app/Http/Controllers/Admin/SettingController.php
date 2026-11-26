@@ -10,6 +10,7 @@ use App\Services\ActivityLogger;
 use App\Support\ActivityChanges;
 use App\Support\Customization;
 use App\Support\HtmlSanitizer;
+use App\Support\ProfileFields;
 use App\Support\ReservationLimits;
 use App\Support\SsoSettings;
 use App\Services\SettingService;
@@ -111,6 +112,8 @@ class SettingController extends Controller
             'registration_terms'          => 'nullable|string',
             'registration_open'           => 'boolean',
             'allow_name_change'           => 'boolean',
+            'allow_email_change'          => 'boolean',
+            'allow_classe_change'         => 'boolean',
             'allow_account_deletion'      => 'boolean',
             'allowed_email_domain'        => 'nullable|array',
             'allowed_email_domain.*'      => 'nullable|string|max:100|regex:/^[a-zA-Z0-9\-\.]+$/',
@@ -129,7 +132,9 @@ class SettingController extends Controller
 
         $this->settings->set('registration_terms',     HtmlSanitizer::clean($request->input('registration_terms', '')));
         $this->settings->set('registration_open',      $request->boolean('registration_open') ? '1' : '0');
-        $this->settings->set('allow_name_change',      $request->boolean('allow_name_change') ? '1' : '0');
+        foreach (ProfileFields::SETTINGS as $key) {
+            $this->settings->set($key, $request->boolean($key) ? '1' : '0');
+        }
         $this->settings->set('allow_account_deletion', $request->boolean('allow_account_deletion') ? '1' : '0');
 
         $this->logSettings('Authentification', $before);

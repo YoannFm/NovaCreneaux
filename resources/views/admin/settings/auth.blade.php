@@ -61,24 +61,27 @@
             <div class="mb-4">
                 <h6 class="fw-semibold mb-0">Options</h6>
                 @php
-                    $switches = [
-                        'registration_open'      => ['label' => "Autoriser l'inscription des utilisateurs",            'desc' => 'Désactiver pour fermer les inscriptions.'],
-                        'allow_name_change'      => ['label' => 'Permettre aux utilisateurs de changer leur nom',      'desc' => 'Si désactivé, le nom est verrouillé après inscription.'],
-                        'allow_account_deletion' => ['label' => 'Permettre aux utilisateurs de supprimer leur compte', 'desc' => 'Si désactivé, la suppression de compte est bloquée.'],
-                    ];
+                    use App\Support\ProfileFields;
+                    // cle => [libelle, description, valeur par defaut (celle que le site applique sans reglage)]
+                    $switches = ['registration_open' => ["Autoriser l'inscription des utilisateurs", 'Désactiver pour fermer les inscriptions.', '0']];
+                    foreach (array_keys(ProfileFields::SETTINGS) as $field) {
+                        $switches[ProfileFields::SETTINGS[$field]] = ['Permettre aux utilisateurs de changer ' . ProfileFields::label($field),
+                            'Si désactivé, le champ reste affiché dans le profil sans pouvoir être modifié.', '1'];
+                    }
+                    $switches['allow_account_deletion'] = ['Permettre aux utilisateurs de supprimer leur compte', 'Si désactivé, la suppression de compte est bloquée.', '1'];
                 @endphp
-                @foreach($switches as $key => $opt)
+                @foreach($switches as $key => [$label, $desc, $default])
                 <div class="d-flex justify-content-between align-items-start py-3 {{ !$loop->last ? 'border-bottom' : '' }}">
                     <div style="flex:1;padding-right:2rem;">
-                        <div class="fw-medium">{{ $opt['label'] }}</div>
-                        <div class="text-muted" style="font-size:.8rem;">{{ $opt['desc'] }}</div>
+                        <div class="fw-medium">{{ $label }}</div>
+                        <div class="text-muted" style="font-size:.8rem;">{{ $desc }}</div>
                     </div>
                     <div class="form-check form-switch mb-0" style="flex-shrink:0;">
                         <input class="form-check-input" type="checkbox"
                                id="{{ $key }}" name="{{ $key }}" value="1"
                                style="width:2.5rem;height:1.25rem;cursor:pointer;"
-                               {{ (($s[$key] ?? '0') === '1') ? 'checked' : '' }}>
-                        <label class="form-check-label visually-hidden" for="{{ $key }}">{{ $opt['label'] }}</label>
+                               @checked(($s[$key] ?? $default) === '1')>
+                        <label class="form-check-label visually-hidden" for="{{ $key }}">{{ $label }}</label>
                     </div>
                 </div>
                 @endforeach

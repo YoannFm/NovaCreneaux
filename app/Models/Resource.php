@@ -3,8 +3,10 @@ namespace App\Models;
 use App\Models\Concerns\Loggable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 class Resource extends Model {
-    use HasFactory, Loggable;
+    // Supprimee : gardee en base pour l'historique, avec ses creneaux (supprimes eux aussi)
+    use HasFactory, Loggable, SoftDeletes;
 
     protected const ACTIVITY_NOUN = 'Ressource';
     protected const ACTIVITY_FEMININE = true;
@@ -42,6 +44,7 @@ class Resource extends Model {
      * s'ouvre, jusqu'a $advanceDays jours a l'avance (limite du role). Avec 1 jour : demain s'ouvre aujourd'hui a open_time.
      */
     public function canReserveFor(string $date, int $advanceDays): array {
+        $date  = Reservation::day($date);
         $today = now()->toDateString();
         $now   = now()->format('H:i:s');
 

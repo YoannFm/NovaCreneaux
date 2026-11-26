@@ -11,19 +11,37 @@ class SettingService {
         return in_array($key, self::SECRET_KEYS, true);
     }
 
+    /**
+     * Valeur d'un reglage, ou $default s'il n'existe pas. Le cache garde ce qui est en base (chiffre pour un secret),
+     * ou l'absence de valeur : jamais le $default d'un appel, qui deviendrait celui de tous les appels suivants
+     * (le nom par defaut lu pendant l'assistant restait affiche apres l'installation).
+     */
     public function get(string $key, mixed $default = null): mixed {
-        // Le cache garde la valeur telle que stockee (chiffree pour un secret)
-        $stored = Cache::rememberForever("setting_{$key}", function() use ($key,$default) {
-            $s = Setting::find($key);
-            return $s ? $s->value : $default;
-        });
+        $entry = Cache::rememberForever(self::cacheKey($key), fn () => ['value' => Setting::find($key)?->value]);
+        // Ancienne forme du cache (valeur seule), le temps qu'une mise a jour le vide
+        $stored = is_array($entry) && array_key_exists('value', $entry) ? $entry['value'] : $entry;
+        if ($stored === null) {
+            return $default;
+        }
+
         // Un secret illisible (APP_KEY changee) vaut sa valeur par defaut : il est considere comme non renseigne
         return self::isSecret($key) ? (SecretValue::decrypt($stored) ?? $default) : $stored;
     }
     public function set(string $key, mixed $value): void {
         $stored = self::isSecret($key) ? SecretValue::encrypt((string) $value) : $value;
         Setting::updateOrCreate(['key'=>$key],['value'=>$stored]);
-        Cache::forget("setting_{$key}");
+        Cache::forget(self::cacheKey($key));
+    }
+    /** Ecrit les reglages encore absents (valeurs initiales de l'installation), sans toucher aux autres. */
+    public function setMissing(array $values): void {
+        foreach ($values as $key => $value) {
+            if (!Setting::whereKey($key)->exists()) {
+                $this->set($key, $value);
+            }
+        }
+    }
+    private static function cacheKey(string $key): string {
+        return "setting_{$key}";
     }
     /** Reglages pour les formulaires : sans les secrets (voir secretsStatus). */
     public function all(): array {

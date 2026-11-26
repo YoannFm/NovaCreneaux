@@ -3,8 +3,12 @@ namespace App\Models;
 use App\Models\Concerns\Loggable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 class Slot extends Model {
-    use HasFactory, Loggable;
+    // Supprime : garde en base pour l'historique de ses reservations passees, mais plus reservable
+    use HasFactory, Loggable, SoftDeletes;
 
     protected const ACTIVITY_NOUN = 'Créneau';
     protected const ACTIVITY_FEMININE = false;
@@ -27,7 +31,14 @@ class Slot extends Model {
         ];
     }
     protected function casts(): array { return ['is_active'=>'boolean','max_capacity'=>'integer']; }
-    public function resource() { return $this->belongsTo(Resource::class); }
+    /** Regle de validation d'un slot_id envoye pour reserver : un creneau supprime n'existe plus. */
+    public static function existsRule(): Exists {
+        return Rule::exists('slots', 'id')->whereNull('deleted_at');
+    }
+    /** La ressource meme supprimee : une reservation passee garde son nom. */
+    public function resource() { return $this->belongsTo(Resource::class)->withTrashed(); }
+    /** Peut recevoir une nouvelle reservation (actif et non supprime). */
+    public function isOpenForBooking(): bool { return $this->is_active && !$this->trashed(); }
     public function reservations() { return $this->hasMany(Reservation::class); }
     public function availableCountFor(string $date): int {
         $taken = $this->reservations()->where('reservation_date',$date)->count();

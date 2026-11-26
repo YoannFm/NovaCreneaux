@@ -10,6 +10,7 @@ use App\Services\Webhook\WebhookPayload;
 use App\Support\Customization;
 use App\Support\WebhookEvent;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -20,12 +21,16 @@ use Illuminate\Support\Facades\Mail;
  * Un echec est un tableau ['ok'=>false, 'code'=>..., 'error'=>...] : 'code' est stable (utilise par l'API),
  * 'error' est le message affiche a l'utilisateur. Codes : banned, slot_unavailable, date_past,
  * resource_closed_day, resource_closed_today, slot_started, daily_limit, weekly_limit, advance_limit,
- * slot_full, already_booked, reservation_past, cancel_deadline.
+ * slot_full, already_booked, reservation_past, cancel_deadline, account_disabled (ajout par le personnel).
  */
 class ReservationService {
+    /** Motif des annulations faites quand un compte est desactive. */
+    public const DEACTIVATION_REASON = 'Votre compte a été désactivé.';
+
     public function __construct(private SiteNotifier $notifier, private WebhookDispatcher $webhooks) {}
 
     public function create(User $user, int $slotId, string $date): array {
+        $date = Reservation::day($date);
         return $this->createChecked($user, $slotId, $date, fn (Slot $slot) => $this->checkBookable($user, $slot, $date));
     }
 
@@ -34,6 +39,7 @@ class ReservationService {
      * ni fenetre d'ouverture, ni suspension. Restent : creneau actif, pas dans le passe, pas termine, place libre, pas de doublon.
      */
     public function createByStaff(User $user, int $slotId, string $date): array {
+        $date = Reservation::day($date);
         return $this->createChecked($user, $slotId, $date, fn (Slot $slot) => $this->checkStaffBookable($user, $slot, $date));
     }
 
@@ -71,15 +77,28 @@ class ReservationService {
 
     /** Verifie toutes les regles sans rien ecrire. Renvoie l'echec, ou null si la reservation est possible. */
     public function checkBookable(User $user, Slot $slot, string $date): ?array {
-        $ban = $user->activeBan();
-        if ($ban) {
+        $date = Reservation::day($date);
+        return $this->checkWith(BookingContext::load($user, [$date]), $slot, $date, $slot->availableCountFor($date));
+    }
+
+    /**
+     * Les regles, avec les donnees deja chargees : la page de reservation les applique a chaque bouton sans une
+     * requete par creneau, et le bouton dit ce que le serveur repondrait. $free : places libres de ce creneau ce jour.
+     */
+    public function checkWith(BookingContext $context, Slot $slot, string $date, int $free): ?array {
+        $user = $context->user;
+        if ($ban = $context->ban) {
             if ($ban->isPermanent())
                 return $this->failure('banned', 'Votre accès aux réservations est suspendu définitivement. Motif : ' . $ban->reason . self::contactHint());
             return $this->failure('banned', 'Votre accès aux réservations est suspendu jusqu\'au ' . $ban->banned_until->format('d/m/Y') . '. Motif : ' . $ban->reason . self::contactHint());
         }
 
-        if (!$slot->is_active || !$slot->resource->is_active)
+        if (!$slot->isOpenForBooking() || !$slot->resource->is_active)
             return $this->failure('slot_unavailable', "Ce créneau n'est pas disponible.");
+
+        // Avant les limites : une reservation deja faite les remplit, mais c'est elle qu'il faut signaler
+        if ($context->hasBooked($slot->id, $date))
+            return $this->failure('already_booked', 'Vous avez déjà réservé ce créneau.');
 
         // Fenetre de la ressource et limite "a l'avance" du role (Resource::canReserveFor)
         $check = $slot->resource->canReserveFor($date, $user->advanceDays());
@@ -91,36 +110,25 @@ class ReservationService {
 
         $role = $user->role;
 
-        // Max reservations per day
         $maxDay = $role ? $role->max_reservations_day : -1;
-        if ($maxDay !== -1) {
-            $dayCount = Reservation::where('user_id', $user->id)->where('reservation_date', $date)->count();
-            if ($dayCount >= $maxDay)
-                return $this->failure('daily_limit', "Limite de {$maxDay} réservation(s) par jour atteinte.");
-        }
+        if ($maxDay !== -1 && $context->countOn($date) >= $maxDay)
+            return $this->failure('daily_limit', "Limite de {$maxDay} réservation(s) par jour atteinte.");
 
-        // Max reservations per week
         $maxWeek = $role ? $role->max_reservations_week : -1;
-        if ($maxWeek !== -1) {
-            $d = Carbon::parse($date);
-            $weekCount = Reservation::where('user_id', $user->id)
-                ->whereBetween('reservation_date', [$d->startOfWeek()->toDateString(), $d->endOfWeek()->toDateString()])
-                ->count();
-            if ($weekCount >= $maxWeek)
-                return $this->failure('weekly_limit', "Limite de {$maxWeek} réservation(s) par semaine atteinte.");
-        }
+        if ($maxWeek !== -1 && $context->countInWeekOf($date) >= $maxWeek)
+            return $this->failure('weekly_limit', "Limite de {$maxWeek} réservation(s) par semaine atteinte.");
 
-        if ($slot->availableCountFor($date) <= 0)
+        if ($free <= 0)
             return $this->failure('slot_full', 'Ce créneau est complet.');
-
-        if (Reservation::where('user_id',$user->id)->where('slot_id',$slot->id)->where('reservation_date',$date)->exists())
-            return $this->failure('already_booked', 'Vous avez déjà réservé ce créneau.');
 
         return null;
     }
 
     private function checkStaffBookable(User $user, Slot $slot, string $date): ?array {
-        if (!$slot->is_active || !$slot->resource->is_active)
+        // Un compte desactive ne prend plus de place (ses reservations a venir sont annulees a la desactivation)
+        if (!$user->is_active)
+            return $this->failure('account_disabled', 'Ce compte est désactivé.');
+        if (!$slot->isOpenForBooking() || !$slot->resource->is_active)
             return $this->failure('slot_unavailable', "Ce créneau n'est pas disponible.");
         if ($date < Carbon::today()->toDateString())
             return $this->failure('date_past', 'Cette date est passée.');
@@ -152,17 +160,56 @@ class ReservationService {
         return ['ok'=>true];
     }
 
+    /**
+     * Ce que le serveur repondrait pour chaque creneau actif de ces ressources et chaque date, en une requete pour le
+     * compte (BookingContext) : [id du creneau][date] => echec ou null. $counts : places libres (AvailabilityService).
+     * La page de reservation en tire ses boutons, l'accueil le nombre de creneaux encore reservables.
+     */
+    public function statuses(User $user, iterable $resources, array $dates, array $counts): array {
+        $context = BookingContext::load($user, $dates);
+        $statuses = [];
+        foreach ($resources as $resource) {
+            foreach ($resource->activeSlots as $slot) {
+                $slot->setRelation('resource', $resource);
+                foreach ($dates as $date) {
+                    $statuses[$slot->id][$date] = $this->checkWith($context, $slot, $date, $counts[$slot->id][$date] ?? $slot->max_capacity);
+                }
+            }
+        }
+        return $statuses;
+    }
+
     /** Annulation par un administrateur : aucune regle de delai. L'eleve est prevenu (cloche et e-mail), avec le motif s'il y en a un. */
     public function cancelByAdmin(Reservation $reservation, ?string $reason = null): void {
         $this->remove($reservation, true, $reason);
     }
 
     /**
-     * Annule les reservations a venir de ces creneaux, quand l'administrateur supprime un creneau ou une ressource.
-     * Les reservations passees restent dans l'historique. Renvoie le nombre de reservations annulees.
+     * Annule et previent les titulaires des reservations a venir de ces creneaux, quand l'administrateur supprime un
+     * creneau ou une ressource. Une reservation dont le creneau est termine (y compris plus tot aujourd'hui) n'est
+     * pas annulee : personne n'est prevenu d'une seance deja passee. Renvoie le nombre de reservations annulees.
      */
     public function cancelUpcomingForSlots(iterable $slotIds, string $reason): int {
-        $reservations = Reservation::whereIn('slot_id', collect($slotIds))->whereDate('reservation_date', '>=', Carbon::today())->get();
+        return $this->cancelUpcoming(Reservation::whereIn('slot_id', collect($slotIds)), $reason);
+    }
+
+    /**
+     * Desactivation d'un compte (eleve parti, par exemple) : ses reservations a venir sont annulees, ce qui libere
+     * les places et le retire des feuilles d'appel. Ses reservations passees restent dans l'historique.
+     */
+    public function cancelUpcomingForUsers(iterable $userIds, string $reason): int {
+        return $this->cancelUpcoming(Reservation::whereIn('user_id', collect($userIds)), $reason);
+    }
+
+    /** Fin du message de confirmation apres une annulation groupee (rien si aucune reservation n'etait a venir). */
+    public static function cancelledNote(int $cancelled): string {
+        return $cancelled > 0 ? " {$cancelled} réservation(s) à venir annulée(s), les personnes concernées ont été prévenues." : '';
+    }
+
+    /** Annule (et previent) les reservations de la requete dont le creneau n'est pas termine. */
+    private function cancelUpcoming(Builder $query, string $reason): int {
+        $reservations = $query->with('slot')->whereDate('reservation_date', '>=', Carbon::today())->get()
+            ->filter(fn (Reservation $reservation) => $reservation->endsAt()->isFuture());
         foreach ($reservations as $reservation) {
             $this->remove($reservation, true, $reason);
         }

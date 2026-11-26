@@ -24,16 +24,15 @@ class ResourceController extends Controller {
     }
     public function destroy(ReservationService $reservations, Resource $resource) {
         $cancelled = $reservations->cancelUpcomingForSlots($resource->slots()->pluck('id'), "La ressource {$resource->name} n'est plus disponible.");
+        // Ses creneaux sont supprimes avec elle (en base, ils restent pour l'historique)
+        $resource->slots()->delete();
         $resource->delete();
-        return redirect()->route('admin.resources.index')->with('success', 'Ressource supprimée.' . $this->cancelledNote($cancelled));
+        return redirect()->route('admin.resources.index')->with('success', 'Ressource supprimée.' . ReservationService::cancelledNote($cancelled));
     }
     private function validated(Request $request): array {
         $data = $request->validate(Resource::rules());
         $data['is_active'] = $request->boolean('is_active');
         $data['closed_days'] = $data['closed_days'] ?? [];
         return $data;
-    }
-    private function cancelledNote(int $cancelled): string {
-        return $cancelled > 0 ? " {$cancelled} réservation(s) à venir annulée(s), les personnes concernées ont été prévenues." : '';
     }
 }

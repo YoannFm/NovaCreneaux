@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\ApiError;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\ReservationResource;
+use App\Models\Slot;
 use App\Services\ActivityLogger;
 use App\Services\ReservationService;
 use Illuminate\Http\JsonResponse;
@@ -46,7 +47,7 @@ class ReservationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'slot_id' => ['required', 'integer', 'exists:slots,id'],
+            'slot_id' => ['required', 'integer', Slot::existsRule()],
             'date' => ['required', 'date_format:Y-m-d'],
         ]);
 

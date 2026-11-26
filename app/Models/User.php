@@ -3,6 +3,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Casts\EncryptedOrUnreadable;
 use App\Mail\EmailVerificationLink;
 use App\Mail\PasswordResetLink;
 use App\Services\ApiTokenService;
@@ -11,6 +12,7 @@ use App\Services\Webhook\WebhookPayload;
 use App\Support\WebhookEvent;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\HasApiTokens;
@@ -21,6 +23,15 @@ class User extends Authenticatable
 
     /** Reservation a l'avance d'un compte sans role. */
     public const DEFAULT_ADVANCE_DAYS = 30;
+
+    /** Longueur maximale de la classe, la meme partout (inscription, profil, administration, import CSV). */
+    public const CLASSE_MAX = 100;
+
+    /** Regle de validation de la classe : une seule, sinon une classe acceptee a un endroit bloquait la fiche ailleurs. */
+    public static function classeRules(): array
+    {
+        return ['nullable', 'string', 'max:' . self::CLASSE_MAX];
+    }
 
     /** Adresse e-mail telle qu'elle est enregistree : sans espaces autour, en minuscules. */
     public static function normalizeEmail(string $email): string
@@ -52,15 +63,21 @@ class User extends Authenticatable
             'mfa_email_enabled'       => 'boolean',
             'mfa_sms_enabled'         => 'boolean',
             'email_verified_at'       => 'datetime',
+            // Chiffree avec APP_KEY : une copie de la base ou d'une sauvegarde ne permet pas de generer les codes
+            'two_factor_secret'       => EncryptedOrUnreadable::class,
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at'           => 'datetime',
             'password_changed_at'     => 'datetime',
         ];
     }
 
+    /**
+     * Valeur stockee et non dechiffree : une cle illisible (APP_KEY changee) reste une double authentification
+     * activee. Aucun code ne la valide alors ; les codes de secours et les autres methodes restent possibles.
+     */
     public function hasTotp(): bool
     {
-        return $this->two_factor_secret !== null && $this->two_factor_confirmed_at !== null;
+        return ($this->getAttributes()['two_factor_secret'] ?? null) !== null && $this->two_factor_confirmed_at !== null;
     }
 
     public function hasEmailMfa(): bool
@@ -108,6 +125,15 @@ class User extends Authenticatable
 
     public function role()         { return $this->belongsTo(Role::class); }
     public function reservations() { return $this->hasMany(Reservation::class); }
+
+    /** Reservations dont le creneau n'est pas termine (une seance finie plus tot aujourd'hui n'est plus "a venir"), par date et heure. */
+    public function upcomingReservations(): Collection
+    {
+        return $this->reservations()->with('slot.resource')->whereDate('reservation_date', '>=', today())->get()
+            ->filter(fn (Reservation $reservation) => $reservation->endsAt()->isFuture())
+            ->sortBy(fn (Reservation $reservation) => $reservation->startsAt()->timestamp)
+            ->values();
+    }
     protected static function booted(): void
     {
         static::created(fn (self $user) => app(WebhookDispatcher::class)->dispatch(WebhookEvent::USER_CREATED, ['user' => WebhookPayload::user($user)]));
@@ -125,9 +151,24 @@ class User extends Authenticatable
 
     public function sanctions()    { return $this->hasMany(Sanction::class)->latest(); }
 
+    /**
+     * Le role fait foi. La colonne users.is_admin n'en est qu'une copie (requetes : installation, tableau de bord),
+     * tenue a jour par Role ; elle ne sert seule que pour un compte sans role. Avant, la colonne restee a vrai
+     * gardait administrateur un compte dont le role ne l'etait plus.
+     */
     public function isAdmin(): bool
     {
-        return ($this->role && $this->role->is_admin) || $this->is_admin;
+        return $this->role ? (bool) $this->role->is_admin : (bool) $this->is_admin;
+    }
+
+    /**
+     * Seul administrateur actif : lui retirer ses droits ou le desactiver laisserait le site sans administrateur
+     * (plus d'acces aux reglages, aux roles ni aux mises a jour). La colonne is_admin suit le role (Role::booted).
+     */
+    public function isLastActiveAdmin(): bool
+    {
+        return $this->isAdmin() && $this->is_active
+            && !static::whereKeyNot($this->id)->where('is_admin', true)->where('is_active', true)->exists();
     }
 
     public function hasPermission(string $permission): bool

@@ -31,22 +31,14 @@ Route::get('/p/{slug}', function (string $slug) {
     $page = \App\Models\Page::where('slug', $slug)->where('is_enabled', true)->firstOrFail();
     if ($page->is_restricted) {
         if (!auth()->check()) return redirect()->route('login');
-        $userRoleId = auth()->user()->role_id;
-        if ($page->roles->isNotEmpty() && !$page->roles->contains('id', $userRoleId)) {
-            abort(403);
-        }
+        abort_unless($page->isVisibleTo(auth()->user()), 403);
     }
     return view('pages.show', compact('page'));
 })->name('pages.show');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
-        $upcoming = auth()->user()->reservations()
-            ->with('slot.resource')
-            ->whereDate('reservation_date', '>=', today())
-            ->orderBy('reservation_date')
-            ->limit(5)
-            ->get();
+        $upcoming = auth()->user()->upcomingReservations()->take(5);
         return view('dashboard', compact('upcoming'));
     })->name('dashboard');
 

@@ -13,8 +13,10 @@ class EnforceMaintenanceMode
 
     public function handle(Request $request, Closure $next)
     {
-        if (setting('maintenance_mode', '0') !== '1'
-            || $request->is(...self::ALWAYS_OPEN)
+        // Les pages toujours ouvertes passent avant toute lecture en base : l'assistant d'installation doit
+        // s'afficher quand la base est vide ou injoignable
+        if ($request->is(...self::ALWAYS_OPEN)
+            || setting('maintenance_mode', '0') !== '1'
             || $request->user()?->hasAdminAccess()) {
             return $next($request);
         }

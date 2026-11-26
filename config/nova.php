@@ -2,7 +2,7 @@
 
 return [
     // Version installee. A modifier uniquement au moment d'une release : l'etiquette vX.Y.Z doit avoir la meme valeur.
-    'version' => '1.6.15',
+    'version' => '1.6.16',
 
     // Depot GitHub dont les releases servent de source aux mises a jour (Admin > Mise a jour).
     'repo' => 'YoannFm/NovaCreneaux',
@@ -28,6 +28,10 @@ return [
         // Developpement seulement : accepte une extension copiee a la main, sans archive signee.
         'allow_unsigned' => env('NOVA_PLUGINS_ALLOW_UNSIGNED', false),
     ],
+
+    // Verrou d'installation (App\Services\InstallationState) : ne jamais le supprimer, il garde /install ferme.
+    // Les tests le remplacent par un fichier temporaire pour ne jamais toucher a celui du site.
+    'install_lock' => storage_path('app/installed.lock'),
 
     'backups' => [
         // Sauvegardes de la base (Admin > Mise a jour). Hors de public/ : jamais servies directement.

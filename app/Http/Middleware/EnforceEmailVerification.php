@@ -14,11 +14,12 @@ class EnforceEmailVerification
     {
         $user = $request->user();
 
-        if (setting('force_email_verification', '0') === '1'
-            && $user
-            && !$user->isAdmin()
+        // Visiteur non connecte (dont l'assistant d'installation) : aucune lecture en base
+        if ($user
+            && !$request->is(...self::ALWAYS_OPEN)
             && !$user->hasVerifiedEmail()
-            && !$request->is(...self::ALWAYS_OPEN)) {
+            && setting('force_email_verification', '0') === '1'
+            && !$user->isAdmin()) {
             return redirect()->route('verification.notice');
         }
 

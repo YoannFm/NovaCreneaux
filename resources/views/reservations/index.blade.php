@@ -130,6 +130,13 @@
     @endif
 </div>
 
+@php $suspension = collect($statuses)->flatten(1)->first(fn ($refusal) => ($refusal['code'] ?? null) === 'banned'); @endphp
+@if($suspension)
+<div class="alert alert-warning d-flex align-items-start gap-2 mb-4">
+    <i class="bi bi-person-lock mt-1"></i><div>{{ $suspension['error'] }}</div>
+</div>
+@endif
+
 {{-- Selecteur de date --}}
 @php
     $tomorrow    = now()->addDay()->toDateString();
@@ -243,13 +250,23 @@
             @forelse($resource->activeSlots as $slot)
             @php
                 $available  = $counts[$slot->id][$date] ?? $slot->max_capacity;
-                $canBook    = $available > 0 && $check['allowed'];
+                $refusal    = $statuses[$slot->id][$date];
+                $canBook    = $refusal === null;
+                [$btnIcon, $btnLabel] = match ($refusal['code'] ?? null) {
+                    null                          => ['check-circle', 'Réserver'],
+                    'already_booked'              => ['bookmark-check', 'Réservé'],
+                    'slot_full'                   => ['x-circle', 'Complet'],
+                    'slot_started'                => ['hourglass-bottom', 'Commencé'],
+                    'daily_limit', 'weekly_limit' => ['slash-circle', 'Limite atteinte'],
+                    'banned'                      => ['person-lock', 'Suspendu'],
+                    default                       => ['lock', 'Fermé'],
+                };
                 $slotFill   = $slot->max_capacity > 0
                     ? round(($slot->max_capacity - $available) / $slot->max_capacity * 100)
                     : 100;
                 $slotColor  = $slotFill >= 90 ? '#ef4444' : ($slotFill >= 60 ? '#f59e0b' : 'var(--accent-text)');
             @endphp
-            <div class="slot-item {{ $canBook ? 'available' : 'full' }}">
+            <div class="slot-item {{ $canBook ? 'available' : 'full' }}" @if($refusal) title="{{ $refusal['error'] }}" @endif>
                 <div class="slot-time">
                     {{ substr($slot->start_time,0,5) }} - {{ substr($slot->end_time,0,5) }}
                 </div>
@@ -272,15 +289,8 @@
                     @csrf
                     <input type="hidden" name="slot_id" value="{{ $slot->id }}">
                     <input type="hidden" name="reservation_date" value="{{ $date }}">
-                    <button type="submit" class="slot-btn {{ $canBook ? 'can-book' : 'cant-book' }}"
-                            {{ !$canBook ? 'disabled' : '' }}>
-                        @if($available <= 0)
-                            <i class="bi bi-x-circle me-1"></i> Complet
-                        @elseif(!$check['allowed'])
-                            <i class="bi bi-lock me-1"></i> Fermé
-                        @else
-                            <i class="bi bi-check-circle me-1"></i> Réserver
-                        @endif
+                    <button type="submit" class="slot-btn {{ $canBook ? 'can-book' : 'cant-book' }}" @disabled(!$canBook)>
+                        <i class="bi bi-{{ $btnIcon }} me-1"></i> {{ $btnLabel }}
                     </button>
                 </form>
             </div>

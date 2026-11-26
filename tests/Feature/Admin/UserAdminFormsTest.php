@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Mail\PasswordResetLink;
 use App\Models\NavItem;
+use App\Models\ActivityLog;
 use App\Models\Reservation;
 use App\Models\Resource;
 use App\Models\Role;
@@ -70,7 +71,7 @@ class UserAdminFormsTest extends TestCase
         $student = $this->student();
 
         $this->actingAs($this->admin())->put(route('admin.users.update', $student), [
-            'name' => 'Nom Modifie', 'email' => $student->email, 'role_id' => $student->role_id, 'password' => 'AutreMotDePasse1', 'is_active' => 1,
+            'name' => 'Nom Modifie', 'email' => $student->email, 'role_id' => $student->role_id, 'password' => 'AutreMotDePasse1',
         ])->assertSessionHasNoErrors()->assertRedirect(route('admin.users.index'));
 
         $student->refresh();
@@ -207,10 +208,28 @@ class UserAdminFormsTest extends TestCase
         $this->actingAs($this->admin());
         [$active, $inactive] = [$this->student(), $this->student(['is_active' => false])];
 
-        $this->bulk('reset_password', [$active->id, $inactive->id])->assertSessionHas('success');
+        $this->bulk('reset_password', [$active->id, $inactive->id])
+            ->assertSessionHas('success', "1 lien(s) de réinitialisation en cours d'envoi. Le bilan sera inscrit dans le journal d'activité. 1 compte(s) inactif(s) ignoré(s).");
 
         Mail::assertSent(PasswordResetLink::class, fn ($mail) => $mail->hasTo($active->email));
         Mail::assertNotSent(PasswordResetLink::class, fn ($mail) => $mail->hasTo($inactive->email));
+        $this->assertTrue(ActivityLog::where('action', 'Réinitialisation de mot de passe groupée')->where('context', '1 lien(s) envoyé(s), 0 échec(s)')->exists());
+    }
+
+    public function test_reset_links_are_sent_after_the_response(): void
+    {
+        Mail::fake();
+        $this->actingAs($this->admin());
+        $student = $this->student();
+        $sentBeforeTermination = null;
+        $this->app->terminating(function () use (&$sentBeforeTermination) {
+            $sentBeforeTermination ??= Mail::sent(PasswordResetLink::class)->count();
+        });
+
+        $this->bulk('reset_password', [$student->id])->assertRedirect();
+
+        $this->assertSame(0, $sentBeforeTermination, 'aucun envoi pendant la requete');
+        Mail::assertSent(PasswordResetLink::class, 1);
     }
 
     public function test_export_contains_only_the_selected_users_and_neutralises_formulas(): void

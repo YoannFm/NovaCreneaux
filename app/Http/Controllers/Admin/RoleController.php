@@ -61,6 +61,10 @@ class RoleController extends Controller
         if (!$role->locked) {
             $update['is_admin'] = $request->boolean('is_admin');
         }
+        // Retirer le statut d'administrateur au dernier role qui le porte enfermerait le site dehors
+        if ($role->is_admin && !($update['is_admin'] ?? true) && !Role::where('is_admin', true)->whereKeyNot($role->id)->whereHas('users')->exists()) {
+            return back()->withInput()->with('error', "Aucun autre compte n'est administrateur : ce rôle doit le rester.");
+        }
         $update['permissions'] = $this->permissions($request, $update['is_admin'] ?? $role->is_admin);
         $role->update($update);
         if ($role->wasChanged('api_access')) {

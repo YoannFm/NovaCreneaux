@@ -48,7 +48,7 @@ class SecretSettingsTest extends TestCase
         $this->settings()->set('sms_ntfy_token', self::SECRET);
         $this->settings()->get('sms_ntfy_token');
 
-        $this->assertStringStartsWith('enc:v1:', Cache::get('setting_sms_ntfy_token'));
+        $this->assertStringStartsWith('enc:v1:', Cache::get('setting_sms_ntfy_token')['value']);
     }
 
     public function test_other_settings_stay_in_clear(): void

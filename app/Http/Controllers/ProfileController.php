@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Mail\EmailChanged;
+use App\Support\ActivityChanges;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use App\Services\AccountDeletionNotice;
@@ -13,6 +16,9 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
+    /** Champs du profil dont le journal d'activite garde l'avant / apres. */
+    private const LOGGED_FIELDS = ['name', 'email', 'classe'];
+
     /**
      * Display the user's profile form.
      */
@@ -25,20 +31,30 @@ class ProfileController extends Controller
 
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        if (setting('allow_name_change', '1') !== '1') {
-            $request->merge(['name' => $request->user()->name]);
+        $user = $request->user();
+        $before = $user->only(self::LOGGED_FIELDS);
+        $user->fill(collect($request->validated())->except('current_password')->all());
+        $oldEmail = $user->isDirty('email') ? $user->getOriginal('email') : null;
+        if ($oldEmail !== null) {
+            $user->email_verified_at = null;
         }
+        $user->save();
 
-        $request->user()->fill($request->validated());
-
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        ActivityLogger::log('Profil mis à jour', null, ActivityChanges::diff($before, $user->only(self::LOGGED_FIELDS)));
+        if ($oldEmail !== null) {
+            $this->warnPreviousAddress($oldEmail, $user->name, $user->email);
         }
-
-        $request->user()->save();
-
-        ActivityLogger::log('Profil mis à jour');
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
+    }
+
+    /** L'ancienne adresse est prevenue ; un e-mail qui echoue n'annule pas le changement (erreur journalisee). */
+    private function warnPreviousAddress(string $oldEmail, string $name, string $newEmail): void
+    {
+        try {
+            Mail::to($oldEmail)->send(new EmailChanged($name, $newEmail));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function updateTheme(Request $request): RedirectResponse
@@ -68,7 +84,7 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        if ($user->is_admin) {
+        if ($user->isAdmin()) {
             return back()->with('error', 'Un administrateur ne peut pas supprimer son propre compte.');
         }
 

@@ -61,7 +61,7 @@
                     <div class="mb-3">
                         <label class="form-label" for="classeInput">{{ \App\Support\Customization::get('group_label') }}</label>
                         <input type="text" class="form-control @error('classe') is-invalid @enderror"
-                               id="classeInput" name="classe"
+                               id="classeInput" name="classe" maxlength="{{ \App\Models\User::CLASSE_MAX }}"
                                value="{{ old('classe', $user->classe) }}" placeholder="{{ \App\Support\Customization::get('group_placeholder') }}">
                         @error('classe')<span class="invalid-feedback"><strong>{{ $message }}</strong></span>@enderror
                     </div>
@@ -85,15 +85,6 @@
                             @endforeach
                         </select>
                         @error('role_id')<span class="invalid-feedback"><strong>{{ $message }}</strong></span>@enderror
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
-                                   value="1" @checked(old('is_active', $user->is_active))
-                                   style="width:2.2rem;height:1.1rem;cursor:pointer;">
-                            <label class="form-check-label" for="is_active">Compte actif</label>
-                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary">

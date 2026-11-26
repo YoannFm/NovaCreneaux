@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\ProfileFields; @endphp
 @section('content')
 <div class="row justify-content-center">
     <div class="col-lg-7 col-xl-6">
@@ -16,31 +17,54 @@
                 @endif
                 <form method="POST" action="{{ route('profile.update') }}">
                     @csrf @method('PATCH')
+                    @php $locked = 'Modification désactivée par l\'administrateur.'; @endphp
                     <div class="mb-3">
-                        <label class="form-label">Nom complet</label>
-                        @if(setting('allow_name_change','1') === '1')
-                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+                        <label class="form-label" for="profile-name">Nom complet</label>
+                        @if(ProfileFields::editable('name'))
+                            <input type="text" id="profile-name" name="name" class="form-control @error('name') is-invalid @enderror"
                                    value="{{ old('name', $user->name) }}" required>
                             @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         @else
-                            <input type="text" class="form-control" value="{{ $user->name }}" disabled>
-                            <div class="form-text">La modification du nom est désactivée par l'administrateur.</div>
+                            <input type="text" id="profile-name" class="form-control" value="{{ $user->name }}" disabled>
+                            <div class="form-text">{{ $locked }}</div>
                         @endif
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Adresse email</label>
-                        <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
-                               value="{{ old('email', $user->email) }}" required>
-                        @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        <label class="form-label" for="profile-email">Adresse email</label>
+                        @if(ProfileFields::editable('email'))
+                            <input type="email" id="profile-email" name="email" class="form-control @error('email') is-invalid @enderror"
+                                   value="{{ old('email', $user->email) }}" required>
+                            @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        @else
+                            <input type="email" id="profile-email" class="form-control" value="{{ $user->email }}" disabled>
+                            <div class="form-text">{{ $locked }}</div>
+                        @endif
                     </div>
+                    @if(ProfileFields::editable('email'))
+                    <div class="mb-3">
+                        <label class="form-label" for="profile-current-password">Mot de passe actuel</label>
+                        <input type="password" id="profile-current-password" name="current_password" autocomplete="current-password"
+                               class="form-control @error('current_password') is-invalid @enderror">
+                        <div class="form-text">Demandé seulement si vous changez d'adresse e-mail. L'ancienne adresse est prévenue du changement.</div>
+                        @error('current_password')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    </div>
+                    @endif
                     <div class="mb-4">
-                        <label class="form-label">{{ \App\Support\Customization::get('group_label') }}</label>
-                        <input type="text" name="classe" class="form-control" placeholder="{{ \App\Support\Customization::get('group_placeholder') }}"
-                               value="{{ old('classe', $user->classe) }}">
+                        <label class="form-label" for="profile-classe">{{ \App\Support\Customization::get('group_label') }}</label>
+                        @if(ProfileFields::editable('classe'))
+                            <input type="text" id="profile-classe" name="classe" maxlength="{{ \App\Models\User::CLASSE_MAX }}" class="form-control @error('classe') is-invalid @enderror"
+                                   placeholder="{{ \App\Support\Customization::get('group_placeholder') }}" value="{{ old('classe', $user->classe) }}">
+                            @error('classe')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        @else
+                            <input type="text" id="profile-classe" class="form-control" value="{{ $user->classe }}" disabled>
+                            <div class="form-text">{{ $locked }}</div>
+                        @endif
                     </div>
+                    @if(ProfileFields::anyEditable())
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg me-1"></i> Enregistrer
                     </button>
+                    @endif
                 </form>
             </div>
         </div>

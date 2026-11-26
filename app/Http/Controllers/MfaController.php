@@ -377,7 +377,7 @@ class MfaController extends Controller
         $code   = $request->input('code');
 
         $verified = match ($method) {
-            'totp'  => $user->hasTotp() && $this->totp->verify($user->two_factor_secret, $code ?? ''),
+            'totp'  => $user->hasTotp() && ($secret = $user->two_factor_secret) !== null && $this->totp->verify($secret, $code ?? ''),
             'email' => $user->hasEmailMfa() && $this->otp->verify($user, 'email', $code ?? ''),
             'sms'   => $user->hasSmsMfa() && $this->otp->verify($user, 'sms', $code ?? ''),
             default => false,

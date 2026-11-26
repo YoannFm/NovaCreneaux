@@ -1,8 +1,8 @@
 <?php
 namespace App\Http\Controllers;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\InstallationState;
+use App\Services\SettingService;
 use App\Support\EnvFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class InstallController extends Controller {
-    public function __construct(private InstallationState $installation, private EnvFile $env) {}
+    public function __construct(private InstallationState $installation, private EnvFile $env, private SettingService $settings) {}
 
     /** Extensions PHP exigees => usage affiche (null : evident). */
     private const EXTENSIONS = [
@@ -94,9 +94,7 @@ class InstallController extends Controller {
                 'maintenance_mode'         => '0',
                 'maintenance_message'      => 'Le service est temporairement indisponible.',
             ];
-            foreach ($defaults as $key => $value) {
-                Setting::firstOrCreate(['key' => $key], ['value' => $value]);
-            }
+            $this->settings->setMissing($defaults);
 
             // Nav items par défaut
             if (DB::table('nav_items')->count() === 0) {
@@ -130,7 +128,7 @@ class InstallController extends Controller {
 
         $this->env->set(['APP_NAME' => $data['app_name'], 'APP_URL' => $data['app_url']]);
 
-        // Update settings table
+        // Par SettingService : le cache des reglages est vide (des valeurs lues pendant l'assistant y restaient)
         $settings = [
             'app_name'                 => $data['app_name'],
             'app_url'                  => $data['app_url'],
@@ -139,7 +137,7 @@ class InstallController extends Controller {
             'registration_open'        => $data['registration_open'],
         ];
         foreach ($settings as $key => $value) {
-            \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+            $this->settings->set($key, $value);
         }
 
         \Illuminate\Support\Facades\Artisan::call('config:clear');
