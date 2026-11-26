@@ -9,6 +9,7 @@ Ouvrez l'adresse du site et saisissez votre adresse e-mail et votre mot de passe
 - L'adresse e-mail ne tient pas compte des majuscules : `Lea.Martin@...` et `lea.martin@...` désignent le même compte.
 - Après **5 essais** de connexion manqués, le formulaire bloque les tentatives pendant un court moment.
 - Un compte désactivé par l'administration ne peut plus se connecter.
+- Si l'établissement l'a activé, un bouton « Se connecter avec le compte de l'établissement » permet d'entrer avec le compte de l'ENT ou de la messagerie de l'établissement, sans mot de passe propre au site.
 
 [[fig connexion]]
 

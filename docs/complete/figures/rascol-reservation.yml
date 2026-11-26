@@ -1,12 +1,9 @@
-image: rascol-reservation.jpg
-legende: Page « Réserver » du site du CDI, jeudi sélectionné (vue d'un compte documentaliste)
+image: rascol-reservation.png
+legende: Page « Réserver » du site du CDI, telle que la voit un élève
 marques:
-  - {n: 1, cadre: [3, 121, 792, 136], bulle: [12, 118], texte: "Choix du jour. Un élève ne voit qu'aujourd'hui et demain ; le compte documentaliste, lui, voit 30 jours."}
-  - {n: 2, cadre: [535, 324, 246, 22], bulle: [529, 320], texte: "Horaires du CDI : nouveau jour à 17:00, le jour même jusqu'à 11:30."}
-  - {n: 3, cadre: [19, 401, 762, 48], bulle: [15, 397], texte: "Occupation du CDI pour le jour choisi (ici 0 place prise sur 80)."}
-  - {n: 4, rond: [58, 541, 22], texte: "Places libres sur le créneau « 11h55 - 12h50 » : 40 sur 40."}
-  - {n: 5, cadre: [37, 555, 345, 30], bulle: [394, 570], texte: "Bouton « Réserver » : la réservation est confirmée aussitôt, un e-mail suit."}
-  - {n: 6, cadre: [383, 9, 138, 24], bulle: [378, 42], texte: "« Mes réservations » : historique et annulation."}
-  - {n: 7, rond: [685, 21, 14], bulle: [685, 48], texte: "Notifications non lues."}
-  - {n: 8, rond: [717, 21, 14], bulle: [717, 48], texte: "Thème clair ou sombre."}
-  - {n: 9, cadre: [737, 7, 50, 30], bulle: [776, 48], texte: "Menu du compte : profil, double authentification, déconnexion."}
+  - {n: 1, cadre: [5, 156, 790, 75], bulle: [14, 152], texte: "Choix du jour : aujourd'hui ou demain. Demain s'ouvre la veille à 17 h."}
+  - {n: 2, cadre: [462, 277, 314, 22], bulle: [456, 273], texte: "Horaires du CDI : nouveau jour à 17:00, le jour même jusqu'à 11:30."}
+  - {n: 3, cadre: [27, 375, 748, 54], bulle: [21, 371], texte: "Occupation du CDI pour le jour choisi (ici 0 place prise sur 80)."}
+  - {n: 4, rond: [75, 551, 24], texte: "Places libres sur le créneau « 11h55 - 12h50 » : 40 sur 40."}
+  - {n: 5, cadre: [48, 570, 328, 38], bulle: [390, 589], texte: "Bouton « Réserver » : la réservation est confirmée aussitôt, un e-mail suit."}
+  - {n: 6, rond: [763, 28, 18], bulle: [726, 28], texte: "Menu : Accueil, Réserver, Mes réservations, notifications, profil et déconnexion. Sur un grand écran, ces liens sont affichés en haut de la page."}

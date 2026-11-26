@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -512,7 +512,7 @@
     				if (typeof document === 'undefined') {
     					return null;
     				}
-    				if ('currentScript' in document && 1 < 2 /* hack to trip TS' flow analysis */) {
+    				if (document.currentScript && document.currentScript.tagName === 'SCRIPT' && 1 < 2 /* hack to trip TS' flow analysis */) {
     					return /** @type {any} */ (document.currentScript);
     				}
 
@@ -1494,15 +1494,6 @@
 
     }(_self));
 
-    if (typeof module !== 'undefined' && module.exports) {
-    	module.exports = Prism;
-    }
-
-    // hack for components to work correctly in node.js
-    if (typeof global !== 'undefined') {
-    	global.Prism = Prism;
-    }
-
     // some additional documentation/types
 
     /**
@@ -1914,7 +1905,7 @@
     	 * @returns {RegExp}
     	 */
     	function re(pattern, replacements, flags) {
-    		return RegExp(replace(pattern, replacements), flags || '');
+    		return RegExp(replace(pattern, replacements), '');
     	}
 
     	/**
@@ -3409,7 +3400,7 @@
     // restore the original Prism reference
     window.Prism = oldprism;
     return Prism;
-    }(undefined, undefined);
+    }();
 
     const option = (name) => (editor) => editor.options.get(name);
     const register$2 = (editor) => {
@@ -3631,8 +3622,9 @@
         });
     };
 
+    const PLUGIN_CODE = 'codesample';
     var Plugin = () => {
-        global$2.add('codesample', (editor) => {
+        global$2.add(PLUGIN_CODE, (editor) => {
             register$2(editor);
             setup(editor);
             register(editor);
@@ -3642,6 +3634,9 @@
                     open(editor);
                 }
             });
+            return {
+                getMetadata: () => ({ name: 'Code Sample', type: 'opensource', slug: PLUGIN_CODE })
+            };
         });
     };
 

@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -44,7 +44,7 @@
     const hasOwnProperty = Object.hasOwnProperty;
     const has = (obj, key) => hasOwnProperty.call(obj, key);
 
-    const checkRange = (str, substr, start) => substr === '' || str.length >= substr.length && str.substr(start, start + substr.length) === substr;
+    const checkRange = (str, substr, start) => str.length >= substr.length && str.substr(start, start + substr.length) === substr;
     const contains = (str, substr, start = 0, end) => {
         const idx = str.indexOf(substr, start);
         if (idx !== -1) {
@@ -298,10 +298,14 @@
         });
     };
 
+    const PLUGIN_CODE = 'autolink';
     var Plugin = () => {
-        global$1.add('autolink', (editor) => {
+        global$1.add(PLUGIN_CODE, (editor) => {
             register(editor);
             setup(editor);
+            return {
+                getMetadata: () => ({ name: 'Autolink', type: 'opensource', slug: PLUGIN_CODE })
+            };
         });
     };
 

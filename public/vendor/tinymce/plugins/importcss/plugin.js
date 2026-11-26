@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -39,7 +39,6 @@
     const isArray = isType('array');
     const isFunction = isSimpleType('function');
 
-    const nativeSlice = Array.prototype.slice;
     const nativePush = Array.prototype.push;
     const map = (xs, f) => {
         // pre-allocating array size when it's guaranteed to be known
@@ -68,7 +67,6 @@
         return r;
     };
     const bind = (xs, f) => flatten(map(xs, f));
-    isFunction(Array.from) ? Array.from : (x) => nativeSlice.call(x);
 
     var global$3 = tinymce.util.Tools.resolve('tinymce.dom.DOMUtils');
 
@@ -383,11 +381,15 @@
         };
     };
 
+    const PLUGIN_CODE = 'importcss';
     var Plugin = () => {
-        global$4.add('importcss', (editor) => {
+        global$4.add(PLUGIN_CODE, (editor) => {
             register(editor);
             setup(editor);
-            return get(editor);
+            return {
+                ...get(editor),
+                getMetadata: () => ({ name: 'Import CSS', type: 'opensource', slug: PLUGIN_CODE })
+            };
         });
     };
 

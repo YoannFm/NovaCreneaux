@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -1511,7 +1511,7 @@
         const isiPad = os.isiOS() && /ipad/i.test(userAgent) === true;
         const isiPhone = os.isiOS() && !isiPad;
         const isMobile = os.isiOS() || os.isAndroid();
-        const isTouch = isMobile || mediaMatch('(pointer:coarse)');
+        const isTouch = isMobile || !mediaMatch('(any-pointer:fine)');
         const isTablet = isiPad || !isiPhone && isMobile && mediaMatch('(min-device-width:768px)');
         const isPhone = isiPhone || isMobile && !isTablet;
         const iOSwebview = browser.isSafari() && os.isiOS() && /safari/i.test(userAgent) === false;
@@ -1733,14 +1733,7 @@
     };
     const Browser = {
         unknown: unknown$2,
-        nu: nu$9,
-        edge: constant$1(edge),
-        chromium: constant$1(chromium),
-        ie: constant$1(ie),
-        opera: constant$1(opera),
-        firefox: constant$1(firefox),
-        safari: constant$1(safari)
-    };
+        nu: nu$9};
 
     const windows = 'Windows';
     const ios = 'iOS';
@@ -1778,16 +1771,7 @@
     };
     const OperatingSystem = {
         unknown: unknown$1,
-        nu: nu$8,
-        windows: constant$1(windows),
-        ios: constant$1(ios),
-        android: constant$1(android),
-        linux: constant$1(linux),
-        macos: constant$1(macos),
-        solaris: constant$1(solaris),
-        freebsd: constant$1(freebsd),
-        chromeos: constant$1(chromeos)
-    };
+        nu: nu$8};
 
     const detect$2 = (userAgent, userAgentDataOpt, mediaMatch) => {
         const browsers = PlatformInfo.browsers();
@@ -2650,7 +2634,7 @@
     const get$8 = (element) => read$2(element, 'class');
     const add$3 = (element, clazz) => add$4(element, 'class', clazz);
     const remove$4 = (element, clazz) => remove$5(element, 'class', clazz);
-    const toggle$5 = (element, clazz) => {
+    const toggle$4 = (element, clazz) => {
         if (contains$2(get$8(element), clazz)) {
             return remove$4(element, clazz);
         }
@@ -2692,8 +2676,8 @@
         }
         cleanClass(element);
     };
-    const toggle$4 = (element, clazz) => {
-        const result = supports(element) ? element.dom.classList.toggle(clazz) : toggle$5(element, clazz);
+    const toggle$3 = (element, clazz) => {
+        const result = supports(element) ? element.dom.classList.toggle(clazz) : toggle$4(element, clazz);
         cleanClass(element);
         return result;
     };
@@ -2713,9 +2697,9 @@
             remove$3(element, x);
         });
     };
-    const toggle$3 = (element, classes) => {
+    const toggle$2 = (element, classes) => {
         each$1(classes, (x) => {
-            toggle$4(element, x);
+            toggle$3(element, x);
         });
     };
     const hasAll = (element, classes) => forall(classes, (clazz) => has(element, clazz));
@@ -2835,7 +2819,73 @@
         range: range$1
     };
 
+    const beforeSpecial = (element, offset) => {
+        // From memory, we don't want to use <br> directly on Firefox because it locks the keyboard input.
+        // It turns out that <img> directly on IE locks the keyboard as well.
+        // If the offset is 0, use before. If the offset is 1, use after.
+        // TBIO-3889: Firefox Situ.on <input> results in a child of the <input>; Situ.before <input> results in platform inconsistencies
+        const name = name$3(element);
+        if ('input' === name) {
+            return Situ.after(element);
+        }
+        else if (!contains$2(['br', 'img'], name)) {
+            return Situ.on(element, offset);
+        }
+        else {
+            return offset === 0 ? Situ.before(element) : Situ.after(element);
+        }
+    };
+    const preprocessExact = (start, soffset, finish, foffset) => {
+        const startSitu = beforeSpecial(start, soffset);
+        const finishSitu = beforeSpecial(finish, foffset);
+        return SimSelection.relative(startSitu, finishSitu);
+    };
+
     const getNativeSelection = (win) => Optional.from(win.getSelection());
+    const doSetNativeRange = (win, rng) => {
+        getNativeSelection(win).each((selection) => {
+            selection.removeAllRanges();
+            selection.addRange(rng);
+        });
+    };
+    const doSetRange = (win, start, soffset, finish, foffset) => {
+        const rng = exactToNative(win, start, soffset, finish, foffset);
+        doSetNativeRange(win, rng);
+    };
+    const setLegacyRtlRange = (win, selection, start, soffset, finish, foffset) => {
+        selection.collapse(start.dom, soffset);
+        selection.extend(finish.dom, foffset);
+    };
+    const setRangeFromRelative = (win, relative) => diagnose(win, relative).match({
+        ltr: (start, soffset, finish, foffset) => {
+            doSetRange(win, start, soffset, finish, foffset);
+        },
+        rtl: (start, soffset, finish, foffset) => {
+            getNativeSelection(win).each((selection) => {
+                // If this selection is backwards, then we need to use extend.
+                if (selection.setBaseAndExtent) {
+                    selection.setBaseAndExtent(start.dom, soffset, finish.dom, foffset);
+                }
+                else if (selection.extend) {
+                    // This try catch is for older browsers (Firefox 52) as they're sometimes unable to handle setting backwards selections using selection.extend and error out.
+                    try {
+                        setLegacyRtlRange(win, selection, start, soffset, finish, foffset);
+                    }
+                    catch {
+                        // If it does fail, try again with ltr.
+                        doSetRange(win, finish, foffset, start, soffset);
+                    }
+                }
+                else {
+                    doSetRange(win, finish, foffset, start, soffset);
+                }
+            });
+        }
+    });
+    const setExact = (win, start, soffset, finish, foffset) => {
+        const relative = preprocessExact(start, soffset, finish, foffset);
+        setRangeFromRelative(win, relative);
+    };
     // NOTE: We are still reading the range because it gives subtly different behaviour
     // than using the anchorNode and focusNode. I'm not sure if this behaviour is any
     // better or worse; it's just different.
@@ -3000,8 +3050,8 @@
 
     var Navigation = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        view: view,
-        owner: owner$3
+        owner: owner$3,
+        view: view
     });
 
     const find$2 = (element) => {
@@ -3573,10 +3623,15 @@
     const input = constant('input');
     const change = constant('change');
     const click = constant('click');
+    const dblclick = constant('dblclick');
     const transitioncancel = constant('transitioncancel');
     const transitionend = constant('transitionend');
     const transitionstart = constant('transitionstart');
     const selectstart = constant('selectstart');
+    const pointerdown = constant('pointerdown');
+    const pointermove = constant('pointermove');
+    const pointerup = constant('pointerup');
+    const lostpointercapture = constant('lostpointercapture');
 
     const prefixName = (name) => constant$1('alloy.' + name);
     const alloy = { tap: prefixName('tap') };
@@ -3633,14 +3688,6 @@
     const element = (elem) => getHtml(elem);
 
     const unknown = 'unknown';
-    /*
-      typescipt qwerk:
-      const debugging: boolean = true;
-      if (boolean === false) {  -> this throws a type error! // TS2365:Operator '===' cannot be applied to types 'false' and 'true'
-        https://www.typescriptlang.org/play/#src=const%20foo%3A%20boolean%20%3D%20true%3B%0D%0A%0D%0Aif%20(foo%20%3D%3D%3D%20false)%20%7B%0D%0A%20%20%20%20%0D%0A%7D
-      }
-    */
-    const debugging = true;
     var EventConfiguration;
     (function (EventConfiguration) {
         EventConfiguration[EventConfiguration["STOP"] = 0] = "STOP";
@@ -3714,9 +3761,6 @@
         'alloy/debugging/Debugging'
     ];
     const getTrace = () => {
-        if (debugging === false) {
-            return unknown;
-        }
         const err = new Error();
         if (err.stack !== undefined) {
             const lines = err.stack.split('\n');
@@ -4047,14 +4091,14 @@
 
     var PartType = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        required: required,
-        external: external$1,
-        optional: optional,
-        group: group,
-        asNamedPart: asNamedPart,
-        name: name$2,
         asCommon: asCommon,
-        original: original
+        asNamedPart: asNamedPart,
+        external: external$1,
+        group: group,
+        name: name$2,
+        optional: optional,
+        original: original,
+        required: required
     });
 
     const combine$2 = (detail, data, partSpec, partValidated) => 
@@ -4172,20 +4216,20 @@
 
     var AlloyParts = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        generate: generate$5,
-        generateOne: generateOne$1,
-        schemas: schemas,
-        names: names,
-        substitutes: substitutes,
         components: components$1,
         defaultUids: defaultUids,
         defaultUidsSchema: defaultUidsSchema,
-        getAllParts: getAllParts,
+        generate: generate$5,
+        generateOne: generateOne$1,
         getAllPartNames: getAllPartNames,
+        getAllParts: getAllParts,
         getPart: getPart,
         getPartOrDie: getPartOrDie,
         getParts: getParts,
-        getPartsOrDie: getPartsOrDie
+        getPartsOrDie: getPartsOrDie,
+        names: names,
+        schemas: schemas,
+        substitutes: substitutes
     });
 
     const allAlignments = [
@@ -4776,7 +4820,7 @@
     // AlloyEventKeyAndHandler type argument needs to be any here to satisfy an array of handlers
     // where each item can be any subtype of EventFormat we can't use <T extends EventFormat> since
     // then each item would have to be the same type
-    const events$i = (name, eventHandlers) => {
+    const events$j = (name, eventHandlers) => {
         const events = derive$2(eventHandlers);
         return create$3({
             fields: [
@@ -4789,7 +4833,7 @@
         });
     };
     const config = (name, eventHandlers) => {
-        const me = events$i(name, eventHandlers);
+        const me = events$j(name, eventHandlers);
         return {
             key: name,
             value: {
@@ -4836,8 +4880,8 @@
 
     var FocusApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        focus: focus$2,
         blur: blur,
+        focus: focus$2,
         isFocused: isFocused
     });
 
@@ -4850,7 +4894,7 @@
         };
         return nu$2(mod);
     };
-    const events$h = (focusConfig) => derive$2([
+    const events$i = (focusConfig) => derive$2([
         run$1(focus$3(), (component, simulatedEvent) => {
             focus$2(component, focusConfig);
             simulatedEvent.stop();
@@ -4867,8 +4911,8 @@
 
     var ActiveFocus = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        exhibit: exhibit$6,
-        events: events$h
+        events: events$i,
+        exhibit: exhibit$6
     });
 
     var FocusSchema = [
@@ -5026,7 +5070,7 @@
         const last = items.length > 0 ? Optional.some(items[items.length - 1]) : Optional.none();
         return last.bind((c) => component.getSystem().getByDom(c).toOptional());
     };
-    const getDelta$2 = (component, hConfig, hState, delta) => {
+    const getDelta$3 = (component, hConfig, hState, delta) => {
         const items = descendants(component.element, '.' + hConfig.itemClass);
         const current = findIndex$1(items, (item) => has(item, hConfig.highlightClass));
         return current.bind((selected) => {
@@ -5034,8 +5078,8 @@
             return component.getSystem().getByDom(items[dest]).toOptional();
         });
     };
-    const getPrevious = (component, hConfig, hState) => getDelta$2(component, hConfig, hState, -1);
-    const getNext = (component, hConfig, hState) => getDelta$2(component, hConfig, hState, +1);
+    const getPrevious = (component, hConfig, hState) => getDelta$3(component, hConfig, hState, -1);
+    const getNext = (component, hConfig, hState) => getDelta$3(component, hConfig, hState, 1);
     const getCandidates = (component, hConfig, _hState) => {
         const items = descendants(component.element, '.' + hConfig.itemClass);
         return cat(map$2(items, (i) => component.getSystem().getByDom(i).toOptional()));
@@ -5043,20 +5087,20 @@
 
     var HighlightApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        dehighlightAll: dehighlightAll,
         dehighlight: dehighlight,
+        dehighlightAll: dehighlightAll,
+        getCandidates: getCandidates,
+        getFirst: getFirst,
+        getHighlighted: getHighlighted,
+        getLast: getLast,
+        getNext: getNext,
+        getPrevious: getPrevious,
         highlight: highlight,
-        highlightFirst: highlightFirst,
-        highlightLast: highlightLast,
         highlightAt: highlightAt,
         highlightBy: highlightBy,
-        isHighlighted: isHighlighted,
-        getHighlighted: getHighlighted,
-        getFirst: getFirst,
-        getLast: getLast,
-        getPrevious: getPrevious,
-        getNext: getNext,
-        getCandidates: getCandidates
+        highlightFirst: highlightFirst,
+        highlightLast: highlightLast,
+        isHighlighted: isHighlighted
     });
 
     var HighlightSchema = [
@@ -5278,7 +5322,7 @@
     // keyup also. This does make the name confusing, though.
     const stopEventForFirefox = (_component, _simulatedEvent) => Optional.some(true);
 
-    const schema$y = [
+    const schema$z = [
         defaulted('execute', defaultExecute),
         defaulted('useSpace', false),
         defaulted('useEnter', true),
@@ -5300,7 +5344,7 @@
     const getKeyupRules$5 = (component, _simulatedEvent, executeConfig, _executeState) => executeConfig.useSpace && !inside(component.element) ?
         [rule(inSet(SPACE), stopEventForFirefox)] :
         [];
-    var ExecutionType = typical(schema$y, NoState.init, getKeydownRules$5, getKeyupRules$5, () => Optional.none());
+    var ExecutionType = typical(schema$z, NoState.init, getKeydownRules$5, getKeyupRules$5, () => Optional.none());
 
     const flatgrid$1 = () => {
         const dimensions = value$2();
@@ -5322,12 +5366,12 @@
             getNumColumns
         });
     };
-    const init$g = (spec) => spec.state(spec);
+    const init$h = (spec) => spec.state(spec);
 
     var KeyingState = /*#__PURE__*/Object.freeze({
         __proto__: null,
         flatgrid: flatgrid$1,
-        init: init$g
+        init: init$h
     });
 
     // Looks up direction (considering LTR and RTL), finds the focused element,
@@ -5396,12 +5440,12 @@
             column: newCol
         });
     });
-    const cycleRight$1 = (values, index, numRows, numCols) => cycleHorizontal$1(values, index, numRows, numCols, +1);
+    const cycleRight$1 = (values, index, numRows, numCols) => cycleHorizontal$1(values, index, numRows, numCols, 1);
     const cycleLeft$1 = (values, index, numRows, numCols) => cycleHorizontal$1(values, index, numRows, numCols, -1);
     const cycleUp$1 = (values, index, numRows, numCols) => cycleVertical$1(values, index, numRows, numCols, -1);
-    const cycleDown$1 = (values, index, numRows, numCols) => cycleVertical$1(values, index, numRows, numCols, +1);
+    const cycleDown$1 = (values, index, numRows, numCols) => cycleVertical$1(values, index, numRows, numCols, 1);
 
-    const schema$x = [
+    const schema$y = [
         required$1('selector'),
         defaulted('execute', defaultExecute),
         onKeyboardHandler('onEscape'),
@@ -5438,7 +5482,7 @@
         rule(inSet(ESCAPE), doEscape$1),
         rule(inSet(SPACE), stopEventForFirefox)
     ]);
-    var FlatgridType = typical(schema$x, flatgrid$1, getKeydownRules$4, getKeyupRules$4, () => Optional.some(focusIn$4));
+    var FlatgridType = typical(schema$y, flatgrid$1, getKeydownRules$4, getKeyupRules$4, () => Optional.some(focusIn$4));
 
     const f = (container, selector, current, delta, getNewIndex) => {
         const isDisabledButton = (candidate) => name$3(candidate) === 'button' && get$g(candidate, 'disabled') === 'disabled';
@@ -5462,7 +5506,7 @@
         return newIndex === prevIndex ? Optional.none() : onNewIndex(newIndex);
     });
 
-    const schema$w = [
+    const schema$x = [
         required$1('selector'),
         defaulted('getInitial', Optional.none),
         defaulted('execute', defaultExecute),
@@ -5482,7 +5526,7 @@
         });
     };
     const moveLeft$2 = (element, focused, info) => (info.cycles ? horizontal : horizontalWithoutCycles)(element, info.selector, focused, -1);
-    const moveRight$2 = (element, focused, info) => (info.cycles ? horizontal : horizontalWithoutCycles)(element, info.selector, focused, +1);
+    const moveRight$2 = (element, focused, info) => (info.cycles ? horizontal : horizontalWithoutCycles)(element, info.selector, focused, 1);
     const doMove$1 = (movement) => (component, simulatedEvent, flowConfig, flowState) => movement(component, simulatedEvent, flowConfig, flowState).bind(() => flowConfig.executeOnMove ?
         execute$2(component, simulatedEvent, flowConfig) :
         Optional.some(true));
@@ -5501,7 +5545,7 @@
         rule(inSet(SPACE), stopEventForFirefox),
         rule(inSet(ESCAPE), doEscape)
     ]);
-    var FlowType = typical(schema$w, NoState.init, getKeydownRules$3, getKeyupRules$3, () => Optional.some(focusIn$3));
+    var FlowType = typical(schema$x, NoState.init, getKeydownRules$3, getKeyupRules$3, () => Optional.some(focusIn$3));
 
     const toCell = (matrix, rowIndex, columnIndex) => Optional.from(matrix[rowIndex]).bind((row) => Optional.from(row[columnIndex]).map((cell) => ({
         rowIndex,
@@ -5533,16 +5577,16 @@
         return toCell(matrix, nextRowIndex, nextColIndex);
     };
     // return address(Math.floor(index / columns), index % columns);
-    const cycleRight = (matrix, startRow, startCol) => cycleHorizontal(matrix, startRow, startCol, +1);
+    const cycleRight = (matrix, startRow, startCol) => cycleHorizontal(matrix, startRow, startCol, 1);
     const cycleLeft = (matrix, startRow, startCol) => cycleHorizontal(matrix, startRow, startCol, -1);
     const cycleUp = (matrix, startRow, startCol) => cycleVertical(matrix, startCol, startRow, -1);
-    const cycleDown = (matrix, startRow, startCol) => cycleVertical(matrix, startCol, startRow, +1);
+    const cycleDown = (matrix, startRow, startCol) => cycleVertical(matrix, startCol, startRow, 1);
     const moveLeft$1 = (matrix, startRow, startCol) => moveHorizontal(matrix, startRow, startCol, -1);
-    const moveRight$1 = (matrix, startRow, startCol) => moveHorizontal(matrix, startRow, startCol, +1);
+    const moveRight$1 = (matrix, startRow, startCol) => moveHorizontal(matrix, startRow, startCol, 1);
     const moveUp$1 = (matrix, startRow, startCol) => moveVertical(matrix, startCol, startRow, -1);
-    const moveDown$1 = (matrix, startRow, startCol) => moveVertical(matrix, startCol, startRow, +1);
+    const moveDown$1 = (matrix, startRow, startCol) => moveVertical(matrix, startCol, startRow, 1);
 
-    const schema$v = [
+    const schema$w = [
         requiredObjOf('selectors', [
             required$1('row'),
             required$1('cell')
@@ -5591,12 +5635,11 @@
     const getKeyupRules$2 = constant$1([
         rule(inSet(SPACE), stopEventForFirefox)
     ]);
-    var MatrixType = typical(schema$v, NoState.init, getKeydownRules$2, getKeyupRules$2, () => Optional.some(focusIn$2));
+    var MatrixType = typical(schema$w, NoState.init, getKeydownRules$2, getKeyupRules$2, () => Optional.some(focusIn$2));
 
-    const schema$u = [
+    const schema$v = [
         required$1('selector'),
-        defaulted('execute', defaultExecute),
-        defaulted('moveOnTab', false)
+        defaulted('execute', defaultExecute)
     ];
     const execute = (component, simulatedEvent, menuConfig) => menuConfig.focusManager.get(component).bind((focused) => menuConfig.execute(component, simulatedEvent, focused));
     const focusIn$1 = (component, menuConfig, _state) => {
@@ -5606,23 +5649,19 @@
         });
     };
     const moveUp = (element, focused, info) => horizontal(element, info.selector, focused, -1);
-    const moveDown = (element, focused, info) => horizontal(element, info.selector, focused, +1);
-    const fireShiftTab = (component, simulatedEvent, menuConfig, menuState) => menuConfig.moveOnTab ? move$1(moveUp)(component, simulatedEvent, menuConfig, menuState) : Optional.none();
-    const fireTab = (component, simulatedEvent, menuConfig, menuState) => menuConfig.moveOnTab ? move$1(moveDown)(component, simulatedEvent, menuConfig, menuState) : Optional.none();
+    const moveDown = (element, focused, info) => horizontal(element, info.selector, focused, 1);
     const getKeydownRules$1 = constant$1([
         rule(inSet(UP), move$1(moveUp)),
         rule(inSet(DOWN), move$1(moveDown)),
-        rule(and([isShift$1, inSet(TAB)]), fireShiftTab),
-        rule(and([isNotShift, inSet(TAB)]), fireTab),
         rule(inSet(ENTER), execute),
         rule(inSet(SPACE), execute)
     ]);
     const getKeyupRules$1 = constant$1([
         rule(inSet(SPACE), stopEventForFirefox)
     ]);
-    var MenuType = typical(schema$u, NoState.init, getKeydownRules$1, getKeyupRules$1, () => Optional.some(focusIn$1));
+    var MenuType = typical(schema$v, NoState.init, getKeydownRules$1, getKeyupRules$1, () => Optional.some(focusIn$1));
 
-    const schema$t = [
+    const schema$u = [
         onKeyboardHandler('onSpace'),
         onKeyboardHandler('onEnter'),
         onKeyboardHandler('onShiftEnter'),
@@ -5652,7 +5691,7 @@
         ...(specialInfo.stopSpaceKeyup ? [rule(inSet(SPACE), stopEventForFirefox)] : []),
         rule(inSet(ESCAPE), specialInfo.onEscape)
     ];
-    var SpecialType = typical(schema$t, NoState.init, getKeydownRules, getKeyupRules, (specialInfo) => specialInfo.focusIn);
+    var SpecialType = typical(schema$u, NoState.init, getKeydownRules, getKeyupRules, (specialInfo) => specialInfo.focusIn);
 
     const acyclic = AcyclicType.schema();
     const cyclic = CyclicType.schema();
@@ -5667,10 +5706,10 @@
         __proto__: null,
         acyclic: acyclic,
         cyclic: cyclic,
-        flow: flow,
-        flatgrid: flatgrid,
-        matrix: matrix,
         execution: execution,
+        flatgrid: flatgrid,
+        flow: flow,
+        matrix: matrix,
         menu: menu,
         special: special
     });
@@ -6015,12 +6054,12 @@
     var ReplaceApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
         append: append,
+        contents: contents,
         prepend: prepend,
         remove: remove,
         replaceAt: replaceAt,
         replaceBy: replaceBy,
-        set: set$3,
-        contents: contents
+        set: set$3
     });
 
     const Replacing = create$3({
@@ -6036,7 +6075,7 @@
     // as the element receiving it, and it wasn't its own target, then stop the focus call
     // and log a warning.
     const isRecursive = (component, originator, target) => eq(originator, component.element) && !eq(originator, target);
-    const events$g = derive$2([
+    const events$h = derive$2([
         can(focus$3(), (component, simulatedEvent) => {
             // originator may not always be there. Will need to check this.
             const event = simulatedEvent.event;
@@ -6058,7 +6097,7 @@
 
     var DefaultEvents = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        events: events$g
+        events: events$h
     });
 
     const prefix$1 = constant$1('alloy-id-');
@@ -6145,7 +6184,7 @@
         };
     };
     const getBehaviours$3 = (bData) => bData.list;
-    const getData$2 = (bData) => bData.data;
+    const getData$3 = (bData) => bData.data;
 
     const byInnerKey = (data, tuple) => {
         const r = {};
@@ -6290,7 +6329,7 @@
     };
 
     const baseBehaviour = 'alloy.base.behaviour';
-    const schema$s = objOf([
+    const schema$t = objOf([
         field$1('dom', 'dom', required$2(), objOf([
             // Note, no children.
             required$1('tag'),
@@ -6319,7 +6358,7 @@
         }), anyValue()),
         option$3('domModification')
     ]);
-    const toInfo = (spec) => asRaw('custom.definition', schema$s, spec);
+    const toInfo = (spec) => asRaw('custom.definition', schema$t, spec);
     const toDefinition = (detail) => 
     // EFFICIENCY: Consider not merging here.
     ({
@@ -6464,7 +6503,7 @@
         const info = getOrDie(toInfo(spec));
         const bBlob = generate$3(spec);
         const bList = getBehaviours$3(bBlob);
-        const bData = getData$2(bBlob);
+        const bData = getData$3(bBlob);
         const modDefinition = getDomDefinition(info, bList, bData);
         const item = renderToDom(modDefinition, obsoleted);
         const events = getEvents(info, bList, bData);
@@ -6632,8 +6671,8 @@
     var BlockingApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
         block: block,
-        unblock: unblock,
-        isBlocked: isBlocked
+        isBlocked: isBlocked,
+        unblock: unblock
     });
 
     var BlockingSchema = [
@@ -6654,7 +6693,7 @@
         onHandler('onUnblock')
     ];
 
-    const init$f = () => {
+    const init$g = () => {
         const blocker = destroyable();
         const blockWith = (destroy) => {
             blocker.set({ destroy });
@@ -6669,7 +6708,7 @@
 
     var BlockingState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        init: init$f
+        init: init$g
     });
 
     // Mark a component as able to be "Blocked" or able to enter a busy state. See
@@ -6715,7 +6754,7 @@
     // is not recognised. This is because if the wrong name is used, it is a
     // non-recoverable error, and the developer should be notified. However, there are
     // better ways to do this: (removing this API and only returning Optionals/Results)
-    const init$e = () => {
+    const init$f = () => {
         const coupled = {};
         const lookupCoupled = (coupleConfig, coupledName) => {
             const available = keys(coupleConfig.others);
@@ -6756,7 +6795,7 @@
 
     var CouplingState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        init: init$e
+        init: init$f
     });
 
     const Coupling = create$3({
@@ -6816,8 +6855,8 @@
 
     var DisableApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        enable: enable,
         disable: disable,
+        enable: enable,
         isDisabled: isDisabled$1,
         onLoad: onLoad$5,
         set: set$2
@@ -6828,15 +6867,15 @@
         // if we use "aria-disabled" or just "disabled"
         classes: disableConfig.disabled() ? disableConfig.disableClass.toArray() : []
     });
-    const events$f = (disableConfig, disableState) => derive$2([
+    const events$g = (disableConfig, disableState) => derive$2([
         abort(execute$5(), (component, _simulatedEvent) => isDisabled$1(component, disableConfig)),
         loadEvent(disableConfig, disableState, onLoad$5)
     ]);
 
     var ActiveDisable = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        exhibit: exhibit$5,
-        events: events$f
+        events: events$g,
+        exhibit: exhibit$5
     });
 
     var DisableSchema = [
@@ -7218,16 +7257,16 @@
 
     var DockingApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
+        forceDockToBottom: forceDockToBottom,
+        forceDockToTop: forceDockToTop,
+        getModes: getModes,
+        isDocked: isDocked$2,
         refresh: refresh$4,
         reset: reset$1,
-        isDocked: isDocked$2,
-        getModes: getModes,
-        setModes: setModes,
-        forceDockToTop: forceDockToTop,
-        forceDockToBottom: forceDockToBottom
+        setModes: setModes
     });
 
-    const events$e = (dockInfo, dockState) => derive$2([
+    const events$f = (dockInfo, dockState) => derive$2([
         runOnSource(transitionend(), (component, simulatedEvent) => {
             dockInfo.contextual.each((contextInfo) => {
                 if (has(component.element, contextInfo.transitionClass)) {
@@ -7251,7 +7290,7 @@
 
     var ActiveDocking = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        events: events$e
+        events: events$f
     });
 
     var DockingSchema = [
@@ -7274,7 +7313,7 @@
         onHandler('onUndocked')
     ];
 
-    const init$d = (spec) => {
+    const init$e = (spec) => {
         const docked = Cell(false);
         const visible = Cell(true);
         const initialBounds = value$2();
@@ -7296,7 +7335,7 @@
 
     var DockingState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        init: init$d
+        init: init$e
     });
 
     const Docking = create$3({
@@ -7723,11 +7762,11 @@
         defaulted('mustSnap', false)
     ]);
 
-    const schema$r = [
+    const schema$s = [
         // Is this used?
         defaulted('useFixed', never),
-        required$1('blockerClass'),
         defaulted('getTarget', identity),
+        defaulted('onDragStart', noop),
         defaulted('onDrag', noop),
         defaulted('repositionTarget', true),
         defaulted('onDrop', noop),
@@ -7806,7 +7845,7 @@
             dragBy(component, dragConfig, dragStartData, dlt);
         });
     };
-    const stop = (component, blocker, dragConfig, dragState) => {
+    const stop$1 = (component, blocker, dragConfig, dragState) => {
         blocker.each(discard);
         dragConfig.snaps.each((snapInfo) => {
             stopDrag(component, snapInfo);
@@ -7817,7 +7856,12 @@
     };
     const handlers = (events) => (dragConfig, dragState) => {
         const updateStartState = (comp) => {
+            const isBeingDragged = dragState.getStartData().isSome();
             dragState.setStartData(calcStartData(dragConfig, comp));
+            if (!isBeingDragged) {
+                const target = dragConfig.getTarget(comp.element);
+                dragConfig.onDragStart(comp, target);
+            }
         };
         return derive$2([
             run$1(windowScroll(), (comp) => {
@@ -7828,7 +7872,7 @@
         ]);
     };
 
-    const init$c = (dragApi) => derive$2([
+    const init$d = (dragApi) => derive$2([
         // When the user clicks on the blocker, something has probably gone slightly
         // wrong, so we'll just drop for safety. The blocker should really only
         // be there when the mouse is already down and not released, so a 'click'
@@ -7845,39 +7889,39 @@
         run$1(mouseout(), dragApi.delayDrop)
     ]);
 
-    const getData$1 = (event) => Optional.from(SugarPosition(event.x, event.y));
+    const getData$2 = (event) => Optional.from(SugarPosition(event.x, event.y));
     // When dragging with the mouse, the delta is simply the difference
     // between the two position (previous/old and next/nu)
-    const getDelta$1 = (old, nu) => SugarPosition(nu.left - old.left, nu.top - old.top);
+    const getDelta$2 = (old, nu) => SugarPosition(nu.left - old.left, nu.top - old.top);
 
     var MouseData = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        getData: getData$1,
-        getDelta: getDelta$1
+        getData: getData$2,
+        getDelta: getDelta$2
     });
 
-    const events$d = (dragConfig, dragState, updateStartState) => [
+    const events$e = (dragConfig, dragState, updateStartState) => [
         run$1(mousedown(), (component, simulatedEvent) => {
             const raw = simulatedEvent.event.raw;
             if (raw.button !== 0) {
                 return;
             }
             simulatedEvent.stop();
-            const stop$1 = () => stop(component, Optional.some(blocker), dragConfig, dragState);
+            const stop = () => stop$1(component, Optional.some(blocker), dragConfig, dragState);
             // If the user has moved something outside the area, and has not come back within
             // 200 ms, then drop
-            const delayDrop = DelayedFunction(stop$1, 200);
+            const delayDrop = DelayedFunction(stop, 200);
             const dragApi = {
-                drop: stop$1,
+                drop: stop,
                 delayDrop: delayDrop.schedule,
-                forceDrop: stop$1,
+                forceDrop: stop,
                 move: (event) => {
                     // Stop any pending drops caused by mouseout
                     delayDrop.cancel();
                     move(component, dragConfig, dragState, MouseData, event);
                 }
             };
-            const blocker = createComponent(component, dragConfig.blockerClass, init$c(dragApi));
+            const blocker = createComponent(component, dragConfig.blockerClass, init$d(dragApi));
             const start = () => {
                 updateStartState(component);
                 instigate(component, blocker);
@@ -7885,14 +7929,15 @@
             start();
         })
     ];
-    const schema$q = [
-        ...schema$r,
+    const schema$r = [
+        ...schema$s,
+        required$1('blockerClass'),
         output$1('dragger', {
-            handlers: handlers(events$d)
+            handlers: handlers(events$e)
         })
     ];
 
-    const init$b = (dragApi) => derive$2([
+    const init$c = (dragApi) => derive$2([
         // When the user taps on the blocker, something has probably gone slightly
         // wrong, so we'll just drop for safety. The blocker should really only
         // be there when their finger is already down and not released, so a 'tap'
@@ -7911,25 +7956,25 @@
         const touch = touches[0];
         return Optional.some(SugarPosition(touch.clientX, touch.clientY));
     };
-    const getData = (event) => {
+    const getData$1 = (event) => {
         const raw = event.raw;
         const touches = raw.touches;
         return touches.length === 1 ? getDataFrom(touches) : Optional.none();
     };
     // When dragging the touch, the delta is simply the difference
     // between the two touch positions (previous/old and next/nu)
-    const getDelta = (old, nu) => SugarPosition(nu.left - old.left, nu.top - old.top);
+    const getDelta$1 = (old, nu) => SugarPosition(nu.left - old.left, nu.top - old.top);
 
     var TouchData = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        getData: getData,
-        getDelta: getDelta
+        getData: getData$1,
+        getDelta: getDelta$1
     });
 
-    const events$c = (dragConfig, dragState, updateStartState) => {
+    const events$d = (dragConfig, dragState, updateStartState) => {
         const blockerSingleton = value$2();
         const stopBlocking = (component) => {
-            stop(component, blockerSingleton.get(), dragConfig, dragState);
+            stop$1(component, blockerSingleton.get(), dragConfig, dragState);
             blockerSingleton.clear();
         };
         // Android fires events on the component at all times, while iOS initially fires on the component
@@ -7948,7 +7993,7 @@
                         move(component, dragConfig, dragState, TouchData, event);
                     }
                 };
-                const blocker = createComponent(component, dragConfig.blockerClass, init$b(dragApi));
+                const blocker = createComponent(component, dragConfig.blockerClass, init$c(dragApi));
                 blockerSingleton.set(blocker);
                 const start = () => {
                     updateStartState(component);
@@ -7967,75 +8012,148 @@
             run$1(touchcancel(), stopBlocking)
         ];
     };
+    const schema$q = [
+        ...schema$s,
+        required$1('blockerClass'),
+        output$1('dragger', {
+            handlers: handlers(events$d)
+        })
+    ];
+
+    const events$c = (dragConfig, dragState, updateStartState) => [
+        ...events$e(dragConfig, dragState, updateStartState),
+        ...events$d(dragConfig, dragState, updateStartState)
+    ];
     const schema$p = [
-        ...schema$r,
+        ...schema$s,
+        required$1('blockerClass'),
         output$1('dragger', {
             handlers: handlers(events$c)
         })
     ];
 
-    const events$b = (dragConfig, dragState, updateStartState) => [
-        ...events$d(dragConfig, dragState, updateStartState),
-        ...events$c(dragConfig, dragState, updateStartState)
-    ];
+    const getData = (event) => Optional.from(SugarPosition(event.x, event.y));
+    const getDelta = (old, nu) => SugarPosition(nu.left - old.left, nu.top - old.top);
+
+    var PointerData = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        getData: getData,
+        getDelta: getDelta
+    });
+
+    const isLeftClick = (e) => e.button === 0;
+    const events$b = (dragConfig, dragState, updateStartState) => {
+        return [
+            run$1(pointerdown(), (component, simulatedEvent) => {
+                const raw = simulatedEvent.event.raw;
+                if (!isLeftClick(raw)) {
+                    return;
+                }
+                if (dragState.getStartData().isNone()) {
+                    simulatedEvent.stop();
+                    component.element.dom.setPointerCapture(raw.pointerId);
+                    dragState.setActivePointerId(raw.pointerId);
+                    updateStartState(component);
+                }
+            }),
+            run$1(pointermove(), (component, simulatedEvent) => {
+                const pointerId = simulatedEvent.event.raw.pointerId;
+                lift2(dragState.getStartData(), dragState.getActivePointerId(), (_startData, activePointerId) => {
+                    if (pointerId === activePointerId) {
+                        move(component, dragConfig, dragState, PointerData, simulatedEvent.event);
+                    }
+                });
+            }),
+            run$1(pointerup(), (component, simulatedEvent) => {
+                const pointerId = simulatedEvent.event.raw.pointerId;
+                lift2(dragState.getStartData(), dragState.getActivePointerId(), (_startData, activePointerId) => {
+                    if (pointerId === activePointerId) {
+                        component.element.dom.releasePointerCapture(pointerId);
+                        stop$1(component, Optional.none(), dragConfig, dragState);
+                    }
+                });
+            }),
+            // Safety net — if capture is lost unexpectedly.
+            // It sometimes happens that pointer capture is lost without pointerup event being emitted.
+            // I could observe that using touchpad in chrome
+            run$1(lostpointercapture(), (component) => {
+                dragState.getStartData().each(() => {
+                    stop$1(component, Optional.none(), dragConfig, dragState);
+                });
+            })
+        ];
+    };
     const schema$o = [
-        ...schema$r,
+        ...schema$s,
         output$1('dragger', {
             handlers: handlers(events$b)
         })
     ];
 
-    const mouse = schema$q;
-    const touch = schema$p;
-    const mouseOrTouch = schema$o;
+    const mouse = schema$r;
+    const touch = schema$q;
+    const mouseOrTouch = schema$p;
+    const pointer = schema$o;
 
     var DraggingBranches = /*#__PURE__*/Object.freeze({
         __proto__: null,
         mouse: mouse,
-        touch: touch,
-        mouseOrTouch: mouseOrTouch
+        mouseOrTouch: mouseOrTouch,
+        pointer: pointer,
+        touch: touch
     });
 
     // NOTE: mode refers to the way that information is retrieved from
     // the user interaction. It can be things like MouseData, TouchData etc.
-    const init$a = () => {
+    const init$b = () => {
         // Dragging operates on the difference between the previous user
         // interaction and the next user interaction. Therefore, we store
         // the previous interaction so that we can compare it.
-        let previous = Optional.none();
+        const previous = value$2();
         // Dragging requires calculating the bounds, so we store that data initially
         // to reduce the amount of computation each mouse movement
-        let startData = Optional.none();
+        const startData = value$2();
+        // In a multitouch environment, `pointerId` is used to distinguish pointers
+        // (e.g. different fingers on a touchscreen).
+        // This property is only used by pointer-event branches.
+        const activePointerId = value$2();
         const reset = () => {
-            previous = Optional.none();
-            startData = Optional.none();
+            previous.clear();
+            startData.clear();
+            activePointerId.clear();
         };
         // Return position delta between previous position and nu position,
         // or None if this is the first. Set the previous position to nu.
         const calculateDelta = (mode, nu) => {
-            const result = previous.map((old) => mode.getDelta(old, nu));
-            previous = Optional.some(nu);
+            const result = previous.get().map((old) => mode.getDelta(old, nu));
+            previous.set(nu);
             return result;
         };
         // NOTE: This dragEvent is the DOM touch event or mouse event
         const update = (mode, dragEvent) => mode.getData(dragEvent).bind((nuData) => calculateDelta(mode, nuData));
         const setStartData = (data) => {
-            startData = Optional.some(data);
+            startData.set(data);
         };
-        const getStartData = () => startData;
+        const getStartData = () => startData.get();
+        const setActivePointerId = (id) => {
+            activePointerId.set(id);
+        };
+        const getActivePointerId = () => activePointerId.get();
         const readState = constant$1({});
         return nu$4({
             readState,
             reset,
             update,
             getStartData,
-            setStartData
+            setStartData,
+            setActivePointerId,
+            getActivePointerId
         });
     };
 
     var DragState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        init: init$a
+        init: init$b
     });
 
     const Dragging = createModes({
@@ -8123,11 +8241,11 @@
 
     var InvalidateApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        markValid: markValid,
+        isInvalid: isInvalid,
         markInvalid: markInvalid,
+        markValid: markValid,
         query: query,
-        run: run,
-        isInvalid: isInvalid
+        run: run
     });
 
     const events$a = (invalidConfig, invalidState) => invalidConfig.validator.map((validatorInfo) => derive$2([
@@ -8179,11 +8297,11 @@
 
     var RepresentApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
+        getState: getState$2,
+        getValue: getValue$3,
         onLoad: onLoad$4,
         onUnload: onUnload$2,
-        setValue: setValue$3,
-        getValue: getValue$3,
-        getState: getState$2
+        setValue: setValue$3
     });
 
     const events$9 = (repConfig, repState) => {
@@ -8273,14 +8391,14 @@
             clear
         });
     };
-    const init$9 = (spec) => spec.store.manager.state(spec);
+    const init$a = (spec) => spec.store.manager.state(spec);
 
     var RepresentState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        memory: memory$1,
         dataset: dataset,
+        init: init$a,
         manual: manual,
-        init: init$9
+        memory: memory$1
     });
 
     const setValue$2 = (component, repConfig, repState, data) => {
@@ -9057,10 +9175,12 @@
             if (isSimRange(sel)) {
                 const optRect = getBounds$2(win, SimSelection.exactFromRange(sel)).orThunk(() => {
                     const zeroWidth$1 = SugarElement.fromText(zeroWidth);
+                    const beforeMutation = getExact(win);
                     before$1(sel.start, zeroWidth$1);
                     // Certain things like <p><br/></p> with (p, 0) or <br>) as collapsed selection do not return a client rectangle
                     const rect = getFirstRect(win, SimSelection.exact(zeroWidth$1, 0, zeroWidth$1, 1));
                     remove$7(zeroWidth$1);
+                    beforeMutation.each((range) => setExact(win, range.start, range.soffset, range.finish, range.foffset));
                     return rect;
                 });
                 return optRect.bind((rawRect) => {
@@ -9235,13 +9355,13 @@
 
     var PositionApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
+        getMode: getMode,
         position: position$1,
         positionWithinBounds: positionWithinBounds,
-        getMode: getMode,
         reset: reset
     });
 
-    const init$8 = () => {
+    const init$9 = () => {
         let state = {};
         const set = (id, data) => {
             state[id] = data;
@@ -9265,7 +9385,7 @@
 
     var PositioningState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        init: init$8
+        init: init$9
     });
 
     const Positioning = create$3({
@@ -9367,7 +9487,7 @@
         defaultedBoolean('reuseDom', true)
     ];
 
-    const init$7 = () => {
+    const init$8 = () => {
         const cell = Cell(Optional.none());
         const clear = () => cell.set(Optional.none());
         const readState = () => cell.get().getOr('none');
@@ -9381,7 +9501,7 @@
 
     var ReflectingState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        init: init$7
+        init: init$8
     });
 
     const Reflecting = create$3({
@@ -9390,6 +9510,108 @@
         active: ActiveReflecting,
         apis: ReflectingApis,
         state: ReflectingState
+    });
+
+    const computeSize = (state) => {
+        const accumulatedDelta = state.getAccumulatedDelta();
+        const bounds = state.getBounds();
+        const width = clamp(Math.round(state.getOriginalWidth() + accumulatedDelta.left), bounds.minWidth.getOr(0), bounds.maxWidth.getOr(Number.MAX_VALUE));
+        const height = clamp(Math.round(state.getOriginalHeight() + accumulatedDelta.top), bounds.minHeight.getOr(0), bounds.maxHeight.getOr(Number.MAX_VALUE));
+        return { width, height };
+    };
+    const start = (_component, _config, state, width, height, bounds) => {
+        state.start(width, height, bounds);
+    };
+    const moveBy$3 = (_component, _config, state, delta) => {
+        if (!state.isActive()) {
+            return Optional.none();
+        }
+        state.drag(delta);
+        return Optional.some(computeSize(state));
+    };
+    const stop = (_component, _config, state) => {
+        if (!state.isActive()) {
+            return Optional.none();
+        }
+        state.stop();
+        return Optional.some(computeSize(state));
+    };
+
+    var ResizingApis = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        moveBy: moveBy$3,
+        start: start,
+        stop: stop
+    });
+
+    var ResizingSchema = [];
+
+    const init$7 = () => {
+        const originalWidth = Cell(0);
+        const originalHeight = Cell(0);
+        const accumulatedDelta = Cell(SugarPosition(0, 0));
+        const active = Cell(false);
+        const bounds = Cell({
+            minWidth: Optional.none(),
+            maxWidth: Optional.none(),
+            minHeight: Optional.none(),
+            maxHeight: Optional.none()
+        });
+        const start = (width, height, newBounds = {}) => {
+            originalWidth.set(width);
+            originalHeight.set(height);
+            accumulatedDelta.set(SugarPosition(0, 0));
+            bounds.set({
+                minWidth: Optional.from(newBounds.minWidth),
+                maxWidth: Optional.from(newBounds.maxWidth),
+                minHeight: Optional.from(newBounds.minHeight),
+                maxHeight: Optional.from(newBounds.maxHeight)
+            });
+            active.set(true);
+        };
+        const stop = () => {
+            active.set(false);
+        };
+        const isActive = () => active.get();
+        const drag = (delta) => {
+            const acc = accumulatedDelta.get().translate(delta.left, delta.top);
+            accumulatedDelta.set(acc);
+            return acc;
+        };
+        const getAccumulatedDelta = () => accumulatedDelta.get();
+        const getOriginalWidth = () => originalWidth.get();
+        const getOriginalHeight = () => originalHeight.get();
+        const getBounds = () => bounds.get();
+        const readState = () => ({
+            originalWidth: originalWidth.get(),
+            originalHeight: originalHeight.get(),
+            accumulatedDelta: accumulatedDelta.get(),
+            active: active.get(),
+            bounds: bounds.get()
+        });
+        return nu$4({
+            start,
+            stop,
+            isActive,
+            drag,
+            getAccumulatedDelta,
+            getOriginalWidth,
+            getOriginalHeight,
+            getBounds,
+            readState
+        });
+    };
+
+    var ResizingState = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        init: init$7
+    });
+
+    const Resizing = create$3({
+        fields: ResizingSchema,
+        name: 'resizing',
+        apis: ResizingApis,
+        state: ResizingState
     });
 
     // NOTE: A sandbox should not start as part of the world. It is expected to be
@@ -9464,13 +9686,13 @@
     var SandboxApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
         cloak: cloak,
-        decloak: decloak,
-        open: open$1,
-        openWhileCloaked: openWhileCloaked,
         close: close$1,
+        decloak: decloak,
+        getState: getState,
         isOpen: isOpen$1,
         isPartOf: isPartOf$1,
-        getState: getState,
+        open: open$1,
+        openWhileCloaked: openWhileCloaked,
         setContent: setContent
     });
 
@@ -9648,18 +9870,18 @@
 
     var SlidingApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        refresh: refresh$3,
+        disableTransitions: disableTransitions,
         grow: grow,
-        shrink: shrink,
-        immediateShrink: immediateShrink,
         hasGrown: hasGrown,
         hasShrunk: hasShrunk,
+        immediateGrow: immediateGrow,
+        immediateShrink: immediateShrink,
         isGrowing: isGrowing,
         isShrinking: isShrinking,
         isTransitioning: isTransitioning,
-        toggleGrow: toggleGrow,
-        disableTransitions: disableTransitions,
-        immediateGrow: immediateGrow
+        refresh: refresh$3,
+        shrink: shrink,
+        toggleGrow: toggleGrow
     });
 
     const exhibit$3 = (base, slideConfig, _slideState) => {
@@ -9689,8 +9911,8 @@
 
     var ActiveSliding = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        exhibit: exhibit$3,
-        events: events$5
+        events: events$5,
+        exhibit: exhibit$3
     });
 
     var SlidingSchema = [
@@ -9782,8 +10004,8 @@
 
     var StreamingState = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        throttle: throttle,
-        init: init$4
+        init: init$4,
+        throttle: throttle
     });
 
     const setup$e = (streamInfo, streamState) => {
@@ -9864,7 +10086,7 @@
             toggleConfig.onToggled(component, state);
         }
     };
-    const toggle$2 = (component, toggleConfig, toggleState) => {
+    const toggle$1 = (component, toggleConfig, toggleState) => {
         set(component, toggleConfig, toggleState, !toggleState.get());
     };
     const on = (component, toggleConfig, toggleState) => {
@@ -9883,17 +10105,17 @@
 
     var ToggleApis = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        onLoad: onLoad,
-        toggle: toggle$2,
         isOn: isOn,
-        on: on,
         off: off,
-        set: set
+        on: on,
+        onLoad: onLoad,
+        set: set,
+        toggle: toggle$1
     });
 
     const exhibit$1 = () => nu$2({});
     const events$3 = (toggleConfig, toggleState) => {
-        const execute = executeEvent(toggleConfig, toggleState, toggle$2);
+        const execute = executeEvent(toggleConfig, toggleState, toggle$1);
         const load = loadEvent(toggleConfig, toggleState, onLoad);
         return derive$2(flatten([
             toggleConfig.toggleOnExecute ? [execute] : [],
@@ -9903,8 +10125,8 @@
 
     var ActiveToggle = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        exhibit: exhibit$1,
-        events: events$3
+        events: events$3,
+        exhibit: exhibit$1
     });
 
     const updatePressed = (component, ariaInfo, status) => {
@@ -10363,7 +10585,12 @@
             'mouseover',
             'mousemove',
             'mouseout',
-            'click'
+            'click',
+            'dblclick',
+            'pointerdown',
+            'pointermove',
+            'pointerup',
+            'lostpointercapture'
         ];
         const tapEvent = monitor(settings);
         // These events are just passed through ... no additional processing
@@ -11052,7 +11279,6 @@
         output$1('builder', builder$2),
         defaulted('eventOrder', {})
     ];
-    var ItemType = schema$l;
 
     const builder$1 = (detail) => ({
         dom: detail.dom,
@@ -11066,7 +11292,6 @@
         required$1('components'),
         output$1('builder', builder$1)
     ];
-    var SeparatorType = schema$k;
 
     const owner$2 = constant$1('item-widget');
     const parts$e = constant$1([
@@ -11182,12 +11407,11 @@
         defaultUidsSchema(parts$e()),
         output$1('builder', builder)
     ];
-    var WidgetType = schema$j;
 
     const itemSchema$2 = choose$1('type', {
-        widget: WidgetType,
-        item: ItemType,
-        separator: SeparatorType
+        widget: schema$j,
+        item: schema$l,
+        separator: schema$k
     });
     const configureGrid = (detail, movementInfo) => ({
         mode: 'flatgrid',
@@ -11207,10 +11431,9 @@
         previousSelector: movementInfo.previousSelector,
         focusManager: detail.focusManager
     });
-    const configureMenu = (detail, movementInfo) => ({
+    const configureMenu = (detail, _movementInfo) => ({
         mode: 'menu',
         selector: '.' + detail.markers.item,
-        moveOnTab: movementInfo.moveOnTab,
         focusManager: detail.focusManager
     });
     const parts$d = constant$1([
@@ -11253,12 +11476,7 @@
         defaulted('eventOrder', {}),
         field('menuBehaviours', [Highlighting, Representing, Composing, Keying]),
         defaultedOf('movement', {
-            // When you don't specify movement for a Menu, this is what you get
-            // a "menu" type of movement that moves on tab. If you want finer-grained
-            // control, like disabling moveOnTab, then you need to specify
-            // your entire movement configuration when creating your MenuSpec.
-            mode: 'menu',
-            moveOnTab: true
+            mode: 'menu'
         }, choose$1('mode', {
             grid: [
                 initSize(),
@@ -11270,7 +11488,6 @@
                 defaulted('previousSelector', Optional.none),
             ],
             menu: [
-                defaulted('moveOnTab', true),
                 output$1('config', configureMenu)
             ]
         })),
@@ -11837,6 +12054,8 @@
                     onRight: keyOnItem(onRight),
                     onLeft: keyOnItem(onLeft),
                     onEscape: keyOnItem(onEscape),
+                    onTab: detail.onTab,
+                    onShiftTab: detail.onShiftTab,
                     focusIn: (container, _keyInfo) => {
                         layeredState.getPrimary().each((primary) => {
                             dispatch(container, primary.element, focusItem());
@@ -11883,6 +12102,8 @@
         configFields: [
             onStrictKeyboardHandler('onExecute'),
             onStrictKeyboardHandler('onEscape'),
+            onKeyboardHandler('onTab'),
+            onKeyboardHandler('onShiftTab'),
             onStrictHandler('onOpenMenu'),
             onStrictHandler('onOpenSubmenu'),
             onHandler('onRepositionMenu'),
@@ -12006,6 +12227,15 @@
     const openF = (detail, mapFetch, anchor, component, sandbox, externals, highlightOnOpen) => {
         const futureData = fetch$1(detail, mapFetch, component);
         const getLazySink = getSink(component, detail);
+        // When Tab or Shift+Tab bubbles up from inside an open menu, close the menu,
+        // refocus the trigger, and re-emit the keydown so the trigger's parent
+        // (toolbar, menubar, etc.) handles it via its own Keying config.
+        const onTabOutOfMenu = (_tmenu, se) => {
+            Focusing.focus(component);
+            emitWith(component, 'keydown', { raw: se.event.raw });
+            Sandboxing.close(sandbox);
+            return Optional.some(true);
+        };
         // TODO: Make this potentially a single menu also
         return futureData.map((tdata) => tdata.bind((data) => {
             const primaryMenu = data.menus[data.primary];
@@ -12050,7 +12280,9 @@
                     Focusing.focus(component);
                     Sandboxing.close(sandbox);
                     return Optional.some(true);
-                }
+                },
+                onTab: onTabOutOfMenu,
+                onShiftTab: onTabOutOfMenu
             }));
         }));
     };
@@ -12559,10 +12791,10 @@
     const shouldSkipFocus = value$2();
     const toggleWithoutFocusing = (button, externals) => {
         shouldSkipFocus.set(true);
-        toggle$1(button, externals);
+        toggle(button, externals);
         shouldSkipFocus.clear();
     };
-    const toggle$1 = (button, externals) => {
+    const toggle = (button, externals) => {
         const toolbarSandbox = Coupling.getCoupled(button, 'toolbarSandbox');
         if (Sandboxing.isOpen(toolbarSandbox)) {
             Sandboxing.close(toolbarSandbox);
@@ -12657,7 +12889,7 @@
         ...Button.sketch({
             ...externals.button(),
             action: (button) => {
-                toggle$1(button, externals);
+                toggle(button, externals);
             },
             buttonBehaviours: SketchBehaviours.augment({ dump: externals.button().buttonBehaviours }, [
                 Coupling.config({
@@ -12681,7 +12913,7 @@
                 });
             },
             toggle: (button) => {
-                toggle$1(button, externals);
+                toggle(button, externals);
             },
             toggleWithoutFocusing: (button) => {
                 toggleWithoutFocusing(button, externals);
@@ -13890,7 +14122,6 @@
             hasMinEdge: hasLEdge(detail),
             hasMaxEdge: hasREdge(detail),
             minBound: getMinXBounds(spectrum),
-            minOffset,
             maxBound: getMaxXBounds(spectrum),
             maxOffset,
             centerMinEdge,
@@ -13929,18 +14160,18 @@
 
     var HorizontalModel = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        setValueFrom: setValueFrom$2,
-        setToMin: setToMin$2,
-        setToMax: setToMax$2,
+        edgeActions: edgeActions$2,
+        findPositionOfValue: findPositionOfValue$1,
         findValueOfOffset: findValueOfOffset$1,
         getValueFromEvent: getValueFromEvent$2,
-        findPositionOfValue: findPositionOfValue$1,
-        setPositionFromValue: setPositionFromValue$2,
+        onDown: onDown$2,
         onLeft: onLeft$2,
         onRight: onRight$2,
         onUp: onUp$2,
-        onDown: onDown$2,
-        edgeActions: edgeActions$2
+        setPositionFromValue: setPositionFromValue$2,
+        setToMax: setToMax$2,
+        setToMin: setToMin$2,
+        setValueFrom: setValueFrom$2
     });
 
     // fire slider change event with y value
@@ -14012,7 +14243,6 @@
             hasMinEdge: hasTEdge(detail),
             hasMaxEdge: hasBEdge(detail),
             minBound: getMinYBounds(spectrum),
-            minOffset,
             maxBound: getMaxYBounds(spectrum),
             maxOffset,
             centerMinEdge,
@@ -14051,18 +14281,18 @@
 
     var VerticalModel = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        setValueFrom: setValueFrom$1,
-        setToMin: setToMin$1,
-        setToMax: setToMax$1,
+        edgeActions: edgeActions$1,
+        findPositionOfValue: findPositionOfValue,
         findValueOfOffset: findValueOfOffset,
         getValueFromEvent: getValueFromEvent$1,
-        findPositionOfValue: findPositionOfValue,
-        setPositionFromValue: setPositionFromValue$1,
+        onDown: onDown$1,
         onLeft: onLeft$1,
         onRight: onRight$1,
         onUp: onUp$1,
-        onDown: onDown$1,
-        edgeActions: edgeActions$1
+        setPositionFromValue: setPositionFromValue$1,
+        setToMax: setToMax$1,
+        setToMin: setToMin$1,
+        setValueFrom: setValueFrom$1
     });
 
     // fire slider change event with xy value
@@ -14136,16 +14366,16 @@
 
     var TwoDModel = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        setValueFrom: setValueFrom,
-        setToMin: setToMin,
-        setToMax: setToMax,
+        edgeActions: edgeActions,
         getValueFromEvent: getValueFromEvent,
-        setPositionFromValue: setPositionFromValue,
+        onDown: onDown,
         onLeft: onLeft,
         onRight: onRight,
         onUp: onUp,
-        onDown: onDown,
-        edgeActions: edgeActions
+        setPositionFromValue: setPositionFromValue,
+        setToMax: setToMax,
+        setToMin: setToMin,
+        setValueFrom: setValueFrom
     });
 
     const SliderSchema = [
@@ -15638,19 +15868,17 @@
 
     var global$7 = tinymce.util.Tools.resolve('tinymce.Env');
 
-    var ToolbarMode$1;
-    (function (ToolbarMode) {
-        ToolbarMode["default"] = "wrap";
-        ToolbarMode["floating"] = "floating";
-        ToolbarMode["sliding"] = "sliding";
-        ToolbarMode["scrolling"] = "scrolling";
-    })(ToolbarMode$1 || (ToolbarMode$1 = {}));
-    var ToolbarLocation$1;
-    (function (ToolbarLocation) {
-        ToolbarLocation["auto"] = "auto";
-        ToolbarLocation["top"] = "top";
-        ToolbarLocation["bottom"] = "bottom";
-    })(ToolbarLocation$1 || (ToolbarLocation$1 = {}));
+    const ToolbarMode$1 = {
+        default: 'wrap',
+        floating: 'floating',
+        sliding: 'sliding',
+        scrolling: 'scrolling'
+    };
+    const ToolbarLocation$1 = {
+        auto: 'auto',
+        top: 'top',
+        bottom: 'bottom'
+    };
     const option$2 = (name) => (editor) => editor.options.get(name);
     const wrapOptional = (fn) => (editor) => Optional.from(fn(editor));
     const register$f = (editor) => {
@@ -15859,6 +16087,18 @@
         registerOption('sidebar_show', {
             processor: 'string'
         });
+        registerOption('sidebar_width', {
+            processor: 'number',
+            default: 440
+        });
+        registerOption('sidebar_min_width', {
+            processor: 'number',
+            default: 300
+        });
+        registerOption('sidebar_max_width', {
+            processor: 'number',
+            default: 800
+        });
         registerOption('view_show', {
             processor: 'string'
         });
@@ -15908,6 +16148,9 @@
     const getResize = option$2('resize');
     const getPasteAsText = option$2('paste_as_text');
     const getSidebarShow = option$2('sidebar_show');
+    const getSidebarWidth = option$2('sidebar_width');
+    const getSidebarMinWidth = option$2('sidebar_min_width');
+    const getSidebarMaxWidth = option$2('sidebar_max_width');
     const getViewShow = option$2('view_show');
     const promotionEnabled = option$2('promotion');
     const useHelpAccessibility = option$2('help_accessibility');
@@ -15930,7 +16173,6 @@
             }
         }
     };
-    const getSkinUrlOption = (editor) => Optional.from(editor.options.get('skin_url'));
     const getLineHeightFormats = (editor) => editor.options.get('line_height_formats').split(' ');
     const isToolbarEnabled = (editor) => {
         const toolbar = getToolbar(editor);
@@ -15987,63 +16229,65 @@
 
     var Options = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        get ToolbarMode () { return ToolbarMode$1; },
-        get ToolbarLocation () { return ToolbarLocation$1; },
-        register: register$f,
-        getSkinUrl: getSkinUrl,
-        getSkinUrlOption: getSkinUrlOption,
-        isReadOnly: isReadOnly,
-        isDisabled: isDisabled,
-        getSkin: getSkin,
-        isSkinDisabled: isSkinDisabled,
-        getHeightOption: getHeightOption,
-        getWidthOption: getWidthOption,
-        getMinWidthOption: getMinWidthOption,
-        getMinHeightOption: getMinHeightOption,
-        getMaxWidthOption: getMaxWidthOption,
-        getMaxHeightOption: getMaxHeightOption,
-        getUserStyleFormats: getUserStyleFormats,
-        shouldMergeStyleFormats: shouldMergeStyleFormats,
-        shouldAutoHideStyleFormats: shouldAutoHideStyleFormats,
-        getLineHeightFormats: getLineHeightFormats,
+        ToolbarLocation: ToolbarLocation$1,
+        ToolbarMode: ToolbarMode$1,
+        getAnchorBottom: getAnchorBottom,
+        getAnchorTop: getAnchorTop,
         getContentLanguages: getContentLanguages,
-        getRemovedMenuItems: getRemovedMenuItems,
-        isMenubarEnabled: isMenubarEnabled,
-        isMultipleToolbars: isMultipleToolbars,
-        isToolbarEnabled: isToolbarEnabled,
-        isToolbarPersist: isToolbarPersist,
-        getMultipleToolbarsOption: getMultipleToolbarsOption,
-        getUiContainer: getUiContainer,
-        useFixedContainer: useFixedContainer,
-        isSplitUiMode: isSplitUiMode,
-        getToolbarMode: getToolbarMode,
-        isDraggableModal: isDraggableModal$1,
-        isDistractionFree: isDistractionFree,
-        isStickyToolbar: isStickyToolbar,
-        getStickyToolbarOffset: getStickyToolbarOffset,
-        getToolbarLocation: getToolbarLocation,
-        isToolbarLocationBottom: isToolbarLocationBottom,
-        getToolbarGroups: getToolbarGroups,
-        getMenus: getMenus,
-        getMenubar: getMenubar,
-        getToolbar: getToolbar,
+        getDefaultFontStack: getDefaultFontStack,
         getFilePickerCallback: getFilePickerCallback,
         getFilePickerTypes: getFilePickerTypes,
-        useTypeaheadUrls: useTypeaheadUrls,
-        getAnchorTop: getAnchorTop,
-        getAnchorBottom: getAnchorBottom,
         getFilePickerValidatorHandler: getFilePickerValidatorHandler,
         getFontSizeInputDefaultUnit: getFontSizeInputDefaultUnit,
-        useStatusBar: useStatusBar,
-        useElementPath: useElementPath,
-        promotionEnabled: promotionEnabled,
-        useBranding: useBranding,
-        getResize: getResize,
+        getHeightOption: getHeightOption,
+        getLineHeightFormats: getLineHeightFormats,
+        getMaxHeightOption: getMaxHeightOption,
+        getMaxWidthOption: getMaxWidthOption,
+        getMenubar: getMenubar,
+        getMenus: getMenus,
+        getMinHeightOption: getMinHeightOption,
+        getMinWidthOption: getMinWidthOption,
+        getMultipleToolbarsOption: getMultipleToolbarsOption,
         getPasteAsText: getPasteAsText,
+        getRemovedMenuItems: getRemovedMenuItems,
+        getResize: getResize,
+        getSidebarMaxWidth: getSidebarMaxWidth,
+        getSidebarMinWidth: getSidebarMinWidth,
         getSidebarShow: getSidebarShow,
+        getSidebarWidth: getSidebarWidth,
+        getSkin: getSkin,
+        getSkinUrl: getSkinUrl,
+        getStickyToolbarOffset: getStickyToolbarOffset,
+        getToolbar: getToolbar,
+        getToolbarGroups: getToolbarGroups,
+        getToolbarLocation: getToolbarLocation,
+        getToolbarMode: getToolbarMode,
+        getUiContainer: getUiContainer,
+        getUserStyleFormats: getUserStyleFormats,
         getViewShow: getViewShow,
+        getWidthOption: getWidthOption,
+        isDisabled: isDisabled,
+        isDistractionFree: isDistractionFree,
+        isDraggableModal: isDraggableModal$1,
+        isMenubarEnabled: isMenubarEnabled,
+        isMultipleToolbars: isMultipleToolbars,
+        isReadOnly: isReadOnly,
+        isSkinDisabled: isSkinDisabled,
+        isSplitUiMode: isSplitUiMode,
+        isStickyToolbar: isStickyToolbar,
+        isToolbarEnabled: isToolbarEnabled,
+        isToolbarLocationBottom: isToolbarLocationBottom,
+        isToolbarPersist: isToolbarPersist,
+        promotionEnabled: promotionEnabled,
+        register: register$f,
+        shouldAutoHideStyleFormats: shouldAutoHideStyleFormats,
+        shouldMergeStyleFormats: shouldMergeStyleFormats,
+        useBranding: useBranding,
+        useElementPath: useElementPath,
+        useFixedContainer: useFixedContainer,
         useHelpAccessibility: useHelpAccessibility,
-        getDefaultFontStack: getDefaultFontStack
+        useStatusBar: useStatusBar,
+        useTypeaheadUrls: useTypeaheadUrls
     });
 
     // See https://developer.mozilla.org/en-US/docs/Glossary/Scroll_container for what makes an element scrollable
@@ -16092,97 +16336,82 @@
         return sc.isFullscreen() ? win() : constrainByMany(box$1(sc.element), scrollableBoxes);
     };
 
-    /*! @license DOMPurify 3.4.5 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.5/LICENSE */
-
+    /*! @license DOMPurify 3.4.17 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.17/LICENSE */
     function _arrayLikeToArray(r, a) {
-      (null == a || a > r.length) && (a = r.length);
-      for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
-      return n;
+    	(null == a || a > r.length) && (a = r.length);
+    	for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
+    	return n;
     }
     function _arrayWithHoles(r) {
-      if (Array.isArray(r)) return r;
+    	if (Array.isArray(r)) return r;
     }
     function _iterableToArrayLimit(r, l) {
-      var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
-      if (null != t) {
-        var e,
-          n,
-          i,
-          u,
-          a = [],
-          f = true,
-          o = false;
-        try {
-          if (i = (t = t.call(r)).next, 0 === l) ; else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0);
-        } catch (r) {
-          o = true, n = r;
-        } finally {
-          try {
-            if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return;
-          } finally {
-            if (o) throw n;
-          }
-        }
-        return a;
-      }
+    	var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
+    	if (null != t) {
+    		var e, n, i, u, a = [], f = true, o = false;
+    		try {
+    			if (i = (t = t.call(r)).next, 0 === l) ; else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0);
+    		} catch (r) {
+    			o = true, n = r;
+    		} finally {
+    			try {
+    				if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return;
+    			} finally {
+    				if (o) throw n;
+    			}
+    		}
+    		return a;
+    	}
     }
     function _nonIterableRest() {
-      throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+    	throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
     }
+    /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
     function _slicedToArray(r, e) {
-      return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest();
+    	return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest();
     }
     function _unsupportedIterableToArray(r, a) {
-      if (r) {
-        if ("string" == typeof r) return _arrayLikeToArray(r, a);
-        var t = {}.toString.call(r).slice(8, -1);
-        return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0;
-      }
+    	if (r) {
+    		if ("string" == typeof r) return _arrayLikeToArray(r, a);
+    		var t = {}.toString.call(r).slice(8, -1);
+    		return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0;
+    	}
     }
-
-    const entries = Object.entries,
-      setPrototypeOf = Object.setPrototypeOf,
-      isFrozen = Object.isFrozen,
-      getPrototypeOf = Object.getPrototypeOf,
-      getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
-    let freeze = Object.freeze,
-      seal = Object.seal,
-      create$1 = Object.create; // eslint-disable-line import/no-mutable-exports
-    let _ref = typeof Reflect !== 'undefined' && Reflect,
-      apply = _ref.apply,
-      construct = _ref.construct;
-    if (!freeze) {
-      freeze = function freeze(x) {
-        return x;
-      };
-    }
-    if (!seal) {
-      seal = function seal(x) {
-        return x;
-      };
-    }
-    if (!apply) {
-      apply = function apply(func, thisArg) {
-        for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
-          args[_key - 2] = arguments[_key];
-        }
-        return func.apply(thisArg, args);
-      };
-    }
-    if (!construct) {
-      construct = function construct(Func) {
-        for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-          args[_key2 - 1] = arguments[_key2];
-        }
-        return new Func(...args);
-      };
-    }
+    const entries = Object.entries;
+    const setPrototypeOf = Object.setPrototypeOf;
+    const isFrozen = Object.isFrozen;
+    const getPrototypeOf = Object.getPrototypeOf;
+    const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+    let freeze = Object.freeze;
+    let seal = Object.seal;
+    let create$1 = Object.create;
+    let _ref = typeof Reflect !== "undefined" && Reflect;
+    let apply = _ref.apply;
+    let construct = _ref.construct;
+    if (!freeze) freeze = function freeze(x) {
+    	return x;
+    };
+    if (!seal) seal = function seal(x) {
+    	return x;
+    };
+    if (!apply) apply = function apply(func, thisArg) {
+    	for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) args[_key - 2] = arguments[_key];
+    	return func.apply(thisArg, args);
+    };
+    if (!construct) construct = function construct(Func) {
+    	for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) args[_key2 - 1] = arguments[_key2];
+    	return new Func(...args);
+    };
     const arrayForEach = unapply(Array.prototype.forEach);
     const arrayLastIndexOf = unapply(Array.prototype.lastIndexOf);
     const arrayPop = unapply(Array.prototype.pop);
     const arrayPush = unapply(Array.prototype.push);
+    const arraySlice = unapply(Array.prototype.slice);
     const arraySplice = unapply(Array.prototype.splice);
     const arrayIsArray = Array.isArray;
+    const setCreate = unconstruct(Set);
+    const setAdd = unapply(Set.prototype.add);
+    const setHas = unapply(Set.prototype.has);
     const stringToLowerCase = unapply(String.prototype.toLowerCase);
     const stringToString = unapply(String.prototype.toString);
     const stringMatch = unapply(String.prototype.match);
@@ -16191,1493 +16420,2407 @@
     const stringTrim = unapply(String.prototype.trim);
     const numberToString = unapply(Number.prototype.toString);
     const booleanToString = unapply(Boolean.prototype.toString);
-    const bigintToString = typeof BigInt === 'undefined' ? null : unapply(BigInt.prototype.toString);
-    const symbolToString = typeof Symbol === 'undefined' ? null : unapply(Symbol.prototype.toString);
+    const bigintToString = typeof BigInt === "undefined" ? null : unapply(BigInt.prototype.toString);
+    const symbolToString = typeof Symbol === "undefined" ? null : unapply(Symbol.prototype.toString);
     const objectHasOwnProperty = unapply(Object.prototype.hasOwnProperty);
     const objectToString = unapply(Object.prototype.toString);
     const regExpTest = unapply(RegExp.prototype.test);
     const typeErrorCreate = unconstruct(TypeError);
     /**
-     * Creates a new function that calls the given function with a specified thisArg and arguments.
-     *
-     * @param func - The function to be wrapped and called.
-     * @returns A new function that calls the given function with a specified thisArg and arguments.
-     */
+    * Creates a new function that calls the given function with a specified thisArg and arguments.
+    *
+    * @param func - The function to be wrapped and called.
+    * @returns A new function that calls the given function with a specified thisArg and arguments.
+    */
     function unapply(func) {
-      return function (thisArg) {
-        if (thisArg instanceof RegExp) {
-          thisArg.lastIndex = 0;
-        }
-        for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-          args[_key3 - 1] = arguments[_key3];
-        }
-        return apply(func, thisArg, args);
-      };
+    	return function(thisArg) {
+    		if (thisArg instanceof RegExp) thisArg.lastIndex = 0;
+    		for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) args[_key3 - 1] = arguments[_key3];
+    		return apply(func, thisArg, args);
+    	};
     }
     /**
-     * Creates a new function that constructs an instance of the given constructor function with the provided arguments.
-     *
-     * @param func - The constructor function to be wrapped and called.
-     * @returns A new function that constructs an instance of the given constructor function with the provided arguments.
-     */
+    * Creates a new function that constructs an instance of the given constructor function with the provided arguments.
+    *
+    * @param func - The constructor function to be wrapped and called.
+    * @returns A new function that constructs an instance of the given constructor function with the provided arguments.
+    */
     function unconstruct(Func) {
-      return function () {
-        for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
-          args[_key4] = arguments[_key4];
-        }
-        return construct(Func, args);
-      };
+    	return function() {
+    		for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) args[_key4] = arguments[_key4];
+    		return construct(Func, args);
+    	};
     }
     /**
-     * Add properties to a lookup table
-     *
-     * @param set - The set to which elements will be added.
-     * @param array - The array containing elements to be added to the set.
-     * @param transformCaseFunc - An optional function to transform the case of each element before adding to the set.
-     * @returns The modified set with added elements.
-     */
+    * Add properties to a lookup table
+    *
+    * @param set - The set to which elements will be added.
+    * @param array - The array containing elements to be added to the set.
+    * @param transformCaseFunc - An optional function to transform the case of each element before adding to the set.
+    * @returns The modified set with added elements.
+    */
     function addToSet(set, array) {
-      let transformCaseFunc = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : stringToLowerCase;
-      if (setPrototypeOf) {
-        // Make 'in' and truthy checks like Boolean(set.constructor)
-        // independent of any properties defined on Object.prototype.
-        // Prevent prototype setters from intercepting set as a this value.
-        setPrototypeOf(set, null);
-      }
-      if (!arrayIsArray(array)) {
-        return set;
-      }
-      let l = array.length;
-      while (l--) {
-        let element = array[l];
-        if (typeof element === 'string') {
-          const lcElement = transformCaseFunc(element);
-          if (lcElement !== element) {
-            // Config presets (e.g. tags.js, attrs.js) are immutable.
-            if (!isFrozen(array)) {
-              array[l] = lcElement;
-            }
-            element = lcElement;
-          }
-        }
-        set[element] = true;
-      }
-      return set;
+    	let transformCaseFunc = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : stringToLowerCase;
+    	if (setPrototypeOf) setPrototypeOf(set, null);
+    	if (!arrayIsArray(array)) return set;
+    	let l = array.length;
+    	while (l--) {
+    		let element = array[l];
+    		if (typeof element === "string") {
+    			const lcElement = transformCaseFunc(element);
+    			if (lcElement !== element) {
+    				if (!isFrozen(array)) array[l] = lcElement;
+    				element = lcElement;
+    			}
+    		}
+    		set[element] = true;
+    	}
+    	return set;
     }
     /**
-     * Clean up an array to harden against CSPP
-     *
-     * @param array - The array to be cleaned.
-     * @returns The cleaned version of the array
-     */
+    * Clean up an array to harden against CSPP
+    *
+    * @param array - The array to be cleaned.
+    * @returns The cleaned version of the array
+    */
     function cleanArray(array) {
-      for (let index = 0; index < array.length; index++) {
-        const isPropertyExist = objectHasOwnProperty(array, index);
-        if (!isPropertyExist) {
-          array[index] = null;
-        }
-      }
-      return array;
+    	for (let index = 0; index < array.length; index++) if (!objectHasOwnProperty(array, index)) array[index] = null;
+    	return array;
     }
     /**
-     * Shallow clone an object
-     *
-     * @param object - The object to be cloned.
-     * @returns A new object that copies the original.
-     */
+    * Shallow clone an object
+    *
+    * @param object - The object to be cloned.
+    * @returns A new object that copies the original.
+    */
     function clone(object) {
-      const newObject = create$1(null);
-      for (const _ref2 of entries(object)) {
-        var _ref3 = _slicedToArray(_ref2, 2);
-        const property = _ref3[0];
-        const value = _ref3[1];
-        const isPropertyExist = objectHasOwnProperty(object, property);
-        if (isPropertyExist) {
-          if (arrayIsArray(value)) {
-            newObject[property] = cleanArray(value);
-          } else if (value && typeof value === 'object' && value.constructor === Object) {
-            newObject[property] = clone(value);
-          } else {
-            newObject[property] = value;
-          }
-        }
-      }
-      return newObject;
+    	const newObject = create$1(null);
+    	for (const _ref2 of entries(object)) {
+    		var _ref3 = _slicedToArray(_ref2, 2);
+    		const property = _ref3[0];
+    		const value = _ref3[1];
+    		if (objectHasOwnProperty(object, property)) {
+    			if (arrayIsArray(value)) newObject[property] = cleanArray(value);
+    			else if (value && typeof value === "object" && value.constructor === Object) newObject[property] = clone(value);
+    			else newObject[property] = value;
+    		}
+    	}
+    	return newObject;
     }
     /**
-     * Convert non-node values into strings without depending on direct property access.
-     *
-     * @param value - The value to stringify.
-     * @returns A string representation of the provided value.
-     */
+    * Convert non-node values into strings without depending on direct property access.
+    *
+    * @param value - The value to stringify.
+    * @returns A string representation of the provided value.
+    */
     function stringifyValue(value) {
-      switch (typeof value) {
-        case 'string':
-          {
-            return value;
-          }
-        case 'number':
-          {
-            return numberToString(value);
-          }
-        case 'boolean':
-          {
-            return booleanToString(value);
-          }
-        case 'bigint':
-          {
-            return bigintToString ? bigintToString(value) : '0';
-          }
-        case 'symbol':
-          {
-            return symbolToString ? symbolToString(value) : 'Symbol()';
-          }
-        case 'undefined':
-          {
-            return objectToString(value);
-          }
-        case 'function':
-        case 'object':
-          {
-            if (value === null) {
-              return objectToString(value);
-            }
-            const valueAsRecord = value;
-            const valueToString = lookupGetter(valueAsRecord, 'toString');
-            if (typeof valueToString === 'function') {
-              const stringified = valueToString(valueAsRecord);
-              return typeof stringified === 'string' ? stringified : objectToString(stringified);
-            }
-            return objectToString(value);
-          }
-        default:
-          {
-            return objectToString(value);
-          }
-      }
+    	switch (typeof value) {
+    		case "string": return value;
+    		case "number": return numberToString(value);
+    		case "boolean": return booleanToString(value);
+    		case "bigint": return bigintToString ? bigintToString(value) : "0";
+    		case "symbol": return symbolToString ? symbolToString(value) : "Symbol()";
+    		case "undefined": return objectToString(value);
+    		case "function":
+    		case "object": {
+    			if (value === null) return objectToString(value);
+    			const valueAsRecord = value;
+    			const valueToString = lookupGetter(valueAsRecord, "toString");
+    			if (typeof valueToString === "function") {
+    				const stringified = valueToString(valueAsRecord);
+    				return typeof stringified === "string" ? stringified : objectToString(stringified);
+    			}
+    			return objectToString(value);
+    		}
+    		default: return objectToString(value);
+    	}
     }
     /**
-     * This method automatically checks if the prop is function or getter and behaves accordingly.
-     *
-     * @param object - The object to look up the getter function in its prototype chain.
-     * @param prop - The property name for which to find the getter function.
-     * @returns The getter function found in the prototype chain or a fallback function.
-     */
+    * This method automatically checks if the prop is function or getter and behaves accordingly.
+    *
+    * @param object - The object to look up the getter function in its prototype chain.
+    * @param prop - The property name for which to find the getter function.
+    * @returns The getter function found in the prototype chain or a fallback function.
+    */
     function lookupGetter(object, prop) {
-      while (object !== null) {
-        const desc = getOwnPropertyDescriptor(object, prop);
-        if (desc) {
-          if (desc.get) {
-            return unapply(desc.get);
-          }
-          if (typeof desc.value === 'function') {
-            return unapply(desc.value);
-          }
-        }
-        object = getPrototypeOf(object);
-      }
-      function fallbackValue() {
-        return null;
-      }
-      return fallbackValue;
+    	while (object !== null) {
+    		const desc = getOwnPropertyDescriptor(object, prop);
+    		if (desc) {
+    			if (desc.get) return unapply(desc.get);
+    			if (typeof desc.value === "function") return unapply(desc.value);
+    		}
+    		object = getPrototypeOf(object);
+    	}
+    	function fallbackValue() {
+    		return null;
+    	}
+    	return fallbackValue;
+    }
+    /**
+    * Like lookupGetter, but for accessor properties only, and returns null
+    * instead of a null-returning fallback when no getter exists on the chain.
+    * Lets a caller fall back to a direct property read in environments that
+    * lack the getter, where a fallback returning null would be indistinguishable
+    * from a legitimate null value (e.g. namespaceURI of a no-namespace element).
+    *
+    * @param object - The object (usually a prototype) to start the lookup at.
+    * @param prop - The accessor property name.
+    * @returns The unapplied getter, or null if none was found.
+    */
+    function lookupAccessor(object, prop) {
+    	while (object !== null) {
+    		const desc = getOwnPropertyDescriptor(object, prop);
+    		if (desc) return desc.get ? unapply(desc.get) : null;
+    		object = getPrototypeOf(object);
+    	}
+    	return null;
     }
     function isRegex(value) {
-      try {
-        regExpTest(value, '');
-        return true;
-      } catch (_unused) {
-        return false;
-      }
+    	try {
+    		regExpTest(value, "");
+    		return true;
+    	} catch (_unused) {
+    		return false;
+    	}
     }
-
-    const html$1 = freeze(['a', 'abbr', 'acronym', 'address', 'area', 'article', 'aside', 'audio', 'b', 'bdi', 'bdo', 'big', 'blink', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'content', 'data', 'datalist', 'dd', 'decorator', 'del', 'details', 'dfn', 'dialog', 'dir', 'div', 'dl', 'dt', 'element', 'em', 'fieldset', 'figcaption', 'figure', 'font', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'i', 'img', 'input', 'ins', 'kbd', 'label', 'legend', 'li', 'main', 'map', 'mark', 'marquee', 'menu', 'menuitem', 'meter', 'nav', 'nobr', 'ol', 'optgroup', 'option', 'output', 'p', 'picture', 'pre', 'progress', 'q', 'rp', 'rt', 'ruby', 's', 'samp', 'search', 'section', 'select', 'shadow', 'slot', 'small', 'source', 'spacer', 'span', 'strike', 'strong', 'style', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead', 'time', 'tr', 'track', 'tt', 'u', 'ul', 'var', 'video', 'wbr']);
-    const svg$1 = freeze(['svg', 'a', 'altglyph', 'altglyphdef', 'altglyphitem', 'animatecolor', 'animatemotion', 'animatetransform', 'circle', 'clippath', 'defs', 'desc', 'ellipse', 'enterkeyhint', 'exportparts', 'filter', 'font', 'g', 'glyph', 'glyphref', 'hkern', 'image', 'inputmode', 'line', 'lineargradient', 'marker', 'mask', 'metadata', 'mpath', 'part', 'path', 'pattern', 'polygon', 'polyline', 'radialgradient', 'rect', 'stop', 'style', 'switch', 'symbol', 'text', 'textpath', 'title', 'tref', 'tspan', 'view', 'vkern']);
-    const svgFilters = freeze(['feBlend', 'feColorMatrix', 'feComponentTransfer', 'feComposite', 'feConvolveMatrix', 'feDiffuseLighting', 'feDisplacementMap', 'feDistantLight', 'feDropShadow', 'feFlood', 'feFuncA', 'feFuncB', 'feFuncG', 'feFuncR', 'feGaussianBlur', 'feImage', 'feMerge', 'feMergeNode', 'feMorphology', 'feOffset', 'fePointLight', 'feSpecularLighting', 'feSpotLight', 'feTile', 'feTurbulence']);
-    // List of SVG elements that are disallowed by default.
-    // We still need to know them so that we can do namespace
-    // checks properly in case one wants to add them to
-    // allow-list.
-    const svgDisallowed = freeze(['animate', 'color-profile', 'cursor', 'discard', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri', 'foreignobject', 'hatch', 'hatchpath', 'mesh', 'meshgradient', 'meshpatch', 'meshrow', 'missing-glyph', 'script', 'set', 'solidcolor', 'unknown', 'use']);
-    const mathMl$1 = freeze(['math', 'menclose', 'merror', 'mfenced', 'mfrac', 'mglyph', 'mi', 'mlabeledtr', 'mmultiscripts', 'mn', 'mo', 'mover', 'mpadded', 'mphantom', 'mroot', 'mrow', 'ms', 'mspace', 'msqrt', 'mstyle', 'msub', 'msup', 'msubsup', 'mtable', 'mtd', 'mtext', 'mtr', 'munder', 'munderover', 'mprescripts']);
-    // Similarly to SVG, we want to know all MathML elements,
-    // even those that we disallow by default.
-    const mathMlDisallowed = freeze(['maction', 'maligngroup', 'malignmark', 'mlongdiv', 'mscarries', 'mscarry', 'msgroup', 'mstack', 'msline', 'msrow', 'semantics', 'annotation', 'annotation-xml', 'mprescripts', 'none']);
-    const text$1 = freeze(['#text']);
-
-    const html = freeze(['accept', 'action', 'align', 'alt', 'autocapitalize', 'autocomplete', 'autopictureinpicture', 'autoplay', 'background', 'bgcolor', 'border', 'capture', 'cellpadding', 'cellspacing', 'checked', 'cite', 'class', 'clear', 'color', 'cols', 'colspan', 'command', 'commandfor', 'controls', 'controlslist', 'coords', 'crossorigin', 'datetime', 'decoding', 'default', 'dir', 'disabled', 'disablepictureinpicture', 'disableremoteplayback', 'download', 'draggable', 'enctype', 'enterkeyhint', 'exportparts', 'face', 'for', 'headers', 'height', 'hidden', 'high', 'href', 'hreflang', 'id', 'inert', 'inputmode', 'integrity', 'ismap', 'kind', 'label', 'lang', 'list', 'loading', 'loop', 'low', 'max', 'maxlength', 'media', 'method', 'min', 'minlength', 'multiple', 'muted', 'name', 'nonce', 'noshade', 'novalidate', 'nowrap', 'open', 'optimum', 'part', 'pattern', 'placeholder', 'playsinline', 'popover', 'popovertarget', 'popovertargetaction', 'poster', 'preload', 'pubdate', 'radiogroup', 'readonly', 'rel', 'required', 'rev', 'reversed', 'role', 'rows', 'rowspan', 'spellcheck', 'scope', 'selected', 'shape', 'size', 'sizes', 'slot', 'span', 'srclang', 'start', 'src', 'srcset', 'step', 'style', 'summary', 'tabindex', 'title', 'translate', 'type', 'usemap', 'valign', 'value', 'width', 'wrap', 'xmlns']);
-    const svg = freeze(['accent-height', 'accumulate', 'additive', 'alignment-baseline', 'amplitude', 'ascent', 'attributename', 'attributetype', 'azimuth', 'basefrequency', 'baseline-shift', 'begin', 'bias', 'by', 'class', 'clip', 'clippathunits', 'clip-path', 'clip-rule', 'color', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'cx', 'cy', 'd', 'dx', 'dy', 'diffuseconstant', 'direction', 'display', 'divisor', 'dur', 'edgemode', 'elevation', 'end', 'exponent', 'fill', 'fill-opacity', 'fill-rule', 'filter', 'filterunits', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'fx', 'fy', 'g1', 'g2', 'glyph-name', 'glyphref', 'gradientunits', 'gradienttransform', 'height', 'href', 'id', 'image-rendering', 'in', 'in2', 'intercept', 'k', 'k1', 'k2', 'k3', 'k4', 'kerning', 'keypoints', 'keysplines', 'keytimes', 'lang', 'lengthadjust', 'letter-spacing', 'kernelmatrix', 'kernelunitlength', 'lighting-color', 'local', 'marker-end', 'marker-mid', 'marker-start', 'markerheight', 'markerunits', 'markerwidth', 'maskcontentunits', 'maskunits', 'max', 'mask', 'mask-type', 'media', 'method', 'mode', 'min', 'name', 'numoctaves', 'offset', 'operator', 'opacity', 'order', 'orient', 'orientation', 'origin', 'overflow', 'paint-order', 'path', 'pathlength', 'patterncontentunits', 'patterntransform', 'patternunits', 'points', 'preservealpha', 'preserveaspectratio', 'primitiveunits', 'r', 'rx', 'ry', 'radius', 'refx', 'refy', 'repeatcount', 'repeatdur', 'restart', 'result', 'rotate', 'scale', 'seed', 'shape-rendering', 'slope', 'specularconstant', 'specularexponent', 'spreadmethod', 'startoffset', 'stddeviation', 'stitchtiles', 'stop-color', 'stop-opacity', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke', 'stroke-width', 'style', 'surfacescale', 'systemlanguage', 'tabindex', 'tablevalues', 'targetx', 'targety', 'transform', 'transform-origin', 'text-anchor', 'text-decoration', 'text-rendering', 'textlength', 'type', 'u1', 'u2', 'unicode', 'values', 'viewbox', 'visibility', 'version', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'width', 'word-spacing', 'wrap', 'writing-mode', 'xchannelselector', 'ychannelselector', 'x', 'x1', 'x2', 'xmlns', 'y', 'y1', 'y2', 'z', 'zoomandpan']);
-    const mathMl = freeze(['accent', 'accentunder', 'align', 'bevelled', 'close', 'columnalign', 'columnlines', 'columnspacing', 'columnspan', 'denomalign', 'depth', 'dir', 'display', 'displaystyle', 'encoding', 'fence', 'frame', 'height', 'href', 'id', 'largeop', 'length', 'linethickness', 'lquote', 'lspace', 'mathbackground', 'mathcolor', 'mathsize', 'mathvariant', 'maxsize', 'minsize', 'movablelimits', 'notation', 'numalign', 'open', 'rowalign', 'rowlines', 'rowspacing', 'rowspan', 'rspace', 'rquote', 'scriptlevel', 'scriptminsize', 'scriptsizemultiplier', 'selection', 'separator', 'separators', 'stretchy', 'subscriptshift', 'supscriptshift', 'symmetric', 'voffset', 'width', 'xmlns']);
-    const xml = freeze(['xlink:href', 'xml:id', 'xlink:title', 'xml:space', 'xmlns:xlink']);
-
+    const html$1 = freeze([
+    	"a",
+    	"abbr",
+    	"acronym",
+    	"address",
+    	"area",
+    	"article",
+    	"aside",
+    	"audio",
+    	"b",
+    	"bdi",
+    	"bdo",
+    	"big",
+    	"blink",
+    	"blockquote",
+    	"body",
+    	"br",
+    	"button",
+    	"canvas",
+    	"caption",
+    	"center",
+    	"cite",
+    	"code",
+    	"col",
+    	"colgroup",
+    	"content",
+    	"data",
+    	"datalist",
+    	"dd",
+    	"decorator",
+    	"del",
+    	"details",
+    	"dfn",
+    	"dialog",
+    	"dir",
+    	"div",
+    	"dl",
+    	"dt",
+    	"element",
+    	"em",
+    	"fieldset",
+    	"figcaption",
+    	"figure",
+    	"font",
+    	"footer",
+    	"form",
+    	"h1",
+    	"h2",
+    	"h3",
+    	"h4",
+    	"h5",
+    	"h6",
+    	"head",
+    	"header",
+    	"hgroup",
+    	"hr",
+    	"html",
+    	"i",
+    	"img",
+    	"input",
+    	"ins",
+    	"kbd",
+    	"label",
+    	"legend",
+    	"li",
+    	"main",
+    	"map",
+    	"mark",
+    	"marquee",
+    	"menu",
+    	"menuitem",
+    	"meter",
+    	"nav",
+    	"nobr",
+    	"ol",
+    	"optgroup",
+    	"option",
+    	"output",
+    	"p",
+    	"picture",
+    	"pre",
+    	"progress",
+    	"q",
+    	"rp",
+    	"rt",
+    	"ruby",
+    	"s",
+    	"samp",
+    	"search",
+    	"section",
+    	"select",
+    	"shadow",
+    	"slot",
+    	"small",
+    	"source",
+    	"spacer",
+    	"span",
+    	"strike",
+    	"strong",
+    	"style",
+    	"sub",
+    	"summary",
+    	"sup",
+    	"table",
+    	"tbody",
+    	"td",
+    	"template",
+    	"textarea",
+    	"tfoot",
+    	"th",
+    	"thead",
+    	"time",
+    	"tr",
+    	"track",
+    	"tt",
+    	"u",
+    	"ul",
+    	"var",
+    	"video",
+    	"wbr"
+    ]);
+    const svg$1 = freeze([
+    	"svg",
+    	"a",
+    	"altglyph",
+    	"altglyphdef",
+    	"altglyphitem",
+    	"animatecolor",
+    	"animatemotion",
+    	"animatetransform",
+    	"circle",
+    	"clippath",
+    	"defs",
+    	"desc",
+    	"ellipse",
+    	"enterkeyhint",
+    	"exportparts",
+    	"filter",
+    	"font",
+    	"g",
+    	"glyph",
+    	"glyphref",
+    	"hkern",
+    	"image",
+    	"inputmode",
+    	"line",
+    	"lineargradient",
+    	"marker",
+    	"mask",
+    	"metadata",
+    	"mpath",
+    	"part",
+    	"path",
+    	"pattern",
+    	"polygon",
+    	"polyline",
+    	"radialgradient",
+    	"rect",
+    	"stop",
+    	"style",
+    	"switch",
+    	"symbol",
+    	"text",
+    	"textpath",
+    	"title",
+    	"tref",
+    	"tspan",
+    	"view",
+    	"vkern"
+    ]);
+    const svgFilters = freeze([
+    	"feBlend",
+    	"feColorMatrix",
+    	"feComponentTransfer",
+    	"feComposite",
+    	"feConvolveMatrix",
+    	"feDiffuseLighting",
+    	"feDisplacementMap",
+    	"feDistantLight",
+    	"feDropShadow",
+    	"feFlood",
+    	"feFuncA",
+    	"feFuncB",
+    	"feFuncG",
+    	"feFuncR",
+    	"feGaussianBlur",
+    	"feImage",
+    	"feMerge",
+    	"feMergeNode",
+    	"feMorphology",
+    	"feOffset",
+    	"fePointLight",
+    	"feSpecularLighting",
+    	"feSpotLight",
+    	"feTile",
+    	"feTurbulence"
+    ]);
+    const svgDisallowed = freeze([
+    	"animate",
+    	"color-profile",
+    	"cursor",
+    	"discard",
+    	"font-face",
+    	"font-face-format",
+    	"font-face-name",
+    	"font-face-src",
+    	"font-face-uri",
+    	"foreignobject",
+    	"hatch",
+    	"hatchpath",
+    	"mesh",
+    	"meshgradient",
+    	"meshpatch",
+    	"meshrow",
+    	"missing-glyph",
+    	"script",
+    	"set",
+    	"solidcolor",
+    	"unknown",
+    	"use"
+    ]);
+    const mathMl$1 = freeze([
+    	"math",
+    	"menclose",
+    	"merror",
+    	"mfenced",
+    	"mfrac",
+    	"mglyph",
+    	"mi",
+    	"mlabeledtr",
+    	"mmultiscripts",
+    	"mn",
+    	"mo",
+    	"mover",
+    	"mpadded",
+    	"mphantom",
+    	"mroot",
+    	"mrow",
+    	"ms",
+    	"mspace",
+    	"msqrt",
+    	"mstyle",
+    	"msub",
+    	"msup",
+    	"msubsup",
+    	"mtable",
+    	"mtd",
+    	"mtext",
+    	"mtr",
+    	"munder",
+    	"munderover",
+    	"mprescripts"
+    ]);
+    const mathMlDisallowed = freeze([
+    	"maction",
+    	"maligngroup",
+    	"malignmark",
+    	"mlongdiv",
+    	"mscarries",
+    	"mscarry",
+    	"msgroup",
+    	"mstack",
+    	"msline",
+    	"msrow",
+    	"semantics",
+    	"annotation",
+    	"annotation-xml",
+    	"mprescripts",
+    	"none"
+    ]);
+    const text$1 = freeze(["#text"]);
+    const html = freeze([
+    	"accept",
+    	"action",
+    	"align",
+    	"alt",
+    	"autocapitalize",
+    	"autocomplete",
+    	"autopictureinpicture",
+    	"autoplay",
+    	"background",
+    	"bgcolor",
+    	"border",
+    	"capture",
+    	"cellpadding",
+    	"cellspacing",
+    	"checked",
+    	"cite",
+    	"class",
+    	"clear",
+    	"color",
+    	"cols",
+    	"colspan",
+    	"command",
+    	"commandfor",
+    	"controls",
+    	"controlslist",
+    	"coords",
+    	"crossorigin",
+    	"datetime",
+    	"decoding",
+    	"default",
+    	"dir",
+    	"disabled",
+    	"disablepictureinpicture",
+    	"disableremoteplayback",
+    	"download",
+    	"draggable",
+    	"enctype",
+    	"enterkeyhint",
+    	"exportparts",
+    	"face",
+    	"for",
+    	"headers",
+    	"height",
+    	"hidden",
+    	"high",
+    	"href",
+    	"hreflang",
+    	"id",
+    	"inert",
+    	"inputmode",
+    	"integrity",
+    	"ismap",
+    	"kind",
+    	"label",
+    	"lang",
+    	"list",
+    	"loading",
+    	"loop",
+    	"low",
+    	"max",
+    	"maxlength",
+    	"media",
+    	"method",
+    	"min",
+    	"minlength",
+    	"multiple",
+    	"muted",
+    	"name",
+    	"nonce",
+    	"noshade",
+    	"novalidate",
+    	"nowrap",
+    	"open",
+    	"optimum",
+    	"part",
+    	"pattern",
+    	"placeholder",
+    	"playsinline",
+    	"popover",
+    	"popovertarget",
+    	"popovertargetaction",
+    	"poster",
+    	"preload",
+    	"pubdate",
+    	"radiogroup",
+    	"readonly",
+    	"rel",
+    	"required",
+    	"rev",
+    	"reversed",
+    	"role",
+    	"rows",
+    	"rowspan",
+    	"spellcheck",
+    	"scope",
+    	"selected",
+    	"shape",
+    	"size",
+    	"sizes",
+    	"slot",
+    	"span",
+    	"srclang",
+    	"start",
+    	"src",
+    	"srcset",
+    	"step",
+    	"style",
+    	"summary",
+    	"tabindex",
+    	"title",
+    	"translate",
+    	"type",
+    	"usemap",
+    	"valign",
+    	"value",
+    	"width",
+    	"wrap",
+    	"xmlns"
+    ]);
+    const svg = freeze([
+    	"accent-height",
+    	"accumulate",
+    	"additive",
+    	"alignment-baseline",
+    	"amplitude",
+    	"ascent",
+    	"attributename",
+    	"attributetype",
+    	"azimuth",
+    	"basefrequency",
+    	"baseline-shift",
+    	"begin",
+    	"bias",
+    	"by",
+    	"class",
+    	"clip",
+    	"clippathunits",
+    	"clip-path",
+    	"clip-rule",
+    	"color",
+    	"color-interpolation",
+    	"color-interpolation-filters",
+    	"color-profile",
+    	"color-rendering",
+    	"cx",
+    	"cy",
+    	"d",
+    	"dx",
+    	"dy",
+    	"diffuseconstant",
+    	"direction",
+    	"display",
+    	"divisor",
+    	"dominant-baseline",
+    	"dur",
+    	"edgemode",
+    	"elevation",
+    	"end",
+    	"exponent",
+    	"fill",
+    	"fill-opacity",
+    	"fill-rule",
+    	"filter",
+    	"filterunits",
+    	"flood-color",
+    	"flood-opacity",
+    	"font-family",
+    	"font-size",
+    	"font-size-adjust",
+    	"font-stretch",
+    	"font-style",
+    	"font-variant",
+    	"font-weight",
+    	"fx",
+    	"fy",
+    	"g1",
+    	"g2",
+    	"glyph-name",
+    	"glyphref",
+    	"gradientunits",
+    	"gradienttransform",
+    	"height",
+    	"href",
+    	"id",
+    	"image-rendering",
+    	"in",
+    	"in2",
+    	"intercept",
+    	"k",
+    	"k1",
+    	"k2",
+    	"k3",
+    	"k4",
+    	"kerning",
+    	"keypoints",
+    	"keysplines",
+    	"keytimes",
+    	"lang",
+    	"lengthadjust",
+    	"letter-spacing",
+    	"kernelmatrix",
+    	"kernelunitlength",
+    	"lighting-color",
+    	"local",
+    	"marker-end",
+    	"marker-mid",
+    	"marker-start",
+    	"markerheight",
+    	"markerunits",
+    	"markerwidth",
+    	"maskcontentunits",
+    	"maskunits",
+    	"max",
+    	"mask",
+    	"mask-type",
+    	"media",
+    	"method",
+    	"mode",
+    	"min",
+    	"name",
+    	"numoctaves",
+    	"offset",
+    	"operator",
+    	"opacity",
+    	"order",
+    	"orient",
+    	"orientation",
+    	"origin",
+    	"overflow",
+    	"paint-order",
+    	"path",
+    	"pathlength",
+    	"patterncontentunits",
+    	"patterntransform",
+    	"patternunits",
+    	"pointer-events",
+    	"points",
+    	"preservealpha",
+    	"preserveaspectratio",
+    	"primitiveunits",
+    	"r",
+    	"rx",
+    	"ry",
+    	"radius",
+    	"refx",
+    	"refy",
+    	"repeatcount",
+    	"repeatdur",
+    	"restart",
+    	"result",
+    	"rotate",
+    	"scale",
+    	"seed",
+    	"shape-rendering",
+    	"slope",
+    	"specularconstant",
+    	"specularexponent",
+    	"spreadmethod",
+    	"startoffset",
+    	"stddeviation",
+    	"stitchtiles",
+    	"stop-color",
+    	"stop-opacity",
+    	"stroke-dasharray",
+    	"stroke-dashoffset",
+    	"stroke-linecap",
+    	"stroke-linejoin",
+    	"stroke-miterlimit",
+    	"stroke-opacity",
+    	"stroke",
+    	"stroke-width",
+    	"style",
+    	"surfacescale",
+    	"systemlanguage",
+    	"tabindex",
+    	"tablevalues",
+    	"targetx",
+    	"targety",
+    	"transform",
+    	"transform-origin",
+    	"text-anchor",
+    	"text-decoration",
+    	"text-orientation",
+    	"text-rendering",
+    	"textlength",
+    	"type",
+    	"u1",
+    	"u2",
+    	"unicode",
+    	"values",
+    	"vector-effect",
+    	"viewbox",
+    	"visibility",
+    	"version",
+    	"vert-adv-y",
+    	"vert-origin-x",
+    	"vert-origin-y",
+    	"width",
+    	"word-spacing",
+    	"wrap",
+    	"writing-mode",
+    	"xchannelselector",
+    	"ychannelselector",
+    	"x",
+    	"x1",
+    	"x2",
+    	"xmlns",
+    	"y",
+    	"y1",
+    	"y2",
+    	"z",
+    	"zoomandpan"
+    ]);
+    const mathMl = freeze([
+    	"accent",
+    	"accentunder",
+    	"align",
+    	"bevelled",
+    	"close",
+    	"columnalign",
+    	"columnlines",
+    	"columnspacing",
+    	"columnspan",
+    	"denomalign",
+    	"depth",
+    	"dir",
+    	"display",
+    	"displaystyle",
+    	"encoding",
+    	"fence",
+    	"frame",
+    	"height",
+    	"href",
+    	"id",
+    	"largeop",
+    	"length",
+    	"linethickness",
+    	"lquote",
+    	"lspace",
+    	"mathbackground",
+    	"mathcolor",
+    	"mathsize",
+    	"mathvariant",
+    	"maxsize",
+    	"minsize",
+    	"movablelimits",
+    	"notation",
+    	"numalign",
+    	"open",
+    	"rowalign",
+    	"rowlines",
+    	"rowspacing",
+    	"rowspan",
+    	"rspace",
+    	"rquote",
+    	"scriptlevel",
+    	"scriptminsize",
+    	"scriptsizemultiplier",
+    	"selection",
+    	"separator",
+    	"separators",
+    	"stretchy",
+    	"subscriptshift",
+    	"supscriptshift",
+    	"symmetric",
+    	"voffset",
+    	"width",
+    	"xmlns"
+    ]);
+    const xml = freeze([
+    	"xlink:href",
+    	"xml:id",
+    	"xlink:title",
+    	"xml:space",
+    	"xmlns:xlink"
+    ]);
     const MUSTACHE_EXPR = seal(/{{[\w\W]*|^[\w\W]*}}/g);
     const ERB_EXPR = seal(/<%[\w\W]*|^[\w\W]*%>/g);
     const TMPLIT_EXPR = seal(/\${[\w\W]*/g);
-    const DATA_ATTR = seal(/^data-[\-\w.\u00B7-\uFFFF]+$/); // eslint-disable-line no-useless-escape
-    const ARIA_ATTR = seal(/^aria-[\-\w]+$/); // eslint-disable-line no-useless-escape
-    const IS_ALLOWED_URI = seal(/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i // eslint-disable-line no-useless-escape
-    );
+    const DATA_ATTR = seal(/^data-[\-\w.\u00B7-\uFFFF]+$/);
+    const ARIA_ATTR = seal(/^aria-[\-\w]+$/);
+    const IS_ALLOWED_URI = seal(/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i);
     const IS_SCRIPT_OR_DATA = seal(/^(?:\w+script|data):/i);
-    const ATTR_WHITESPACE = seal(/[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]/g // eslint-disable-line no-control-regex
-    );
+    const ATTR_WHITESPACE = seal(/[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]/g);
     const DOCTYPE_NAME = seal(/^html$/i);
     const CUSTOM_ELEMENT = seal(/^[a-z][.\w]*(-[.\w]+)+$/i);
-
-    /* eslint-disable @typescript-eslint/indent */
-    // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
+    const ELEMENT_MARKUP_PROBE = seal(/<[/\w!]/g);
+    const COMMENT_MARKUP_PROBE = seal(/<[/\w]/g);
+    const FALLBACK_TAG_CLOSE = seal(/<\/no(script|embed|frames)/i);
+    const SELF_CLOSING_TAG = seal(/\/>/i);
     const NODE_TYPE = {
-      element: 1,
-      text: 3,
-      // Deprecated
-      progressingInstruction: 7,
-      comment: 8,
-      document: 9};
+    	element: 1,
+    	attribute: 2,
+    	text: 3,
+    	cdataSection: 4,
+    	entityReference: 5,
+    	entityNode: 6,
+    	processingInstruction: 7,
+    	comment: 8,
+    	document: 9,
+    	documentType: 10,
+    	documentFragment: 11,
+    	notation: 12
+    };
+    const LITERAL_TEXT_ELEMENTS = freeze(addToSet({}, [
+    	"style",
+    	"script",
+    	"xmp",
+    	"iframe",
+    	"noembed",
+    	"noframes",
+    	"plaintext",
+    	"noscript"
+    ]));
     const getGlobal = function getGlobal() {
-      return typeof window === 'undefined' ? null : window;
+    	return typeof window === "undefined" ? null : window;
     };
     /**
-     * Creates a no-op policy for internal use only.
-     * Don't export this function outside this module!
-     * @param trustedTypes The policy factory.
-     * @param purifyHostElement The Script element used to load DOMPurify (to determine policy name suffix).
-     * @return The policy created (or null, if Trusted Types
-     * are not supported or creating the policy failed).
-     */
+    * Creates a no-op policy for internal use only.
+    * Don't export this function outside this module!
+    * @param trustedTypes The policy factory.
+    * @param purifyHostElement The Script element used to load DOMPurify (to determine policy name suffix).
+    * @return The policy created (or null, if Trusted Types
+    * are not supported or creating the policy failed).
+    */
     const _createTrustedTypesPolicy = function _createTrustedTypesPolicy(trustedTypes, purifyHostElement) {
-      if (typeof trustedTypes !== 'object' || typeof trustedTypes.createPolicy !== 'function') {
-        return null;
-      }
-      // Allow the callers to control the unique policy name
-      // by adding a data-tt-policy-suffix to the script element with the DOMPurify.
-      // Policy creation with duplicate names throws in Trusted Types.
-      let suffix = null;
-      const ATTR_NAME = 'data-tt-policy-suffix';
-      if (purifyHostElement && purifyHostElement.hasAttribute(ATTR_NAME)) {
-        suffix = purifyHostElement.getAttribute(ATTR_NAME);
-      }
-      const policyName = 'dompurify' + (suffix ? '#' + suffix : '');
-      try {
-        return trustedTypes.createPolicy(policyName, {
-          createHTML(html) {
-            return html;
-          },
-          createScriptURL(scriptUrl) {
-            return scriptUrl;
-          }
-        });
-      } catch (_) {
-        // Policy creation failed (most likely another DOMPurify script has
-        // already run). Skip creating the policy, as this will only cause errors
-        // if TT are enforced.
-        console.warn('TrustedTypes policy ' + policyName + ' could not be created.');
-        return null;
-      }
+    	if (typeof trustedTypes !== "object" || typeof trustedTypes.createPolicy !== "function") return null;
+    	let suffix = null;
+    	const ATTR_NAME = "data-tt-policy-suffix";
+    	if (purifyHostElement && purifyHostElement.hasAttribute(ATTR_NAME)) suffix = purifyHostElement.getAttribute(ATTR_NAME);
+    	const policyName = "dompurify" + (suffix ? "#" + suffix : "");
+    	try {
+    		return trustedTypes.createPolicy(policyName, {
+    			createHTML(html) {
+    				return html;
+    			},
+    			createScriptURL(scriptUrl) {
+    				return scriptUrl;
+    			}
+    		});
+    	} catch (_) {
+    		console.warn("TrustedTypes policy " + policyName + " could not be created.");
+    		return null;
+    	}
     };
     const _createHooksMap = function _createHooksMap() {
-      return {
-        afterSanitizeAttributes: [],
-        afterSanitizeElements: [],
-        afterSanitizeShadowDOM: [],
-        beforeSanitizeAttributes: [],
-        beforeSanitizeElements: [],
-        beforeSanitizeShadowDOM: [],
-        uponSanitizeAttribute: [],
-        uponSanitizeElement: [],
-        uponSanitizeShadowNode: []
-      };
+    	return {
+    		afterSanitizeAttributes: [],
+    		afterSanitizeElements: [],
+    		afterSanitizeShadowDOM: [],
+    		beforeSanitizeAttributes: [],
+    		beforeSanitizeElements: [],
+    		beforeSanitizeShadowDOM: [],
+    		uponSanitizeAttribute: [],
+    		uponSanitizeElement: [],
+    		uponSanitizeShadowNode: []
+    	};
+    };
+    /**
+    * Resolve a set-valued configuration option: a fresh set built from
+    * cfg[key] when it is an own array property (seeded with a clone of
+    * options.base when given, case-normalized via options.transform),
+    * the fallback set otherwise.
+    *
+    * @param cfg the cloned, prototype-free configuration object
+    * @param key the configuration property to read
+    * @param fallback the set to use when the option is absent or not an array
+    * @param options transform and optional base set to merge into
+    * @returns the resolved set
+    */
+    const _resolveSetOption = function _resolveSetOption(cfg, key, fallback, options) {
+    	return objectHasOwnProperty(cfg, key) && arrayIsArray(cfg[key]) ? addToSet(options.base ? clone(options.base) : {}, cfg[key], options.transform) : fallback;
+    };
+    /**
+    * Resolve an object-valued configuration option: a prototype-free clone
+    * of cfg[key] when it is an own, truthy object property, else a fresh
+    * fallback built by makeFallback (fresh on every parse, so a previous
+    * parse can never leak state into the next one).
+    *
+    * @param cfg the cloned, prototype-free configuration object
+    * @param key the configuration property to read
+    * @param makeFallback builds the fallback value when the option is absent
+    * @returns the resolved object
+    */
+    const _resolveObjectOption = function _resolveObjectOption(cfg, key, makeFallback) {
+    	const value = objectHasOwnProperty(cfg, key) ? cfg[key] : void 0;
+    	return value && typeof value === "object" ? clone(value) : makeFallback();
     };
     function createDOMPurify() {
-      let window = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : getGlobal();
-      const DOMPurify = root => createDOMPurify(root);
-      DOMPurify.version = '3.4.5';
-      DOMPurify.removed = [];
-      if (!window || !window.document || window.document.nodeType !== NODE_TYPE.document || !window.Element) {
-        // Not running in a browser, provide a factory function
-        // so that you can pass your own Window
-        DOMPurify.isSupported = false;
-        return DOMPurify;
-      }
-      let document = window.document;
-      const originalDocument = document;
-      const currentScript = originalDocument.currentScript;
-      const DocumentFragment = window.DocumentFragment,
-        HTMLTemplateElement = window.HTMLTemplateElement,
-        Node = window.Node,
-        Element = window.Element,
-        NodeFilter = window.NodeFilter,
-        _window$NamedNodeMap = window.NamedNodeMap,
-        NamedNodeMap = _window$NamedNodeMap === void 0 ? window.NamedNodeMap || window.MozNamedAttrMap : _window$NamedNodeMap,
-        HTMLFormElement = window.HTMLFormElement,
-        DOMParser = window.DOMParser,
-        trustedTypes = window.trustedTypes;
-      const ElementPrototype = Element.prototype;
-      const cloneNode = lookupGetter(ElementPrototype, 'cloneNode');
-      const remove = lookupGetter(ElementPrototype, 'remove');
-      const getNextSibling = lookupGetter(ElementPrototype, 'nextSibling');
-      const getChildNodes = lookupGetter(ElementPrototype, 'childNodes');
-      const getParentNode = lookupGetter(ElementPrototype, 'parentNode');
-      const getNodeType = Node && Node.prototype ? lookupGetter(Node.prototype, 'nodeType') : null;
-      // As per issue #47, the web-components registry is inherited by a
-      // new document created via createHTMLDocument. As per the spec
-      // (http://w3c.github.io/webcomponents/spec/custom/#creating-and-passing-registries)
-      // a new empty registry is used when creating a template contents owner
-      // document, so we use that as our parent document to ensure nothing
-      // is inherited.
-      if (typeof HTMLTemplateElement === 'function') {
-        const template = document.createElement('template');
-        if (template.content && template.content.ownerDocument) {
-          document = template.content.ownerDocument;
-        }
-      }
-      let trustedTypesPolicy;
-      let emptyHTML = '';
-      const _document = document,
-        implementation = _document.implementation,
-        createNodeIterator = _document.createNodeIterator,
-        createDocumentFragment = _document.createDocumentFragment,
-        getElementsByTagName = _document.getElementsByTagName;
-      const importNode = originalDocument.importNode;
-      let hooks = _createHooksMap();
-      /**
-       * Expose whether this browser supports running the full DOMPurify.
-       */
-      DOMPurify.isSupported = typeof entries === 'function' && typeof getParentNode === 'function' && implementation && implementation.createHTMLDocument !== undefined;
-      const MUSTACHE_EXPR$1 = MUSTACHE_EXPR,
-        ERB_EXPR$1 = ERB_EXPR,
-        TMPLIT_EXPR$1 = TMPLIT_EXPR,
-        DATA_ATTR$1 = DATA_ATTR,
-        ARIA_ATTR$1 = ARIA_ATTR,
-        IS_SCRIPT_OR_DATA$1 = IS_SCRIPT_OR_DATA,
-        ATTR_WHITESPACE$1 = ATTR_WHITESPACE,
-        CUSTOM_ELEMENT$1 = CUSTOM_ELEMENT;
-      let IS_ALLOWED_URI$1 = IS_ALLOWED_URI;
-      /**
-       * We consider the elements and attributes below to be safe. Ideally
-       * don't add any new ones but feel free to remove unwanted ones.
-       */
-      /* allowed element names */
-      let ALLOWED_TAGS = null;
-      const DEFAULT_ALLOWED_TAGS = addToSet({}, [...html$1, ...svg$1, ...svgFilters, ...mathMl$1, ...text$1]);
-      /* Allowed attribute names */
-      let ALLOWED_ATTR = null;
-      const DEFAULT_ALLOWED_ATTR = addToSet({}, [...html, ...svg, ...mathMl, ...xml]);
-      /*
-       * Configure how DOMPurify should handle custom elements and their attributes as well as customized built-in elements.
-       * @property {RegExp|Function|null} tagNameCheck one of [null, regexPattern, predicate]. Default: `null` (disallow any custom elements)
-       * @property {RegExp|Function|null} attributeNameCheck one of [null, regexPattern, predicate]. Default: `null` (disallow any attributes not on the allow list)
-       * @property {boolean} allowCustomizedBuiltInElements allow custom elements derived from built-ins if they pass CUSTOM_ELEMENT_HANDLING.tagNameCheck. Default: `false`.
-       */
-      let CUSTOM_ELEMENT_HANDLING = Object.seal(create$1(null, {
-        tagNameCheck: {
-          writable: true,
-          configurable: false,
-          enumerable: true,
-          value: null
-        },
-        attributeNameCheck: {
-          writable: true,
-          configurable: false,
-          enumerable: true,
-          value: null
-        },
-        allowCustomizedBuiltInElements: {
-          writable: true,
-          configurable: false,
-          enumerable: true,
-          value: false
-        }
-      }));
-      /* Explicitly forbidden tags (overrides ALLOWED_TAGS/ADD_TAGS) */
-      let FORBID_TAGS = null;
-      /* Explicitly forbidden attributes (overrides ALLOWED_ATTR/ADD_ATTR) */
-      let FORBID_ATTR = null;
-      /* Config object to store ADD_TAGS/ADD_ATTR functions (when used as functions) */
-      const EXTRA_ELEMENT_HANDLING = Object.seal(create$1(null, {
-        tagCheck: {
-          writable: true,
-          configurable: false,
-          enumerable: true,
-          value: null
-        },
-        attributeCheck: {
-          writable: true,
-          configurable: false,
-          enumerable: true,
-          value: null
-        }
-      }));
-      /* Decide if ARIA attributes are okay */
-      let ALLOW_ARIA_ATTR = true;
-      /* Decide if custom data attributes are okay */
-      let ALLOW_DATA_ATTR = true;
-      /* Decide if unknown protocols are okay */
-      let ALLOW_UNKNOWN_PROTOCOLS = false;
-      /* Decide if self-closing tags in attributes are allowed.
-       * Usually removed due to a mXSS issue in jQuery 3.0 */
-      let ALLOW_SELF_CLOSE_IN_ATTR = true;
-      /* Output should be safe for common template engines.
-       * This means, DOMPurify removes data attributes, mustaches and ERB
-       */
-      let SAFE_FOR_TEMPLATES = false;
-      /* Output should be safe even for XML used within HTML and alike.
-       * This means, DOMPurify removes comments when containing risky content.
-       */
-      let SAFE_FOR_XML = true;
-      /* Decide if document with <html>... should be returned */
-      let WHOLE_DOCUMENT = false;
-      /* Track whether config is already set on this instance of DOMPurify. */
-      let SET_CONFIG = false;
-      /* Decide if all elements (e.g. style, script) must be children of
-       * document.body. By default, browsers might move them to document.head */
-      let FORCE_BODY = false;
-      /* Decide if a DOM `HTMLBodyElement` should be returned, instead of a html
-       * string (or a TrustedHTML object if Trusted Types are supported).
-       * If `WHOLE_DOCUMENT` is enabled a `HTMLHtmlElement` will be returned instead
-       */
-      let RETURN_DOM = false;
-      /* Decide if a DOM `DocumentFragment` should be returned, instead of a html
-       * string  (or a TrustedHTML object if Trusted Types are supported) */
-      let RETURN_DOM_FRAGMENT = false;
-      /* Try to return a Trusted Type object instead of a string, return a string in
-       * case Trusted Types are not supported  */
-      let RETURN_TRUSTED_TYPE = false;
-      /* Output should be free from DOM clobbering attacks?
-       * This sanitizes markups named with colliding, clobberable built-in DOM APIs.
-       */
-      let SANITIZE_DOM = true;
-      /* Achieve full DOM Clobbering protection by isolating the namespace of named
-       * properties and JS variables, mitigating attacks that abuse the HTML/DOM spec rules.
-       *
-       * HTML/DOM spec rules that enable DOM Clobbering:
-       *   - Named Access on Window (§7.3.3)
-       *   - DOM Tree Accessors (§3.1.5)
-       *   - Form Element Parent-Child Relations (§4.10.3)
-       *   - Iframe srcdoc / Nested WindowProxies (§4.8.5)
-       *   - HTMLCollection (§4.2.10.2)
-       *
-       * Namespace isolation is implemented by prefixing `id` and `name` attributes
-       * with a constant string, i.e., `user-content-`
-       */
-      let SANITIZE_NAMED_PROPS = false;
-      const SANITIZE_NAMED_PROPS_PREFIX = 'user-content-';
-      /* Keep element content when removing element? */
-      let KEEP_CONTENT = true;
-      /* If a `Node` is passed to sanitize(), then performs sanitization in-place instead
-       * of importing it into a new Document and returning a sanitized copy */
-      let IN_PLACE = false;
-      /* Allow usage of profiles like html, svg and mathMl */
-      let USE_PROFILES = {};
-      /* Tags to ignore content of when KEEP_CONTENT is true */
-      let FORBID_CONTENTS = null;
-      const DEFAULT_FORBID_CONTENTS = addToSet({}, ['annotation-xml', 'audio', 'colgroup', 'desc', 'foreignobject', 'head', 'iframe', 'math', 'mi', 'mn', 'mo', 'ms', 'mtext', 'noembed', 'noframes', 'noscript', 'plaintext', 'script', 'style', 'svg', 'template', 'thead', 'title', 'video', 'xmp']);
-      /* Tags that are safe for data: URIs */
-      let DATA_URI_TAGS = null;
-      const DEFAULT_DATA_URI_TAGS = addToSet({}, ['audio', 'video', 'img', 'source', 'image', 'track']);
-      /* Attributes safe for values like "javascript:" */
-      let URI_SAFE_ATTRIBUTES = null;
-      const DEFAULT_URI_SAFE_ATTRIBUTES = addToSet({}, ['alt', 'class', 'for', 'id', 'label', 'name', 'pattern', 'placeholder', 'role', 'summary', 'title', 'value', 'style', 'xmlns']);
-      const MATHML_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
-      const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-      const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
-      /* Document namespace */
-      let NAMESPACE = HTML_NAMESPACE;
-      let IS_EMPTY_INPUT = false;
-      /* Allowed XHTML+XML namespaces */
-      let ALLOWED_NAMESPACES = null;
-      const DEFAULT_ALLOWED_NAMESPACES = addToSet({}, [MATHML_NAMESPACE, SVG_NAMESPACE, HTML_NAMESPACE], stringToString);
-      let MATHML_TEXT_INTEGRATION_POINTS = addToSet({}, ['mi', 'mo', 'mn', 'ms', 'mtext']);
-      let HTML_INTEGRATION_POINTS = addToSet({}, ['annotation-xml']);
-      // Certain elements are allowed in both SVG and HTML
-      // namespace. We need to specify them explicitly
-      // so that they don't get erroneously deleted from
-      // HTML namespace.
-      const COMMON_SVG_AND_HTML_ELEMENTS = addToSet({}, ['title', 'style', 'font', 'a', 'script']);
-      /* Parsing of strict XHTML documents */
-      let PARSER_MEDIA_TYPE = null;
-      const SUPPORTED_PARSER_MEDIA_TYPES = ['application/xhtml+xml', 'text/html'];
-      const DEFAULT_PARSER_MEDIA_TYPE = 'text/html';
-      let transformCaseFunc = null;
-      /* Keep a reference to config to pass to hooks */
-      let CONFIG = null;
-      /* Ideally, do not touch anything below this line */
-      /* ______________________________________________ */
-      const formElement = document.createElement('form');
-      const isRegexOrFunction = function isRegexOrFunction(testValue) {
-        return testValue instanceof RegExp || testValue instanceof Function;
-      };
-      /**
-       * _parseConfig
-       *
-       * @param cfg optional config literal
-       */
-      // eslint-disable-next-line complexity
-      const _parseConfig = function _parseConfig() {
-        let cfg = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-        if (CONFIG && CONFIG === cfg) {
-          return;
-        }
-        /* Shield configuration object from tampering */
-        if (!cfg || typeof cfg !== 'object') {
-          cfg = {};
-        }
-        /* Shield configuration object from prototype pollution */
-        cfg = clone(cfg);
-        PARSER_MEDIA_TYPE =
-        // eslint-disable-next-line unicorn/prefer-includes
-        SUPPORTED_PARSER_MEDIA_TYPES.indexOf(cfg.PARSER_MEDIA_TYPE) === -1 ? DEFAULT_PARSER_MEDIA_TYPE : cfg.PARSER_MEDIA_TYPE;
-        // HTML tags and attributes are not case-sensitive, converting to lowercase. Keeping XHTML as is.
-        transformCaseFunc = PARSER_MEDIA_TYPE === 'application/xhtml+xml' ? stringToString : stringToLowerCase;
-        /* Set configuration parameters */
-        ALLOWED_TAGS = objectHasOwnProperty(cfg, 'ALLOWED_TAGS') && arrayIsArray(cfg.ALLOWED_TAGS) ? addToSet({}, cfg.ALLOWED_TAGS, transformCaseFunc) : DEFAULT_ALLOWED_TAGS;
-        ALLOWED_ATTR = objectHasOwnProperty(cfg, 'ALLOWED_ATTR') && arrayIsArray(cfg.ALLOWED_ATTR) ? addToSet({}, cfg.ALLOWED_ATTR, transformCaseFunc) : DEFAULT_ALLOWED_ATTR;
-        ALLOWED_NAMESPACES = objectHasOwnProperty(cfg, 'ALLOWED_NAMESPACES') && arrayIsArray(cfg.ALLOWED_NAMESPACES) ? addToSet({}, cfg.ALLOWED_NAMESPACES, stringToString) : DEFAULT_ALLOWED_NAMESPACES;
-        URI_SAFE_ATTRIBUTES = objectHasOwnProperty(cfg, 'ADD_URI_SAFE_ATTR') && arrayIsArray(cfg.ADD_URI_SAFE_ATTR) ? addToSet(clone(DEFAULT_URI_SAFE_ATTRIBUTES), cfg.ADD_URI_SAFE_ATTR, transformCaseFunc) : DEFAULT_URI_SAFE_ATTRIBUTES;
-        DATA_URI_TAGS = objectHasOwnProperty(cfg, 'ADD_DATA_URI_TAGS') && arrayIsArray(cfg.ADD_DATA_URI_TAGS) ? addToSet(clone(DEFAULT_DATA_URI_TAGS), cfg.ADD_DATA_URI_TAGS, transformCaseFunc) : DEFAULT_DATA_URI_TAGS;
-        FORBID_CONTENTS = objectHasOwnProperty(cfg, 'FORBID_CONTENTS') && arrayIsArray(cfg.FORBID_CONTENTS) ? addToSet({}, cfg.FORBID_CONTENTS, transformCaseFunc) : DEFAULT_FORBID_CONTENTS;
-        FORBID_TAGS = objectHasOwnProperty(cfg, 'FORBID_TAGS') && arrayIsArray(cfg.FORBID_TAGS) ? addToSet({}, cfg.FORBID_TAGS, transformCaseFunc) : clone({});
-        FORBID_ATTR = objectHasOwnProperty(cfg, 'FORBID_ATTR') && arrayIsArray(cfg.FORBID_ATTR) ? addToSet({}, cfg.FORBID_ATTR, transformCaseFunc) : clone({});
-        USE_PROFILES = objectHasOwnProperty(cfg, 'USE_PROFILES') ? cfg.USE_PROFILES && typeof cfg.USE_PROFILES === 'object' ? clone(cfg.USE_PROFILES) : cfg.USE_PROFILES : false;
-        ALLOW_ARIA_ATTR = cfg.ALLOW_ARIA_ATTR !== false; // Default true
-        ALLOW_DATA_ATTR = cfg.ALLOW_DATA_ATTR !== false; // Default true
-        ALLOW_UNKNOWN_PROTOCOLS = cfg.ALLOW_UNKNOWN_PROTOCOLS || false; // Default false
-        ALLOW_SELF_CLOSE_IN_ATTR = cfg.ALLOW_SELF_CLOSE_IN_ATTR !== false; // Default true
-        SAFE_FOR_TEMPLATES = cfg.SAFE_FOR_TEMPLATES || false; // Default false
-        SAFE_FOR_XML = cfg.SAFE_FOR_XML !== false; // Default true
-        WHOLE_DOCUMENT = cfg.WHOLE_DOCUMENT || false; // Default false
-        RETURN_DOM = cfg.RETURN_DOM || false; // Default false
-        RETURN_DOM_FRAGMENT = cfg.RETURN_DOM_FRAGMENT || false; // Default false
-        RETURN_TRUSTED_TYPE = cfg.RETURN_TRUSTED_TYPE || false; // Default false
-        FORCE_BODY = cfg.FORCE_BODY || false; // Default false
-        SANITIZE_DOM = cfg.SANITIZE_DOM !== false; // Default true
-        SANITIZE_NAMED_PROPS = cfg.SANITIZE_NAMED_PROPS || false; // Default false
-        KEEP_CONTENT = cfg.KEEP_CONTENT !== false; // Default true
-        IN_PLACE = cfg.IN_PLACE || false; // Default false
-        IS_ALLOWED_URI$1 = isRegex(cfg.ALLOWED_URI_REGEXP) ? cfg.ALLOWED_URI_REGEXP : IS_ALLOWED_URI; // Default regexp
-        NAMESPACE = typeof cfg.NAMESPACE === 'string' ? cfg.NAMESPACE : HTML_NAMESPACE; // Default HTML namespace
-        MATHML_TEXT_INTEGRATION_POINTS = objectHasOwnProperty(cfg, 'MATHML_TEXT_INTEGRATION_POINTS') && cfg.MATHML_TEXT_INTEGRATION_POINTS && typeof cfg.MATHML_TEXT_INTEGRATION_POINTS === 'object' ? clone(cfg.MATHML_TEXT_INTEGRATION_POINTS) : addToSet({}, ['mi', 'mo', 'mn', 'ms', 'mtext']); // Default built-in map
-        HTML_INTEGRATION_POINTS = objectHasOwnProperty(cfg, 'HTML_INTEGRATION_POINTS') && cfg.HTML_INTEGRATION_POINTS && typeof cfg.HTML_INTEGRATION_POINTS === 'object' ? clone(cfg.HTML_INTEGRATION_POINTS) : addToSet({}, ['annotation-xml']); // Default built-in map
-        const customElementHandling = objectHasOwnProperty(cfg, 'CUSTOM_ELEMENT_HANDLING') && cfg.CUSTOM_ELEMENT_HANDLING && typeof cfg.CUSTOM_ELEMENT_HANDLING === 'object' ? clone(cfg.CUSTOM_ELEMENT_HANDLING) : create$1(null);
-        CUSTOM_ELEMENT_HANDLING = create$1(null);
-        if (objectHasOwnProperty(customElementHandling, 'tagNameCheck') && isRegexOrFunction(customElementHandling.tagNameCheck)) {
-          CUSTOM_ELEMENT_HANDLING.tagNameCheck = customElementHandling.tagNameCheck; // Default undefined
-        }
-        if (objectHasOwnProperty(customElementHandling, 'attributeNameCheck') && isRegexOrFunction(customElementHandling.attributeNameCheck)) {
-          CUSTOM_ELEMENT_HANDLING.attributeNameCheck = customElementHandling.attributeNameCheck; // Default undefined
-        }
-        if (objectHasOwnProperty(customElementHandling, 'allowCustomizedBuiltInElements') && typeof customElementHandling.allowCustomizedBuiltInElements === 'boolean') {
-          CUSTOM_ELEMENT_HANDLING.allowCustomizedBuiltInElements = customElementHandling.allowCustomizedBuiltInElements; // Default undefined
-        }
-        if (SAFE_FOR_TEMPLATES) {
-          ALLOW_DATA_ATTR = false;
-        }
-        if (RETURN_DOM_FRAGMENT) {
-          RETURN_DOM = true;
-        }
-        /* Parse profile info */
-        if (USE_PROFILES) {
-          ALLOWED_TAGS = addToSet({}, text$1);
-          ALLOWED_ATTR = create$1(null);
-          if (USE_PROFILES.html === true) {
-            addToSet(ALLOWED_TAGS, html$1);
-            addToSet(ALLOWED_ATTR, html);
-          }
-          if (USE_PROFILES.svg === true) {
-            addToSet(ALLOWED_TAGS, svg$1);
-            addToSet(ALLOWED_ATTR, svg);
-            addToSet(ALLOWED_ATTR, xml);
-          }
-          if (USE_PROFILES.svgFilters === true) {
-            addToSet(ALLOWED_TAGS, svgFilters);
-            addToSet(ALLOWED_ATTR, svg);
-            addToSet(ALLOWED_ATTR, xml);
-          }
-          if (USE_PROFILES.mathMl === true) {
-            addToSet(ALLOWED_TAGS, mathMl$1);
-            addToSet(ALLOWED_ATTR, mathMl);
-            addToSet(ALLOWED_ATTR, xml);
-          }
-        }
-        /* Always reset function-based ADD_TAGS / ADD_ATTR checks to prevent
-         * leaking across calls when switching from function to array config */
-        EXTRA_ELEMENT_HANDLING.tagCheck = null;
-        EXTRA_ELEMENT_HANDLING.attributeCheck = null;
-        /* Merge configuration parameters */
-        if (objectHasOwnProperty(cfg, 'ADD_TAGS')) {
-          if (typeof cfg.ADD_TAGS === 'function') {
-            EXTRA_ELEMENT_HANDLING.tagCheck = cfg.ADD_TAGS;
-          } else if (arrayIsArray(cfg.ADD_TAGS)) {
-            if (ALLOWED_TAGS === DEFAULT_ALLOWED_TAGS) {
-              ALLOWED_TAGS = clone(ALLOWED_TAGS);
-            }
-            addToSet(ALLOWED_TAGS, cfg.ADD_TAGS, transformCaseFunc);
-          }
-        }
-        if (objectHasOwnProperty(cfg, 'ADD_ATTR')) {
-          if (typeof cfg.ADD_ATTR === 'function') {
-            EXTRA_ELEMENT_HANDLING.attributeCheck = cfg.ADD_ATTR;
-          } else if (arrayIsArray(cfg.ADD_ATTR)) {
-            if (ALLOWED_ATTR === DEFAULT_ALLOWED_ATTR) {
-              ALLOWED_ATTR = clone(ALLOWED_ATTR);
-            }
-            addToSet(ALLOWED_ATTR, cfg.ADD_ATTR, transformCaseFunc);
-          }
-        }
-        if (objectHasOwnProperty(cfg, 'ADD_URI_SAFE_ATTR') && arrayIsArray(cfg.ADD_URI_SAFE_ATTR)) {
-          addToSet(URI_SAFE_ATTRIBUTES, cfg.ADD_URI_SAFE_ATTR, transformCaseFunc);
-        }
-        if (objectHasOwnProperty(cfg, 'FORBID_CONTENTS') && arrayIsArray(cfg.FORBID_CONTENTS)) {
-          if (FORBID_CONTENTS === DEFAULT_FORBID_CONTENTS) {
-            FORBID_CONTENTS = clone(FORBID_CONTENTS);
-          }
-          addToSet(FORBID_CONTENTS, cfg.FORBID_CONTENTS, transformCaseFunc);
-        }
-        if (objectHasOwnProperty(cfg, 'ADD_FORBID_CONTENTS') && arrayIsArray(cfg.ADD_FORBID_CONTENTS)) {
-          if (FORBID_CONTENTS === DEFAULT_FORBID_CONTENTS) {
-            FORBID_CONTENTS = clone(FORBID_CONTENTS);
-          }
-          addToSet(FORBID_CONTENTS, cfg.ADD_FORBID_CONTENTS, transformCaseFunc);
-        }
-        /* Add #text in case KEEP_CONTENT is set to true */
-        if (KEEP_CONTENT) {
-          ALLOWED_TAGS['#text'] = true;
-        }
-        /* Add html, head and body to ALLOWED_TAGS in case WHOLE_DOCUMENT is true */
-        if (WHOLE_DOCUMENT) {
-          addToSet(ALLOWED_TAGS, ['html', 'head', 'body']);
-        }
-        /* Add tbody to ALLOWED_TAGS in case tables are permitted, see #286, #365 */
-        if (ALLOWED_TAGS.table) {
-          addToSet(ALLOWED_TAGS, ['tbody']);
-          delete FORBID_TAGS.tbody;
-        }
-        if (cfg.TRUSTED_TYPES_POLICY) {
-          if (typeof cfg.TRUSTED_TYPES_POLICY.createHTML !== 'function') {
-            throw typeErrorCreate('TRUSTED_TYPES_POLICY configuration option must provide a "createHTML" hook.');
-          }
-          if (typeof cfg.TRUSTED_TYPES_POLICY.createScriptURL !== 'function') {
-            throw typeErrorCreate('TRUSTED_TYPES_POLICY configuration option must provide a "createScriptURL" hook.');
-          }
-          // Overwrite existing TrustedTypes policy.
-          trustedTypesPolicy = cfg.TRUSTED_TYPES_POLICY;
-          // Sign local variables required by `sanitize`.
-          emptyHTML = trustedTypesPolicy.createHTML('');
-        } else {
-          // Uninitialized policy, attempt to initialize the internal dompurify policy.
-          if (trustedTypesPolicy === undefined) {
-            trustedTypesPolicy = _createTrustedTypesPolicy(trustedTypes, currentScript);
-          }
-          // If creating the internal policy succeeded sign internal variables.
-          if (trustedTypesPolicy !== null && typeof emptyHTML === 'string') {
-            emptyHTML = trustedTypesPolicy.createHTML('');
-          }
-        }
-        // Prevent further manipulation of configuration.
-        // Not available in IE8, Safari 5, etc.
-        if (freeze) {
-          freeze(cfg);
-        }
-        CONFIG = cfg;
-      };
-      /* Keep track of all possible SVG and MathML tags
-       * so that we can perform the namespace checks
-       * correctly. */
-      const ALL_SVG_TAGS = addToSet({}, [...svg$1, ...svgFilters, ...svgDisallowed]);
-      const ALL_MATHML_TAGS = addToSet({}, [...mathMl$1, ...mathMlDisallowed]);
-      /**
-       * @param element a DOM element whose namespace is being checked
-       * @returns Return false if the element has a
-       *  namespace that a spec-compliant parser would never
-       *  return. Return true otherwise.
-       */
-      const _checkValidNamespace = function _checkValidNamespace(element) {
-        let parent = getParentNode(element);
-        // In JSDOM, if we're inside shadow DOM, then parentNode
-        // can be null. We just simulate parent in this case.
-        if (!parent || !parent.tagName) {
-          parent = {
-            namespaceURI: NAMESPACE,
-            tagName: 'template'
-          };
-        }
-        const tagName = stringToLowerCase(element.tagName);
-        const parentTagName = stringToLowerCase(parent.tagName);
-        if (!ALLOWED_NAMESPACES[element.namespaceURI]) {
-          return false;
-        }
-        if (element.namespaceURI === SVG_NAMESPACE) {
-          // The only way to switch from HTML namespace to SVG
-          // is via <svg>. If it happens via any other tag, then
-          // it should be killed.
-          if (parent.namespaceURI === HTML_NAMESPACE) {
-            return tagName === 'svg';
-          }
-          // The only way to switch from MathML to SVG is via`
-          // svg if parent is either <annotation-xml> or MathML
-          // text integration points.
-          if (parent.namespaceURI === MATHML_NAMESPACE) {
-            return tagName === 'svg' && (parentTagName === 'annotation-xml' || MATHML_TEXT_INTEGRATION_POINTS[parentTagName]);
-          }
-          // We only allow elements that are defined in SVG
-          // spec. All others are disallowed in SVG namespace.
-          return Boolean(ALL_SVG_TAGS[tagName]);
-        }
-        if (element.namespaceURI === MATHML_NAMESPACE) {
-          // The only way to switch from HTML namespace to MathML
-          // is via <math>. If it happens via any other tag, then
-          // it should be killed.
-          if (parent.namespaceURI === HTML_NAMESPACE) {
-            return tagName === 'math';
-          }
-          // The only way to switch from SVG to MathML is via
-          // <math> and HTML integration points
-          if (parent.namespaceURI === SVG_NAMESPACE) {
-            return tagName === 'math' && HTML_INTEGRATION_POINTS[parentTagName];
-          }
-          // We only allow elements that are defined in MathML
-          // spec. All others are disallowed in MathML namespace.
-          return Boolean(ALL_MATHML_TAGS[tagName]);
-        }
-        if (element.namespaceURI === HTML_NAMESPACE) {
-          // The only way to switch from SVG to HTML is via
-          // HTML integration points, and from MathML to HTML
-          // is via MathML text integration points
-          if (parent.namespaceURI === SVG_NAMESPACE && !HTML_INTEGRATION_POINTS[parentTagName]) {
-            return false;
-          }
-          if (parent.namespaceURI === MATHML_NAMESPACE && !MATHML_TEXT_INTEGRATION_POINTS[parentTagName]) {
-            return false;
-          }
-          // We disallow tags that are specific for MathML
-          // or SVG and should never appear in HTML namespace
-          return !ALL_MATHML_TAGS[tagName] && (COMMON_SVG_AND_HTML_ELEMENTS[tagName] || !ALL_SVG_TAGS[tagName]);
-        }
-        // For XHTML and XML documents that support custom namespaces
-        if (PARSER_MEDIA_TYPE === 'application/xhtml+xml' && ALLOWED_NAMESPACES[element.namespaceURI]) {
-          return true;
-        }
-        // The code should never reach this place (this means
-        // that the element somehow got namespace that is not
-        // HTML, SVG, MathML or allowed via ALLOWED_NAMESPACES).
-        // Return false just in case.
-        return false;
-      };
-      /**
-       * _forceRemove
-       *
-       * @param node a DOM node
-       */
-      const _forceRemove = function _forceRemove(node) {
-        arrayPush(DOMPurify.removed, {
-          element: node
-        });
-        try {
-          // eslint-disable-next-line unicorn/prefer-dom-node-remove
-          getParentNode(node).removeChild(node);
-        } catch (_) {
-          remove(node);
-        }
-      };
-      /**
-       * _removeAttribute
-       *
-       * @param name an Attribute name
-       * @param element a DOM node
-       */
-      const _removeAttribute = function _removeAttribute(name, element) {
-        try {
-          arrayPush(DOMPurify.removed, {
-            attribute: element.getAttributeNode(name),
-            from: element
-          });
-        } catch (_) {
-          arrayPush(DOMPurify.removed, {
-            attribute: null,
-            from: element
-          });
-        }
-        element.removeAttribute(name);
-        // We void attribute values for unremovable "is" attributes
-        if (name === 'is') {
-          if (RETURN_DOM || RETURN_DOM_FRAGMENT) {
-            try {
-              _forceRemove(element);
-            } catch (_) {}
-          } else {
-            try {
-              element.setAttribute(name, '');
-            } catch (_) {}
-          }
-        }
-      };
-      /**
-       * _initDocument
-       *
-       * @param dirty - a string of dirty markup
-       * @return a DOM, filled with the dirty markup
-       */
-      const _initDocument = function _initDocument(dirty) {
-        /* Create a HTML document */
-        let doc = null;
-        let leadingWhitespace = null;
-        if (FORCE_BODY) {
-          dirty = '<remove></remove>' + dirty;
-        } else {
-          /* If FORCE_BODY isn't used, leading whitespace needs to be preserved manually */
-          const matches = stringMatch(dirty, /^[\r\n\t ]+/);
-          leadingWhitespace = matches && matches[0];
-        }
-        if (PARSER_MEDIA_TYPE === 'application/xhtml+xml' && NAMESPACE === HTML_NAMESPACE) {
-          // Root of XHTML doc must contain xmlns declaration (see https://www.w3.org/TR/xhtml1/normative.html#strict)
-          dirty = '<html xmlns="http://www.w3.org/1999/xhtml"><head></head><body>' + dirty + '</body></html>';
-        }
-        const dirtyPayload = trustedTypesPolicy ? trustedTypesPolicy.createHTML(dirty) : dirty;
-        /*
-         * Use the DOMParser API by default, fallback later if needs be
-         * DOMParser not work for svg when has multiple root element.
-         */
-        if (NAMESPACE === HTML_NAMESPACE) {
-          try {
-            doc = new DOMParser().parseFromString(dirtyPayload, PARSER_MEDIA_TYPE);
-          } catch (_) {}
-        }
-        /* Use createHTMLDocument in case DOMParser is not available */
-        if (!doc || !doc.documentElement) {
-          doc = implementation.createDocument(NAMESPACE, 'template', null);
-          try {
-            doc.documentElement.innerHTML = IS_EMPTY_INPUT ? emptyHTML : dirtyPayload;
-          } catch (_) {
-            // Syntax error if dirtyPayload is invalid xml
-          }
-        }
-        const body = doc.body || doc.documentElement;
-        if (dirty && leadingWhitespace) {
-          body.insertBefore(document.createTextNode(leadingWhitespace), body.childNodes[0] || null);
-        }
-        /* Work on whole document or just its body */
-        if (NAMESPACE === HTML_NAMESPACE) {
-          return getElementsByTagName.call(doc, WHOLE_DOCUMENT ? 'html' : 'body')[0];
-        }
-        return WHOLE_DOCUMENT ? doc.documentElement : body;
-      };
-      /**
-       * Creates a NodeIterator object that you can use to traverse filtered lists of nodes or elements in a document.
-       *
-       * @param root The root element or node to start traversing on.
-       * @return The created NodeIterator
-       */
-      const _createNodeIterator = function _createNodeIterator(root) {
-        return createNodeIterator.call(root.ownerDocument || root, root,
-        // eslint-disable-next-line no-bitwise
-        NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_TEXT | NodeFilter.SHOW_PROCESSING_INSTRUCTION | NodeFilter.SHOW_CDATA_SECTION, null);
-      };
-      /**
-       * Strip template-engine expressions ({{...}}, ${...}, <%...%>) from the
-       * character data of an element subtree. Used as the final safety net for
-       * SAFE_FOR_TEMPLATES on every DOM-returning code path so that expressions
-       * which only form after text-node normalization (e.g. fragments split across
-       * stripped elements) cannot survive into a template-evaluating framework.
-       *
-       * Walks text/comment/CDATA/processing-instruction nodes and mutates `.data`
-       * in place rather than round-tripping through innerHTML. This preserves
-       * descendant node references (important for IN_PLACE callers), avoids a
-       * serialize/reparse cycle, and reads literal character data — which means
-       * `<%...%>` in text content matches the ERB regex against its real bytes
-       * instead of the HTML-entity-escaped form innerHTML would produce.
-       *
-       * Attribute values are not visited here; SAFE_FOR_TEMPLATES handling for
-       * attributes is performed during the per-node `_sanitizeAttributes` pass.
-       *
-       * @param node The root element whose character data should be scrubbed.
-       */
-      const _scrubTemplateExpressions = function _scrubTemplateExpressions(node) {
-        node.normalize();
-        const walker = createNodeIterator.call(node.ownerDocument || node, node,
-        // eslint-disable-next-line no-bitwise
-        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_CDATA_SECTION | NodeFilter.SHOW_PROCESSING_INSTRUCTION, null);
-        let currentNode = walker.nextNode();
-        while (currentNode) {
-          let data = currentNode.data;
-          arrayForEach([MUSTACHE_EXPR$1, ERB_EXPR$1, TMPLIT_EXPR$1], expr => {
-            data = stringReplace(data, expr, ' ');
-          });
-          currentNode.data = data;
-          currentNode = walker.nextNode();
-        }
-      };
-      /**
-       * _isClobbered
-       *
-       * @param element element to check for clobbering attacks
-       * @return true if clobbered, false if safe
-       */
-      const _isClobbered = function _isClobbered(element) {
-        return element instanceof HTMLFormElement && (typeof element.nodeName !== 'string' || typeof element.textContent !== 'string' || typeof element.removeChild !== 'function' || !(element.attributes instanceof NamedNodeMap) || typeof element.removeAttribute !== 'function' || typeof element.setAttribute !== 'function' || typeof element.namespaceURI !== 'string' || typeof element.insertBefore !== 'function' || typeof element.hasChildNodes !== 'function');
-      };
-      /**
-       * Checks whether the given object is a DOM node, including nodes that
-       * originate from a different window/realm (e.g. an iframe's
-       * contentDocument). The previous `value instanceof Node` check was
-       * realm-bound: nodes from a different window failed it, causing
-       * sanitize() to silently stringify them and reset IN_PLACE to false,
-       * returning the original node unsanitized. See GHSA-4w3q-35jp-p934.
-       *
-       * Implementation: call the cached `nodeType` getter from Node.prototype
-       * directly on the value. This bypasses any clobbered instance property
-       * (e.g. a child element named "nodeType") and works across realms
-       * because the WebIDL `nodeType` getter reads an internal slot that
-       * every real Node has, regardless of which window minted it.
-       *
-       * @param value object to check whether it's a DOM node
-       * @return true if value is a DOM node from any realm
-       */
-      const _isNode = function _isNode(value) {
-        if (!getNodeType || typeof value !== 'object' || value === null) {
-          return false;
-        }
-        try {
-          return typeof getNodeType(value) === 'number';
-        } catch (_) {
-          return false;
-        }
-      };
-      function _executeHooks(hooks, currentNode, data) {
-        arrayForEach(hooks, hook => {
-          hook.call(DOMPurify, currentNode, data, CONFIG);
-        });
-      }
-      /**
-       * _sanitizeElements
-       *
-       * @protect nodeName
-       * @protect textContent
-       * @protect removeChild
-       * @param currentNode to check for permission to exist
-       * @return true if node was killed, false if left alive
-       */
-      const _sanitizeElements = function _sanitizeElements(currentNode) {
-        let content = null;
-        /* Execute a hook if present */
-        _executeHooks(hooks.beforeSanitizeElements, currentNode, null);
-        /* Check if element is clobbered or can clobber */
-        if (_isClobbered(currentNode)) {
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Now let's check the element's type and name */
-        const tagName = transformCaseFunc(currentNode.nodeName);
-        /* Execute a hook if present */
-        _executeHooks(hooks.uponSanitizeElement, currentNode, {
-          tagName,
-          allowedTags: ALLOWED_TAGS
-        });
-        /* Detect mXSS attempts abusing namespace confusion */
-        if (SAFE_FOR_XML && currentNode.hasChildNodes() && !_isNode(currentNode.firstElementChild) && regExpTest(/<[/\w!]/g, currentNode.innerHTML) && regExpTest(/<[/\w!]/g, currentNode.textContent)) {
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Remove risky CSS construction leading to mXSS */
-        if (SAFE_FOR_XML && currentNode.namespaceURI === HTML_NAMESPACE && tagName === 'style' && _isNode(currentNode.firstElementChild)) {
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Remove any occurrence of processing instructions */
-        if (currentNode.nodeType === NODE_TYPE.progressingInstruction) {
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Remove any kind of possibly harmful comments */
-        if (SAFE_FOR_XML && currentNode.nodeType === NODE_TYPE.comment && regExpTest(/<[/\w]/g, currentNode.data)) {
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Remove element if anything forbids its presence */
-        if (FORBID_TAGS[tagName] || !(EXTRA_ELEMENT_HANDLING.tagCheck instanceof Function && EXTRA_ELEMENT_HANDLING.tagCheck(tagName)) && !ALLOWED_TAGS[tagName]) {
-          /* Check if we have a custom element to handle */
-          if (!FORBID_TAGS[tagName] && _isBasicCustomElement(tagName)) {
-            if (CUSTOM_ELEMENT_HANDLING.tagNameCheck instanceof RegExp && regExpTest(CUSTOM_ELEMENT_HANDLING.tagNameCheck, tagName)) {
-              return false;
-            }
-            if (CUSTOM_ELEMENT_HANDLING.tagNameCheck instanceof Function && CUSTOM_ELEMENT_HANDLING.tagNameCheck(tagName)) {
-              return false;
-            }
-          }
-          /* Keep content except for bad-listed elements */
-          if (KEEP_CONTENT && !FORBID_CONTENTS[tagName]) {
-            const parentNode = getParentNode(currentNode) || currentNode.parentNode;
-            const childNodes = getChildNodes(currentNode) || currentNode.childNodes;
-            if (childNodes && parentNode) {
-              const childCount = childNodes.length;
-              for (let i = childCount - 1; i >= 0; --i) {
-                const childClone = cloneNode(childNodes[i], true);
-                parentNode.insertBefore(childClone, getNextSibling(currentNode));
-              }
-            }
-          }
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Check whether element has a valid namespace */
-        if (currentNode instanceof Element && !_checkValidNamespace(currentNode)) {
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Make sure that older browsers don't get fallback-tag mXSS */
-        if ((tagName === 'noscript' || tagName === 'noembed' || tagName === 'noframes') && regExpTest(/<\/no(script|embed|frames)/i, currentNode.innerHTML)) {
-          _forceRemove(currentNode);
-          return true;
-        }
-        /* Sanitize element content to be template-safe */
-        if (SAFE_FOR_TEMPLATES && currentNode.nodeType === NODE_TYPE.text) {
-          /* Get the element's text content */
-          content = currentNode.textContent;
-          arrayForEach([MUSTACHE_EXPR$1, ERB_EXPR$1, TMPLIT_EXPR$1], expr => {
-            content = stringReplace(content, expr, ' ');
-          });
-          if (currentNode.textContent !== content) {
-            arrayPush(DOMPurify.removed, {
-              element: currentNode.cloneNode()
-            });
-            currentNode.textContent = content;
-          }
-        }
-        /* Execute a hook if present */
-        _executeHooks(hooks.afterSanitizeElements, currentNode, null);
-        return false;
-      };
-      /**
-       * _isValidAttribute
-       *
-       * @param lcTag Lowercase tag name of containing element.
-       * @param lcName Lowercase attribute name.
-       * @param value Attribute value.
-       * @return Returns true if `value` is valid, otherwise false.
-       */
-      // eslint-disable-next-line complexity
-      const _isValidAttribute = function _isValidAttribute(lcTag, lcName, value) {
-        /* FORBID_ATTR must always win, even if ADD_ATTR predicate would allow it */
-        if (FORBID_ATTR[lcName]) {
-          return false;
-        }
-        /* Make sure attribute cannot clobber */
-        if (SANITIZE_DOM && (lcName === 'id' || lcName === 'name') && (value in document || value in formElement)) {
-          return false;
-        }
-        const nameIsPermitted = ALLOWED_ATTR[lcName] || EXTRA_ELEMENT_HANDLING.attributeCheck instanceof Function && EXTRA_ELEMENT_HANDLING.attributeCheck(lcName, lcTag);
-        /* Allow valid data-* attributes: At least one character after "-"
-            (https://html.spec.whatwg.org/multipage/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes)
-            XML-compatible (https://html.spec.whatwg.org/multipage/infrastructure.html#xml-compatible and http://www.w3.org/TR/xml/#d0e804)
-            We don't need to check the value; it's always URI safe. */
-        if (ALLOW_DATA_ATTR && !FORBID_ATTR[lcName] && regExpTest(DATA_ATTR$1, lcName)) ; else if (ALLOW_ARIA_ATTR && regExpTest(ARIA_ATTR$1, lcName)) ; else if (!nameIsPermitted || FORBID_ATTR[lcName]) {
-          if (
-          // First condition does a very basic check if a) it's basically a valid custom element tagname AND
-          // b) if the tagName passes whatever the user has configured for CUSTOM_ELEMENT_HANDLING.tagNameCheck
-          // and c) if the attribute name passes whatever the user has configured for CUSTOM_ELEMENT_HANDLING.attributeNameCheck
-          _isBasicCustomElement(lcTag) && (CUSTOM_ELEMENT_HANDLING.tagNameCheck instanceof RegExp && regExpTest(CUSTOM_ELEMENT_HANDLING.tagNameCheck, lcTag) || CUSTOM_ELEMENT_HANDLING.tagNameCheck instanceof Function && CUSTOM_ELEMENT_HANDLING.tagNameCheck(lcTag)) && (CUSTOM_ELEMENT_HANDLING.attributeNameCheck instanceof RegExp && regExpTest(CUSTOM_ELEMENT_HANDLING.attributeNameCheck, lcName) || CUSTOM_ELEMENT_HANDLING.attributeNameCheck instanceof Function && CUSTOM_ELEMENT_HANDLING.attributeNameCheck(lcName, lcTag)) ||
-          // Alternative, second condition checks if it's an `is`-attribute, AND
-          // the value passes whatever the user has configured for CUSTOM_ELEMENT_HANDLING.tagNameCheck
-          lcName === 'is' && CUSTOM_ELEMENT_HANDLING.allowCustomizedBuiltInElements && (CUSTOM_ELEMENT_HANDLING.tagNameCheck instanceof RegExp && regExpTest(CUSTOM_ELEMENT_HANDLING.tagNameCheck, value) || CUSTOM_ELEMENT_HANDLING.tagNameCheck instanceof Function && CUSTOM_ELEMENT_HANDLING.tagNameCheck(value))) ; else {
-            return false;
-          }
-          /* Check value is safe. First, is attr inert? If so, is safe */
-        } else if (URI_SAFE_ATTRIBUTES[lcName]) ; else if (regExpTest(IS_ALLOWED_URI$1, stringReplace(value, ATTR_WHITESPACE$1, ''))) ; else if ((lcName === 'src' || lcName === 'xlink:href' || lcName === 'href') && lcTag !== 'script' && stringIndexOf(value, 'data:') === 0 && DATA_URI_TAGS[lcTag]) ; else if (ALLOW_UNKNOWN_PROTOCOLS && !regExpTest(IS_SCRIPT_OR_DATA$1, stringReplace(value, ATTR_WHITESPACE$1, ''))) ; else if (value) {
-          return false;
-        } else ;
-        return true;
-      };
-      /* Names the HTML spec reserves from valid-custom-element-name; these must
-       * never be treated as basic custom elements even when a permissive
-       * CUSTOM_ELEMENT_HANDLING.tagNameCheck is configured. */
-      const RESERVED_CUSTOM_ELEMENT_NAMES = addToSet({}, ['annotation-xml', 'color-profile', 'font-face', 'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri', 'missing-glyph']);
-      /**
-       * _isBasicCustomElement
-       * checks if at least one dash is included in tagName, and it's not the first char
-       * for more sophisticated checking see https://github.com/sindresorhus/validate-element-name
-       *
-       * @param tagName name of the tag of the node to sanitize
-       * @returns Returns true if the tag name meets the basic criteria for a custom element, otherwise false.
-       */
-      const _isBasicCustomElement = function _isBasicCustomElement(tagName) {
-        return !RESERVED_CUSTOM_ELEMENT_NAMES[stringToLowerCase(tagName)] && regExpTest(CUSTOM_ELEMENT$1, tagName);
-      };
-      /**
-       * _sanitizeAttributes
-       *
-       * @protect attributes
-       * @protect nodeName
-       * @protect removeAttribute
-       * @protect setAttribute
-       *
-       * @param currentNode to sanitize
-       */
-      const _sanitizeAttributes = function _sanitizeAttributes(currentNode) {
-        /* Execute a hook if present */
-        _executeHooks(hooks.beforeSanitizeAttributes, currentNode, null);
-        const attributes = currentNode.attributes;
-        /* Check if we have attributes; if not we might have a text node */
-        if (!attributes || _isClobbered(currentNode)) {
-          return;
-        }
-        const hookEvent = {
-          attrName: '',
-          attrValue: '',
-          keepAttr: true,
-          allowedAttributes: ALLOWED_ATTR,
-          forceKeepAttr: undefined
-        };
-        let l = attributes.length;
-        /* Go backwards over all attributes; safely remove bad ones */
-        while (l--) {
-          const attr = attributes[l];
-          const name = attr.name,
-            namespaceURI = attr.namespaceURI,
-            attrValue = attr.value;
-          const lcName = transformCaseFunc(name);
-          const initValue = attrValue;
-          let value = name === 'value' ? initValue : stringTrim(initValue);
-          /* Execute a hook if present */
-          hookEvent.attrName = lcName;
-          hookEvent.attrValue = value;
-          hookEvent.keepAttr = true;
-          hookEvent.forceKeepAttr = undefined; // Allows developers to see this is a property they can set
-          _executeHooks(hooks.uponSanitizeAttribute, currentNode, hookEvent);
-          value = hookEvent.attrValue;
-          /* Full DOM Clobbering protection via namespace isolation,
-           * Prefix id and name attributes with `user-content-`
-           */
-          if (SANITIZE_NAMED_PROPS && (lcName === 'id' || lcName === 'name') && stringIndexOf(value, SANITIZE_NAMED_PROPS_PREFIX) !== 0) {
-            // Remove the attribute with this value
-            _removeAttribute(name, currentNode);
-            // Prefix the value and later re-create the attribute with the sanitized value
-            value = SANITIZE_NAMED_PROPS_PREFIX + value;
-          }
-          // Else: already prefixed, leave the attribute alone — the prefix is
-          // itself the clobbering protection, and re-applying it is incorrect.
-          /* Work around a security issue with comments inside attributes */
-          if (SAFE_FOR_XML && regExpTest(/((--!?|])>)|<\/(style|script|title|xmp|textarea|noscript|iframe|noembed|noframes)/i, value)) {
-            _removeAttribute(name, currentNode);
-            continue;
-          }
-          /* Make sure we cannot easily use animated hrefs, even if animations are allowed */
-          if (lcName === 'attributename' && stringMatch(value, 'href')) {
-            _removeAttribute(name, currentNode);
-            continue;
-          }
-          /* Did the hooks approve of the attribute? */
-          if (hookEvent.forceKeepAttr) {
-            continue;
-          }
-          /* Did the hooks approve of the attribute? */
-          if (!hookEvent.keepAttr) {
-            _removeAttribute(name, currentNode);
-            continue;
-          }
-          /* Work around a security issue in jQuery 3.0 */
-          if (!ALLOW_SELF_CLOSE_IN_ATTR && regExpTest(/\/>/i, value)) {
-            _removeAttribute(name, currentNode);
-            continue;
-          }
-          /* Sanitize attribute content to be template-safe */
-          if (SAFE_FOR_TEMPLATES) {
-            arrayForEach([MUSTACHE_EXPR$1, ERB_EXPR$1, TMPLIT_EXPR$1], expr => {
-              value = stringReplace(value, expr, ' ');
-            });
-          }
-          /* Is `value` valid for this attribute? */
-          const lcTag = transformCaseFunc(currentNode.nodeName);
-          if (!_isValidAttribute(lcTag, lcName, value)) {
-            _removeAttribute(name, currentNode);
-            continue;
-          }
-          /* Handle attributes that require Trusted Types */
-          if (trustedTypesPolicy && typeof trustedTypes === 'object' && typeof trustedTypes.getAttributeType === 'function') {
-            if (namespaceURI) ; else {
-              switch (trustedTypes.getAttributeType(lcTag, lcName)) {
-                case 'TrustedHTML':
-                  {
-                    value = trustedTypesPolicy.createHTML(value);
-                    break;
-                  }
-                case 'TrustedScriptURL':
-                  {
-                    value = trustedTypesPolicy.createScriptURL(value);
-                    break;
-                  }
-              }
-            }
-          }
-          /* Handle invalid data-* attribute set by try-catching it */
-          if (value !== initValue) {
-            try {
-              if (namespaceURI) {
-                currentNode.setAttributeNS(namespaceURI, name, value);
-              } else {
-                /* Fallback to setAttribute() for browser-unrecognized namespaces e.g. "x-schema". */
-                currentNode.setAttribute(name, value);
-              }
-              if (_isClobbered(currentNode)) {
-                _forceRemove(currentNode);
-              } else {
-                arrayPop(DOMPurify.removed);
-              }
-            } catch (_) {
-              _removeAttribute(name, currentNode);
-            }
-          }
-        }
-        /* Execute a hook if present */
-        _executeHooks(hooks.afterSanitizeAttributes, currentNode, null);
-      };
-      /**
-       * _sanitizeShadowDOM
-       *
-       * @param fragment to iterate over recursively
-       */
-      const _sanitizeShadowDOM2 = function _sanitizeShadowDOM(fragment) {
-        let shadowNode = null;
-        const shadowIterator = _createNodeIterator(fragment);
-        /* Execute a hook if present */
-        _executeHooks(hooks.beforeSanitizeShadowDOM, fragment, null);
-        while (shadowNode = shadowIterator.nextNode()) {
-          /* Execute a hook if present */
-          _executeHooks(hooks.uponSanitizeShadowNode, shadowNode, null);
-          /* Sanitize tags and elements */
-          _sanitizeElements(shadowNode);
-          /* Check attributes next */
-          _sanitizeAttributes(shadowNode);
-          /* Deep shadow DOM detected */
-          if (shadowNode.content instanceof DocumentFragment) {
-            _sanitizeShadowDOM2(shadowNode.content);
-          }
-        }
-        /* Execute a hook if present */
-        _executeHooks(hooks.afterSanitizeShadowDOM, fragment, null);
-      };
-      /**
-       * _sanitizeAttachedShadowRoots
-       *
-       * Walks `root` and feeds every attached shadow root we encounter into
-       * the existing _sanitizeShadowDOM pipeline. The default node iterator
-       * does not descend into shadow trees, so nodes inside an attached
-       * shadow root would otherwise be skipped entirely.
-       *
-       * Two real input paths put attached shadow roots in front of us:
-       *   1. IN_PLACE on a DOM node that already has shadow roots attached.
-       *   2. DOM-node input where importNode(dirty, true) deep-clones the
-       *      shadow root because it was created with `clonable: true`.
-       *
-       * This pass runs once, up front, so the main iteration loop (and the
-       * existing _sanitizeShadowDOM template-content recursion) stay
-       * untouched — string-input paths are not affected.
-       *
-       * @param root the subtree root to walk for attached shadow roots
-       */
-      const _sanitizeAttachedShadowRoots2 = function _sanitizeAttachedShadowRoots(root) {
-        if (root.nodeType === NODE_TYPE.element && root.shadowRoot instanceof DocumentFragment) {
-          const sr = root.shadowRoot;
-          // Recurse first so that nested shadow roots are reached even if
-          // _sanitizeShadowDOM removes hosts at this level.
-          _sanitizeAttachedShadowRoots2(sr);
-          _sanitizeShadowDOM2(sr);
-        }
-        // Snapshot children before recursing. Sanitization of one subtree
-        // (e.g. via an uponSanitizeShadowNode hook) may detach siblings,
-        // and naive nextSibling traversal would silently skip the rest of
-        // the list once a node is detached.
-        const childNodes = root.childNodes;
-        if (!childNodes) {
-          return;
-        }
-        const snapshot = [];
-        arrayForEach(childNodes, child => {
-          arrayPush(snapshot, child);
-        });
-        for (const child of snapshot) {
-          _sanitizeAttachedShadowRoots2(child);
-        }
-      };
-      // eslint-disable-next-line complexity
-      DOMPurify.sanitize = function (dirty) {
-        let cfg = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-        let body = null;
-        let importedNode = null;
-        let currentNode = null;
-        let returnNode = null;
-        /* Make sure we have a string to sanitize.
-          DO NOT return early, as this will return the wrong type if
-          the user has requested a DOM object rather than a string */
-        IS_EMPTY_INPUT = !dirty;
-        if (IS_EMPTY_INPUT) {
-          dirty = '<!-->';
-        }
-        /* Stringify, in case dirty is an object */
-        if (typeof dirty !== 'string' && !_isNode(dirty)) {
-          dirty = stringifyValue(dirty);
-          if (typeof dirty !== 'string') {
-            throw typeErrorCreate('dirty is not a string, aborting');
-          }
-        }
-        /* Return dirty HTML if DOMPurify cannot run */
-        if (!DOMPurify.isSupported) {
-          return dirty;
-        }
-        /* Assign config vars */
-        if (!SET_CONFIG) {
-          _parseConfig(cfg);
-        }
-        /* Clean up removed elements */
-        DOMPurify.removed = [];
-        /* Check if dirty is correctly typed for IN_PLACE */
-        if (typeof dirty === 'string') {
-          IN_PLACE = false;
-        }
-        if (IN_PLACE) {
-          /* Do some early pre-sanitization to avoid unsafe root nodes */
-          const nn = dirty.nodeName;
-          if (typeof nn === 'string') {
-            const tagName = transformCaseFunc(nn);
-            if (!ALLOWED_TAGS[tagName] || FORBID_TAGS[tagName]) {
-              throw typeErrorCreate('root node is forbidden and cannot be sanitized in-place');
-            }
-          }
-          /* Sanitize attached shadow roots before the main iterator runs.
-             The iterator does not descend into shadow trees. */
-          _sanitizeAttachedShadowRoots2(dirty);
-        } else if (_isNode(dirty)) {
-          /* If dirty is a DOM element, append to an empty document to avoid
-             elements being stripped by the parser */
-          body = _initDocument('<!---->');
-          importedNode = body.ownerDocument.importNode(dirty, true);
-          if (importedNode.nodeType === NODE_TYPE.element && importedNode.nodeName === 'BODY') {
-            /* Node is already a body, use as is */
-            body = importedNode;
-          } else if (importedNode.nodeName === 'HTML') {
-            body = importedNode;
-          } else {
-            // eslint-disable-next-line unicorn/prefer-dom-node-append
-            body.appendChild(importedNode);
-          }
-          /* Clonable shadow roots are deep-cloned by importNode(); sanitize
-             them before the main iterator runs, since the iterator does not
-             descend into shadow trees. */
-          _sanitizeAttachedShadowRoots2(importedNode);
-        } else {
-          /* Exit directly if we have nothing to do */
-          if (!RETURN_DOM && !SAFE_FOR_TEMPLATES && !WHOLE_DOCUMENT &&
-          // eslint-disable-next-line unicorn/prefer-includes
-          dirty.indexOf('<') === -1) {
-            return trustedTypesPolicy && RETURN_TRUSTED_TYPE ? trustedTypesPolicy.createHTML(dirty) : dirty;
-          }
-          /* Initialize the document to work on */
-          body = _initDocument(dirty);
-          /* Check we have a DOM node from the data */
-          if (!body) {
-            return RETURN_DOM ? null : RETURN_TRUSTED_TYPE ? emptyHTML : '';
-          }
-        }
-        /* Remove first element node (ours) if FORCE_BODY is set */
-        if (body && FORCE_BODY) {
-          _forceRemove(body.firstChild);
-        }
-        /* Get node iterator */
-        const nodeIterator = _createNodeIterator(IN_PLACE ? dirty : body);
-        /* Now start iterating over the created document */
-        while (currentNode = nodeIterator.nextNode()) {
-          /* Sanitize tags and elements */
-          _sanitizeElements(currentNode);
-          /* Check attributes next */
-          _sanitizeAttributes(currentNode);
-          /* Shadow DOM detected, sanitize it */
-          if (currentNode.content instanceof DocumentFragment) {
-            _sanitizeShadowDOM2(currentNode.content);
-          }
-        }
-        /* If we sanitized `dirty` in-place, return it. */
-        if (IN_PLACE) {
-          if (SAFE_FOR_TEMPLATES) {
-            _scrubTemplateExpressions(dirty);
-          }
-          return dirty;
-        }
-        /* Return sanitized string or DOM */
-        if (RETURN_DOM) {
-          if (SAFE_FOR_TEMPLATES) {
-            _scrubTemplateExpressions(body);
-          }
-          if (RETURN_DOM_FRAGMENT) {
-            returnNode = createDocumentFragment.call(body.ownerDocument);
-            while (body.firstChild) {
-              // eslint-disable-next-line unicorn/prefer-dom-node-append
-              returnNode.appendChild(body.firstChild);
-            }
-          } else {
-            returnNode = body;
-          }
-          if (ALLOWED_ATTR.shadowroot || ALLOWED_ATTR.shadowrootmode) {
-            /*
-              AdoptNode() is not used because internal state is not reset
-              (e.g. the past names map of a HTMLFormElement), this is safe
-              in theory but we would rather not risk another attack vector.
-              The state that is cloned by importNode() is explicitly defined
-              by the specs.
-            */
-            returnNode = importNode.call(originalDocument, returnNode, true);
-          }
-          return returnNode;
-        }
-        let serializedHTML = WHOLE_DOCUMENT ? body.outerHTML : body.innerHTML;
-        /* Serialize doctype if allowed */
-        if (WHOLE_DOCUMENT && ALLOWED_TAGS['!doctype'] && body.ownerDocument && body.ownerDocument.doctype && body.ownerDocument.doctype.name && regExpTest(DOCTYPE_NAME, body.ownerDocument.doctype.name)) {
-          serializedHTML = '<!DOCTYPE ' + body.ownerDocument.doctype.name + '>\n' + serializedHTML;
-        }
-        /* Sanitize final string template-safe */
-        if (SAFE_FOR_TEMPLATES) {
-          arrayForEach([MUSTACHE_EXPR$1, ERB_EXPR$1, TMPLIT_EXPR$1], expr => {
-            serializedHTML = stringReplace(serializedHTML, expr, ' ');
-          });
-        }
-        return trustedTypesPolicy && RETURN_TRUSTED_TYPE ? trustedTypesPolicy.createHTML(serializedHTML) : serializedHTML;
-      };
-      DOMPurify.setConfig = function () {
-        let cfg = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-        _parseConfig(cfg);
-        SET_CONFIG = true;
-      };
-      DOMPurify.clearConfig = function () {
-        CONFIG = null;
-        SET_CONFIG = false;
-      };
-      DOMPurify.isValidAttribute = function (tag, attr, value) {
-        /* Initialize shared config vars if necessary. */
-        if (!CONFIG) {
-          _parseConfig({});
-        }
-        const lcTag = transformCaseFunc(tag);
-        const lcName = transformCaseFunc(attr);
-        return _isValidAttribute(lcTag, lcName, value);
-      };
-      DOMPurify.addHook = function (entryPoint, hookFunction) {
-        if (typeof hookFunction !== 'function') {
-          return;
-        }
-        arrayPush(hooks[entryPoint], hookFunction);
-      };
-      DOMPurify.removeHook = function (entryPoint, hookFunction) {
-        if (hookFunction !== undefined) {
-          const index = arrayLastIndexOf(hooks[entryPoint], hookFunction);
-          return index === -1 ? undefined : arraySplice(hooks[entryPoint], index, 1)[0];
-        }
-        return arrayPop(hooks[entryPoint]);
-      };
-      DOMPurify.removeHooks = function (entryPoint) {
-        hooks[entryPoint] = [];
-      };
-      DOMPurify.removeAllHooks = function () {
-        hooks = _createHooksMap();
-      };
-      return DOMPurify;
+    	let window = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : getGlobal();
+    	const DOMPurify = (root) => createDOMPurify(root);
+    	DOMPurify.version = "3.4.17";
+    	DOMPurify.removed = [];
+    	if (!window || !window.document || window.document.nodeType !== NODE_TYPE.document || !window.Element) {
+    		DOMPurify.isSupported = false;
+    		return DOMPurify;
+    	}
+    	let document = window.document;
+    	const originalDocument = document;
+    	const currentScript = originalDocument.currentScript;
+    	window.DocumentFragment;
+    	const HTMLTemplateElement = window.HTMLTemplateElement, Node = window.Node, Element = window.Element, NodeFilter = window.NodeFilter;
+    	window.NamedNodeMap === void 0 && (window.NamedNodeMap || window.MozNamedAttrMap);
+    	window.HTMLFormElement;
+    	const DOMParser = window.DOMParser, trustedTypes = window.trustedTypes;
+    	const ElementPrototype = Element.prototype;
+    	const cloneNode = lookupGetter(ElementPrototype, "cloneNode");
+    	const remove = lookupGetter(ElementPrototype, "remove");
+    	const removeAttributeNode = lookupGetter(ElementPrototype, "removeAttributeNode");
+    	const getNextSibling = lookupGetter(ElementPrototype, "nextSibling");
+    	const getChildNodes = lookupGetter(ElementPrototype, "childNodes");
+    	const getParentNode = lookupGetter(ElementPrototype, "parentNode");
+    	const getShadowRoot = lookupGetter(ElementPrototype, "shadowRoot");
+    	const getAttributes = lookupGetter(ElementPrototype, "attributes");
+    	const getNodeType = Node && Node.prototype ? lookupGetter(Node.prototype, "nodeType") : null;
+    	const getNodeName = Node && Node.prototype ? lookupGetter(Node.prototype, "nodeName") : null;
+    	const getOwnerDocument = Node && Node.prototype ? lookupGetter(Node.prototype, "ownerDocument") : null;
+    	const _readNodeType = function _readNodeType(node) {
+    		return getNodeType ? getNodeType(node) : node.nodeType;
+    	};
+    	const _readNodeName = function _readNodeName(node) {
+    		return getNodeName ? getNodeName(node) : node.nodeName;
+    	};
+    	const getNamespaceURI = lookupAccessor(ElementPrototype, "namespaceURI");
+    	const _readNamespaceURI = function _readNamespaceURI(element) {
+    		return getNamespaceURI ? getNamespaceURI(element) : element.namespaceURI;
+    	};
+    	if (typeof HTMLTemplateElement === "function") {
+    		const template = document.createElement("template");
+    		if (template.content && template.content.ownerDocument) document = template.content.ownerDocument;
+    	}
+    	let trustedTypesPolicy;
+    	let emptyHTML = "";
+    	let defaultTrustedTypesPolicy;
+    	let defaultTrustedTypesPolicyResolved = false;
+    	let IN_TRUSTED_TYPES_POLICY = 0;
+    	const _assertNotInTrustedTypesPolicy = function _assertNotInTrustedTypesPolicy() {
+    		if (IN_TRUSTED_TYPES_POLICY > 0) throw typeErrorCreate("A configured TRUSTED_TYPES_POLICY callback (createHTML or createScriptURL) must not call DOMPurify.sanitize, as that causes infinite recursion. Do not pass a policy whose callbacks wrap DOMPurify as TRUSTED_TYPES_POLICY; see the \"DOMPurify and Trusted Types\" section of the README.");
+    	};
+    	const _createTrustedHTML = function _createTrustedHTML(html) {
+    		_assertNotInTrustedTypesPolicy();
+    		IN_TRUSTED_TYPES_POLICY++;
+    		try {
+    			return trustedTypesPolicy.createHTML(html);
+    		} finally {
+    			IN_TRUSTED_TYPES_POLICY--;
+    		}
+    	};
+    	const _createTrustedScriptURL = function _createTrustedScriptURL(scriptUrl) {
+    		_assertNotInTrustedTypesPolicy();
+    		IN_TRUSTED_TYPES_POLICY++;
+    		try {
+    			return trustedTypesPolicy.createScriptURL(scriptUrl);
+    		} finally {
+    			IN_TRUSTED_TYPES_POLICY--;
+    		}
+    	};
+    	const _getDefaultTrustedTypesPolicy = function _getDefaultTrustedTypesPolicy() {
+    		if (!defaultTrustedTypesPolicyResolved) {
+    			defaultTrustedTypesPolicy = _createTrustedTypesPolicy(trustedTypes, currentScript);
+    			defaultTrustedTypesPolicyResolved = true;
+    		}
+    		return defaultTrustedTypesPolicy;
+    	};
+    	const _document = document, implementation = _document.implementation, createNodeIterator = _document.createNodeIterator, createDocumentFragment = _document.createDocumentFragment, getElementsByTagName = _document.getElementsByTagName;
+    	const importNode = originalDocument.importNode;
+    	let hooks = _createHooksMap();
+    	/**
+    	* Expose whether this browser supports running the full DOMPurify.
+    	*/
+    	DOMPurify.isSupported = typeof entries === "function" && typeof getParentNode === "function" && implementation && implementation.createHTMLDocument !== void 0;
+    	const MUSTACHE_EXPR$1 = MUSTACHE_EXPR, ERB_EXPR$1 = ERB_EXPR, TMPLIT_EXPR$1 = TMPLIT_EXPR, DATA_ATTR$1 = DATA_ATTR, ARIA_ATTR$1 = ARIA_ATTR, IS_SCRIPT_OR_DATA$1 = IS_SCRIPT_OR_DATA, ATTR_WHITESPACE$1 = ATTR_WHITESPACE, CUSTOM_ELEMENT$1 = CUSTOM_ELEMENT;
+    	let IS_ALLOWED_URI$1 = IS_ALLOWED_URI;
+    	/**
+    	* We consider the elements and attributes below to be safe. Ideally
+    	* don't add any new ones but feel free to remove unwanted ones.
+    	*/
+    	let ALLOWED_TAGS = null;
+    	const DEFAULT_ALLOWED_TAGS = addToSet({}, [
+    		...html$1,
+    		...svg$1,
+    		...svgFilters,
+    		...mathMl$1,
+    		...text$1
+    	]);
+    	let ALLOWED_ATTR = null;
+    	const DEFAULT_ALLOWED_ATTR = addToSet({}, [
+    		...html,
+    		...svg,
+    		...mathMl,
+    		...xml
+    	]);
+    	let CUSTOM_ELEMENT_HANDLING = Object.seal(create$1(null, {
+    		tagNameCheck: {
+    			writable: true,
+    			configurable: false,
+    			enumerable: true,
+    			value: null
+    		},
+    		attributeNameCheck: {
+    			writable: true,
+    			configurable: false,
+    			enumerable: true,
+    			value: null
+    		},
+    		allowCustomizedBuiltInElements: {
+    			writable: true,
+    			configurable: false,
+    			enumerable: true,
+    			value: false
+    		}
+    	}));
+    	let FORBID_TAGS = null;
+    	let FORBID_ATTR = null;
+    	const EXTRA_ELEMENT_HANDLING = Object.seal(create$1(null, {
+    		tagCheck: {
+    			writable: true,
+    			configurable: false,
+    			enumerable: true,
+    			value: null
+    		},
+    		attributeCheck: {
+    			writable: true,
+    			configurable: false,
+    			enumerable: true,
+    			value: null
+    		}
+    	}));
+    	let ALLOW_ARIA_ATTR = true;
+    	let ALLOW_DATA_ATTR = true;
+    	let ALLOW_UNKNOWN_PROTOCOLS = false;
+    	let ALLOW_SELF_CLOSE_IN_ATTR = true;
+    	let SAFE_FOR_TEMPLATES = false;
+    	let SAFE_FOR_XML = true;
+    	let WHOLE_DOCUMENT = false;
+    	let SET_CONFIG = false;
+    	let SET_CONFIG_ALLOWED_TAGS = null;
+    	let SET_CONFIG_ALLOWED_ATTR = null;
+    	let FORCE_BODY = false;
+    	let RETURN_DOM = false;
+    	let RETURN_DOM_FRAGMENT = false;
+    	let RETURN_TRUSTED_TYPE = false;
+    	let SANITIZE_DOM = true;
+    	let SANITIZE_NAMED_PROPS = false;
+    	const SANITIZE_NAMED_PROPS_PREFIX = "user-content-";
+    	let KEEP_CONTENT = true;
+    	let IN_PLACE = false;
+    	let IN_PLACE_VISITED = null;
+    	let USE_PROFILES = {};
+    	let FORBID_CONTENTS = null;
+    	const DEFAULT_FORBID_CONTENTS = addToSet({}, [
+    		"annotation-xml",
+    		"audio",
+    		"colgroup",
+    		"desc",
+    		"foreignobject",
+    		"head",
+    		"iframe",
+    		"math",
+    		"mi",
+    		"mn",
+    		"mo",
+    		"ms",
+    		"mtext",
+    		"noembed",
+    		"noframes",
+    		"noscript",
+    		"plaintext",
+    		"script",
+    		"selectedcontent",
+    		"style",
+    		"svg",
+    		"template",
+    		"thead",
+    		"title",
+    		"video",
+    		"xmp"
+    	]);
+    	let DATA_URI_TAGS = null;
+    	const DEFAULT_DATA_URI_TAGS = addToSet({}, [
+    		"audio",
+    		"video",
+    		"img",
+    		"source",
+    		"image",
+    		"track"
+    	]);
+    	let URI_SAFE_ATTRIBUTES = null;
+    	const DEFAULT_URI_SAFE_ATTRIBUTES = addToSet({}, [
+    		"alt",
+    		"class",
+    		"for",
+    		"id",
+    		"label",
+    		"name",
+    		"pattern",
+    		"placeholder",
+    		"role",
+    		"summary",
+    		"title",
+    		"value",
+    		"style",
+    		"xmlns"
+    	]);
+    	const MATHML_NAMESPACE = "http://www.w3.org/1998/Math/MathML";
+    	const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+    	const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
+    	let NAMESPACE = HTML_NAMESPACE;
+    	let IS_EMPTY_INPUT = false;
+    	let ALLOWED_NAMESPACES = null;
+    	const DEFAULT_ALLOWED_NAMESPACES = addToSet({}, [
+    		MATHML_NAMESPACE,
+    		SVG_NAMESPACE,
+    		HTML_NAMESPACE
+    	], stringToString);
+    	const DEFAULT_MATHML_TEXT_INTEGRATION_POINTS = freeze([
+    		"mi",
+    		"mo",
+    		"mn",
+    		"ms",
+    		"mtext"
+    	]);
+    	let MATHML_TEXT_INTEGRATION_POINTS = addToSet({}, DEFAULT_MATHML_TEXT_INTEGRATION_POINTS);
+    	const DEFAULT_HTML_INTEGRATION_POINTS = freeze(["annotation-xml"]);
+    	let HTML_INTEGRATION_POINTS = addToSet({}, DEFAULT_HTML_INTEGRATION_POINTS);
+    	const COMMON_SVG_AND_HTML_ELEMENTS = addToSet({}, [
+    		"title",
+    		"style",
+    		"font",
+    		"a",
+    		"script"
+    	]);
+    	let PARSER_MEDIA_TYPE = null;
+    	const SUPPORTED_PARSER_MEDIA_TYPES = ["application/xhtml+xml", "text/html"];
+    	const DEFAULT_PARSER_MEDIA_TYPE = "text/html";
+    	let transformCaseFunc = null;
+    	let CONFIG = null;
+    	const formElement = document.createElement("form");
+    	const isRegexOrFunction = function isRegexOrFunction(testValue) {
+    		return testValue instanceof RegExp || testValue instanceof Function;
+    	};
+    	/**
+    	* _parseConfig
+    	*
+    	* @param cfg optional config literal
+    	*/
+    	const _parseConfig = function _parseConfig() {
+    		let cfg = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : {};
+    		if (CONFIG && CONFIG === cfg) return;
+    		if (!cfg || typeof cfg !== "object") cfg = {};
+    		cfg = clone(cfg);
+    		PARSER_MEDIA_TYPE = SUPPORTED_PARSER_MEDIA_TYPES.indexOf(cfg.PARSER_MEDIA_TYPE) === -1 ? DEFAULT_PARSER_MEDIA_TYPE : cfg.PARSER_MEDIA_TYPE;
+    		transformCaseFunc = PARSER_MEDIA_TYPE === "application/xhtml+xml" ? stringToString : stringToLowerCase;
+    		ALLOWED_TAGS = _resolveSetOption(cfg, "ALLOWED_TAGS", DEFAULT_ALLOWED_TAGS, { transform: transformCaseFunc });
+    		ALLOWED_ATTR = _resolveSetOption(cfg, "ALLOWED_ATTR", DEFAULT_ALLOWED_ATTR, { transform: transformCaseFunc });
+    		ALLOWED_NAMESPACES = _resolveSetOption(cfg, "ALLOWED_NAMESPACES", DEFAULT_ALLOWED_NAMESPACES, { transform: stringToString });
+    		URI_SAFE_ATTRIBUTES = _resolveSetOption(cfg, "ADD_URI_SAFE_ATTR", DEFAULT_URI_SAFE_ATTRIBUTES, {
+    			transform: transformCaseFunc,
+    			base: DEFAULT_URI_SAFE_ATTRIBUTES
+    		});
+    		DATA_URI_TAGS = _resolveSetOption(cfg, "ADD_DATA_URI_TAGS", DEFAULT_DATA_URI_TAGS, {
+    			transform: transformCaseFunc,
+    			base: DEFAULT_DATA_URI_TAGS
+    		});
+    		FORBID_CONTENTS = _resolveSetOption(cfg, "FORBID_CONTENTS", DEFAULT_FORBID_CONTENTS, { transform: transformCaseFunc });
+    		FORBID_TAGS = _resolveSetOption(cfg, "FORBID_TAGS", clone({}), { transform: transformCaseFunc });
+    		FORBID_ATTR = _resolveSetOption(cfg, "FORBID_ATTR", clone({}), { transform: transformCaseFunc });
+    		USE_PROFILES = objectHasOwnProperty(cfg, "USE_PROFILES") ? cfg.USE_PROFILES && typeof cfg.USE_PROFILES === "object" ? clone(cfg.USE_PROFILES) : cfg.USE_PROFILES : false;
+    		ALLOW_ARIA_ATTR = cfg.ALLOW_ARIA_ATTR !== false;
+    		ALLOW_DATA_ATTR = cfg.ALLOW_DATA_ATTR !== false;
+    		ALLOW_UNKNOWN_PROTOCOLS = cfg.ALLOW_UNKNOWN_PROTOCOLS || false;
+    		ALLOW_SELF_CLOSE_IN_ATTR = cfg.ALLOW_SELF_CLOSE_IN_ATTR !== false;
+    		SAFE_FOR_TEMPLATES = cfg.SAFE_FOR_TEMPLATES || false;
+    		SAFE_FOR_XML = cfg.SAFE_FOR_XML !== false;
+    		WHOLE_DOCUMENT = cfg.WHOLE_DOCUMENT || false;
+    		RETURN_DOM = cfg.RETURN_DOM || false;
+    		RETURN_DOM_FRAGMENT = cfg.RETURN_DOM_FRAGMENT || false;
+    		RETURN_TRUSTED_TYPE = cfg.RETURN_TRUSTED_TYPE || false;
+    		FORCE_BODY = cfg.FORCE_BODY || false;
+    		SANITIZE_DOM = cfg.SANITIZE_DOM !== false;
+    		SANITIZE_NAMED_PROPS = cfg.SANITIZE_NAMED_PROPS || false;
+    		KEEP_CONTENT = cfg.KEEP_CONTENT !== false;
+    		IN_PLACE = cfg.IN_PLACE || false;
+    		IS_ALLOWED_URI$1 = isRegex(cfg.ALLOWED_URI_REGEXP) ? cfg.ALLOWED_URI_REGEXP : IS_ALLOWED_URI;
+    		NAMESPACE = typeof cfg.NAMESPACE === "string" ? cfg.NAMESPACE : HTML_NAMESPACE;
+    		MATHML_TEXT_INTEGRATION_POINTS = _resolveObjectOption(cfg, "MATHML_TEXT_INTEGRATION_POINTS", () => addToSet({}, DEFAULT_MATHML_TEXT_INTEGRATION_POINTS));
+    		HTML_INTEGRATION_POINTS = _resolveObjectOption(cfg, "HTML_INTEGRATION_POINTS", () => addToSet({}, DEFAULT_HTML_INTEGRATION_POINTS));
+    		const customElementHandling = _resolveObjectOption(cfg, "CUSTOM_ELEMENT_HANDLING", () => create$1(null));
+    		CUSTOM_ELEMENT_HANDLING = create$1(null);
+    		if (objectHasOwnProperty(customElementHandling, "tagNameCheck") && isRegexOrFunction(customElementHandling.tagNameCheck)) CUSTOM_ELEMENT_HANDLING.tagNameCheck = customElementHandling.tagNameCheck;
+    		if (objectHasOwnProperty(customElementHandling, "attributeNameCheck") && isRegexOrFunction(customElementHandling.attributeNameCheck)) CUSTOM_ELEMENT_HANDLING.attributeNameCheck = customElementHandling.attributeNameCheck;
+    		if (objectHasOwnProperty(customElementHandling, "allowCustomizedBuiltInElements") && typeof customElementHandling.allowCustomizedBuiltInElements === "boolean") CUSTOM_ELEMENT_HANDLING.allowCustomizedBuiltInElements = customElementHandling.allowCustomizedBuiltInElements;
+    		seal(CUSTOM_ELEMENT_HANDLING);
+    		if (SAFE_FOR_TEMPLATES) ALLOW_DATA_ATTR = false;
+    		if (RETURN_DOM_FRAGMENT) RETURN_DOM = true;
+    		if (USE_PROFILES) {
+    			ALLOWED_TAGS = addToSet({}, text$1);
+    			ALLOWED_ATTR = create$1(null);
+    			if (USE_PROFILES.html === true) {
+    				addToSet(ALLOWED_TAGS, html$1);
+    				addToSet(ALLOWED_ATTR, html);
+    			}
+    			if (USE_PROFILES.svg === true) {
+    				addToSet(ALLOWED_TAGS, svg$1);
+    				addToSet(ALLOWED_ATTR, svg);
+    				addToSet(ALLOWED_ATTR, xml);
+    			}
+    			if (USE_PROFILES.svgFilters === true) {
+    				addToSet(ALLOWED_TAGS, svgFilters);
+    				addToSet(ALLOWED_ATTR, svg);
+    				addToSet(ALLOWED_ATTR, xml);
+    			}
+    			if (USE_PROFILES.mathMl === true) {
+    				addToSet(ALLOWED_TAGS, mathMl$1);
+    				addToSet(ALLOWED_ATTR, mathMl);
+    				addToSet(ALLOWED_ATTR, xml);
+    			}
+    		}
+    		EXTRA_ELEMENT_HANDLING.tagCheck = null;
+    		EXTRA_ELEMENT_HANDLING.attributeCheck = null;
+    		if (objectHasOwnProperty(cfg, "ADD_TAGS")) {
+    			if (typeof cfg.ADD_TAGS === "function") EXTRA_ELEMENT_HANDLING.tagCheck = cfg.ADD_TAGS;
+    			else if (arrayIsArray(cfg.ADD_TAGS)) {
+    				if (ALLOWED_TAGS === DEFAULT_ALLOWED_TAGS) ALLOWED_TAGS = clone(ALLOWED_TAGS);
+    				addToSet(ALLOWED_TAGS, cfg.ADD_TAGS, transformCaseFunc);
+    			}
+    		}
+    		if (objectHasOwnProperty(cfg, "ADD_ATTR")) {
+    			if (typeof cfg.ADD_ATTR === "function") EXTRA_ELEMENT_HANDLING.attributeCheck = cfg.ADD_ATTR;
+    			else if (arrayIsArray(cfg.ADD_ATTR)) {
+    				if (ALLOWED_ATTR === DEFAULT_ALLOWED_ATTR) ALLOWED_ATTR = clone(ALLOWED_ATTR);
+    				addToSet(ALLOWED_ATTR, cfg.ADD_ATTR, transformCaseFunc);
+    			}
+    		}
+    		if (objectHasOwnProperty(cfg, "ADD_FORBID_CONTENTS") && arrayIsArray(cfg.ADD_FORBID_CONTENTS)) {
+    			if (FORBID_CONTENTS === DEFAULT_FORBID_CONTENTS) FORBID_CONTENTS = clone(FORBID_CONTENTS);
+    			addToSet(FORBID_CONTENTS, cfg.ADD_FORBID_CONTENTS, transformCaseFunc);
+    		}
+    		if (KEEP_CONTENT) ALLOWED_TAGS["#text"] = true;
+    		if (WHOLE_DOCUMENT) addToSet(ALLOWED_TAGS, [
+    			"html",
+    			"head",
+    			"body"
+    		]);
+    		if (ALLOWED_TAGS.table) {
+    			addToSet(ALLOWED_TAGS, ["tbody"]);
+    			delete FORBID_TAGS.tbody;
+    		}
+    		if (cfg.TRUSTED_TYPES_POLICY) {
+    			if (typeof cfg.TRUSTED_TYPES_POLICY.createHTML !== "function") throw typeErrorCreate("TRUSTED_TYPES_POLICY configuration option must provide a \"createHTML\" hook.");
+    			if (typeof cfg.TRUSTED_TYPES_POLICY.createScriptURL !== "function") throw typeErrorCreate("TRUSTED_TYPES_POLICY configuration option must provide a \"createScriptURL\" hook.");
+    			const previousTrustedTypesPolicy = trustedTypesPolicy;
+    			trustedTypesPolicy = cfg.TRUSTED_TYPES_POLICY;
+    			try {
+    				emptyHTML = _createTrustedHTML("");
+    			} catch (error) {
+    				trustedTypesPolicy = previousTrustedTypesPolicy;
+    				throw error;
+    			}
+    		} else if (cfg.TRUSTED_TYPES_POLICY === null) {
+    			trustedTypesPolicy = void 0;
+    			emptyHTML = "";
+    		} else {
+    			if (trustedTypesPolicy === void 0) trustedTypesPolicy = _getDefaultTrustedTypesPolicy();
+    			if (trustedTypesPolicy && typeof emptyHTML === "string") emptyHTML = _createTrustedHTML("");
+    		}
+    		if (freeze) freeze(cfg);
+    		CONFIG = cfg;
+    	};
+    	const ALL_SVG_TAGS = addToSet({}, [
+    		...svg$1,
+    		...svgFilters,
+    		...svgDisallowed
+    	]);
+    	const ALL_MATHML_TAGS = addToSet({}, [...mathMl$1, ...mathMlDisallowed]);
+    	/**
+    	* Namespace rules for an element in the SVG namespace.
+    	*
+    	* @param tagName the element's lowercase tag name
+    	* @param parent the (possibly simulated) parent node
+    	* @param parentTagName the parent's lowercase tag name
+    	* @returns true if a spec-compliant parser could produce this element
+    	*/
+    	const _checkSvgNamespace = function _checkSvgNamespace(tagName, parent, parentTagName) {
+    		if (parent.namespaceURI === HTML_NAMESPACE) return tagName === "svg";
+    		if (parent.namespaceURI === MATHML_NAMESPACE) return tagName === "svg" && (parentTagName === "annotation-xml" || MATHML_TEXT_INTEGRATION_POINTS[parentTagName]);
+    		return Boolean(ALL_SVG_TAGS[tagName]);
+    	};
+    	/**
+    	* Namespace rules for an element in the MathML namespace.
+    	*
+    	* @param tagName the element's lowercase tag name
+    	* @param parent the (possibly simulated) parent node
+    	* @param parentTagName the parent's lowercase tag name
+    	* @returns true if a spec-compliant parser could produce this element
+    	*/
+    	const _checkMathMlNamespace = function _checkMathMlNamespace(tagName, parent, parentTagName) {
+    		if (parent.namespaceURI === HTML_NAMESPACE) return tagName === "math";
+    		if (parent.namespaceURI === SVG_NAMESPACE) return tagName === "math" && HTML_INTEGRATION_POINTS[parentTagName];
+    		return Boolean(ALL_MATHML_TAGS[tagName]);
+    	};
+    	/**
+    	* Namespace rules for an element in the HTML namespace.
+    	*
+    	* @param tagName the element's lowercase tag name
+    	* @param parent the (possibly simulated) parent node
+    	* @param parentTagName the parent's lowercase tag name
+    	* @returns true if a spec-compliant parser could produce this element
+    	*/
+    	const _checkHtmlNamespace = function _checkHtmlNamespace(tagName, parent, parentTagName) {
+    		if (parent.namespaceURI === SVG_NAMESPACE && !HTML_INTEGRATION_POINTS[parentTagName]) return false;
+    		if (parent.namespaceURI === MATHML_NAMESPACE && !MATHML_TEXT_INTEGRATION_POINTS[parentTagName]) return false;
+    		return !ALL_MATHML_TAGS[tagName] && (COMMON_SVG_AND_HTML_ELEMENTS[tagName] || !ALL_SVG_TAGS[tagName]);
+    	};
+    	/**
+    	* @param element a DOM element whose namespace is being checked
+    	* @returns Return false if the element has a
+    	*  namespace that a spec-compliant parser would never
+    	*  return. Return true otherwise.
+    	*/
+    	const _checkValidNamespace = function _checkValidNamespace(element) {
+    		const elementNamespace = _readNamespaceURI(element);
+    		const tagName = stringToLowerCase(_readNodeName(element));
+    		const parentNode = getParentNode(element);
+    		let parent;
+    		let parentTagName;
+    		if (parentNode && _readNodeType(parentNode) === NODE_TYPE.element) {
+    			parent = { namespaceURI: _readNamespaceURI(parentNode) };
+    			parentTagName = stringToLowerCase(_readNodeName(parentNode));
+    		} else {
+    			parent = { namespaceURI: NAMESPACE };
+    			parentTagName = "template";
+    		}
+    		if (!ALLOWED_NAMESPACES[elementNamespace]) return false;
+    		if (elementNamespace === SVG_NAMESPACE) return _checkSvgNamespace(tagName, parent, parentTagName);
+    		if (elementNamespace === MATHML_NAMESPACE) return _checkMathMlNamespace(tagName, parent, parentTagName);
+    		if (elementNamespace === HTML_NAMESPACE) return _checkHtmlNamespace(tagName, parent, parentTagName);
+    		if (PARSER_MEDIA_TYPE === "application/xhtml+xml" && ALLOWED_NAMESPACES[elementNamespace]) return true;
+    		return false;
+    	};
+    	/**
+    	* _forceRemove
+    	*
+    	* @param node a DOM node
+    	*/
+    	const _forceRemove = function _forceRemove(node) {
+    		arrayPush(DOMPurify.removed, { element: node });
+    		try {
+    			getParentNode(node).removeChild(node);
+    		} catch (_) {
+    			remove(node);
+    			if (!getParentNode(node)) throw typeErrorCreate("a node selected for removal could not be detached from its tree and cannot be safely returned; refusing to sanitize in place");
+    		}
+    	};
+    	/**
+    	* _stripAttributeNode
+    	*
+    	* Remove a single Attr node case/namespace-exactly on an attribute-teardown
+    	* path. Name-based removeAttribute() ASCII-lowercases its lookup key for an
+    	* HTML element in an HTML document and so silently misses a case-preserved
+    	* handler (e.g. `ONERROR` off an XML/XHTML import) - the same defect
+    	* _removeAttribute() was fixed for, which a name-based call would reintroduce
+    	* on these IN_PLACE teardown paths. Unlike _removeAttribute this does not
+    	* record into DOMPurify.removed: the neutralize passes intentionally do not
+    	* book-keep. A clobbered/detached node falls back to best-effort name-based
+    	* removal.
+    	*
+    	* @param element the element to strip the attribute from
+    	* @param attribute the Attr node to remove
+    	* @param name the attribute's name, for the fallback path
+    	*/
+    	const _stripAttributeNode = function _stripAttributeNode(element, attribute, name) {
+    		try {
+    			removeAttributeNode(element, attribute);
+    		} catch (_) {
+    			try {
+    				element.removeAttribute(name);
+    			} catch (_) {}
+    		}
+    	};
+    	/**
+    	* Fail-closed teardown of an in-place root: strip every disallowed attribute
+    	* in the subtree first, so nothing armed is left behind, then remove all
+    	* children and the root's own attributes.
+    	*
+    	* @param root the in-place root to empty
+    	*/
+    	const _neutralizeRoot = function _neutralizeRoot(root) {
+    		_neutralizeSubtree(root);
+    		const childNodes = getChildNodes(root);
+    		if (childNodes) arrayForEach(arraySlice(childNodes), (child) => {
+    			try {
+    				remove(child);
+    			} catch (_) {}
+    		});
+    		const attributes = _readNodeType(root) === NODE_TYPE.element ? getAttributes(root) : null;
+    		if (attributes) for (let i = attributes.length - 1; i >= 0; --i) {
+    			const attribute = attributes[i];
+    			const name = attribute && attribute.name;
+    			if (typeof name === "string") _stripAttributeNode(root, attribute, name);
+    		}
+    	};
+    	/**
+    	* Removes an attribute, preferably as its exact Attr node: name-based
+    	* removal lowercases the name in HTML documents and misses case-preserved
+    	* names, e.g. from imported XHTML.
+    	*
+    	* @param name an Attribute name
+    	* @param element a DOM node
+    	* @param attr the exact Attr node to remove, when the caller has it
+    	*/
+    	const _removeAttribute = function _removeAttribute(name, element, attr) {
+    		if (!attr) try {
+    			attr = element.getAttributeNode(name);
+    		} catch (_) {
+    			attr = null;
+    		}
+    		arrayPush(DOMPurify.removed, {
+    			attribute: attr || null,
+    			from: element
+    		});
+    		try {
+    			if (attr) removeAttributeNode(element, attr);
+    			else element.removeAttribute(name);
+    		} catch (_) {
+    			try {
+    				element.removeAttribute(name);
+    			} catch (_) {}
+    		}
+    		if (name === "is") {
+    			if (RETURN_DOM || RETURN_DOM_FRAGMENT) try {
+    				_forceRemove(element);
+    			} catch (_) {}
+    			else try {
+    				element.setAttribute(name, "");
+    			} catch (_) {}
+    		}
+    	};
+    	/**
+    	* Removes every attribute the configuration does not allow. Used to
+    	* neutralize nodes discarded from an in-place tree.
+    	*
+    	* @param element the element to strip
+    	*/
+    	const _stripDisallowedAttributes = function _stripDisallowedAttributes(element) {
+    		const attributes = getAttributes(element);
+    		if (!attributes) return;
+    		for (let i = attributes.length - 1; i >= 0; --i) {
+    			const attribute = attributes[i];
+    			const name = attribute && attribute.name;
+    			if (typeof name !== "string" || ALLOWED_ATTR[transformCaseFunc(name)]) continue;
+    			_stripAttributeNode(element, attribute, name);
+    		}
+    	};
+    	/**
+    	* Iterative depth-first walk, so deep trees cannot overflow the call stack,
+    	* reading through the cached getters, so clobbering cannot hide children.
+    	* When `visit` returns false, the node's children are skipped. With
+    	* `intoShadow`, open shadow roots are walked after their host's children.
+    	*
+    	* @param root where to start
+    	* @param visit called for every node
+    	* @param intoShadow whether to enter open shadow roots
+    	*/
+    	const _walkTree = function _walkTree(root, visit) {
+    		let intoShadow = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : false;
+    		const stack = [root];
+    		while (stack.length > 0) {
+    			const node = stack.pop();
+    			if (visit(node) === false) continue;
+    			if (intoShadow && _readNodeType(node) === NODE_TYPE.element) {
+    				const shadowRoot = getShadowRoot(node);
+    				if (_isDocumentFragment(shadowRoot)) stack.push(shadowRoot);
+    			}
+    			const childNodes = getChildNodes(node);
+    			if (childNodes) for (let i = childNodes.length - 1; i >= 0; --i) stack.push(childNodes[i]);
+    		}
+    	};
+    	/**
+    	* Strips disallowed attributes from every element of a discarded subtree,
+    	* so a handler that is already queued (a loading image) cannot fire.
+    	*
+    	* @param root the root of a removed subtree
+    	*/
+    	const _neutralizeSubtree = function _neutralizeSubtree(root) {
+    		_walkTree(root, (node) => {
+    			if (_readNodeType(node) === NODE_TYPE.element) _stripDisallowedAttributes(node);
+    		});
+    	};
+    	/**
+    	* All nodes under `root`, root first, including open shadow roots. Template
+    	* content is not entered, it is inert.
+    	*
+    	* @param root the in-place root
+    	* @return the nodes
+    	*/
+    	const _collectLiveNodes = function _collectLiveNodes(root) {
+    		const nodes = [];
+    		_walkTree(root, (node) => {
+    			nodes.push(node);
+    		}, true);
+    		return nodes;
+    	};
+    	/**
+    	* Strips disallowed attributes from every element that was under the
+    	* in-place root when the call started and no longer is, whatever removed
+    	* or moved it.
+    	*
+    	* @param root the in-place root
+    	* @param before the root's nodes, collected before the walk
+    	*/
+    	const _neutralizeEscapedElements = function _neutralizeEscapedElements(root, before) {
+    		const reachable = setCreate();
+    		arrayForEach(_collectLiveNodes(root), (node) => {
+    			if (_readNodeType(node) === NODE_TYPE.element) setAdd(reachable, node);
+    		});
+    		arrayForEach(before, (node) => {
+    			if (_readNodeType(node) === NODE_TYPE.element && !setHas(reachable, node)) _stripDisallowedAttributes(node);
+    		});
+    	};
+    	/**
+    	* Neutralizes everything that left the in-place tree during the call: what
+    	* DOMPurify removed, and what hooks or custom elements removed or moved out.
+    	*
+    	* @param root the in-place root
+    	* @param before the root's nodes, collected before the walk
+    	* @return true if the root itself was removed
+    	*/
+    	const _neutralizeDiscarded = function _neutralizeDiscarded(root, before) {
+    		let rootRemoved = false;
+    		arrayForEach(DOMPurify.removed, (entry) => {
+    			if (entry.element) {
+    				rootRemoved = rootRemoved || entry.element === root;
+    				_neutralizeSubtree(entry.element);
+    			}
+    		});
+    		_neutralizeEscapedElements(root, before);
+    		return rootRemoved;
+    	};
+    	const MAX_UNVISITED_ROUNDS = 8;
+    	/**
+    	* The walk only moves forward, so a node moved to a position it already
+    	* passed is never visited. Give every original node that is still in the
+    	* tree but unvisited the normal treatment, hooks included. Nodes created
+    	* during the call are left alone. Fails closed if the tree keeps changing.
+    	*
+    	* @param root the in-place root
+    	* @param before the root's nodes, collected before the walk
+    	*/
+    	const _sanitizeUnvisitedNodes = function _sanitizeUnvisitedNodes(root, before) {
+    		const visited = IN_PLACE_VISITED;
+    		let original = null;
+    		const getOriginal = () => {
+    			if (!original) {
+    				original = setCreate();
+    				arrayForEach(before, (beforeNode) => {
+    					setAdd(original, beforeNode);
+    				});
+    			}
+    			return original;
+    		};
+    		for (let round = 0;; round++) {
+    			const live = _collectLiveNodes(root);
+    			const containers = [root];
+    			let pending = false;
+    			arrayForEach(live, (node) => {
+    				if (_readNodeType(node) === NODE_TYPE.documentFragment) arrayPush(containers, node);
+    				else if (!pending && !setHas(visited, node)) pending = setHas(getOriginal(), node);
+    			});
+    			if (!pending) return;
+    			if (round >= MAX_UNVISITED_ROUNDS) throw typeErrorCreate("the tree kept changing during in-place sanitization; refusing to return it");
+    			arrayForEach(containers, (container, index) => {
+    				_sanitizeUnvisitedIn(container, index > 0, root, getOriginal());
+    			});
+    		}
+    	};
+    	/**
+    	* One _sanitizeUnvisitedNodes pass over the root or an open shadow root.
+    	*
+    	* @param container the root or an open shadow root
+    	* @param inShadow whether container is a shadow root
+    	* @param root the in-place root
+    	* @param original the root's nodes collected before the walk, as a set
+    	*/
+    	const _sanitizeUnvisitedIn = function _sanitizeUnvisitedIn(container, inShadow, root, original) {
+    		const iterator = _createNodeIterator(container);
+    		let node;
+    		while (node = iterator.nextNode()) {
+    			if (!setHas(original, node) || setHas(IN_PLACE_VISITED, node)) continue;
+    			if (inShadow) _executeHooks(hooks.uponSanitizeShadowNode, node, null);
+    			_sanitizeElements(node, root);
+    			_sanitizeAttributes(node, root);
+    			if (_isDocumentFragment(node.content)) _sanitizeShadowDOM2(node.content);
+    		}
+    	};
+    	/**
+    	* Records that _sanitizeElements processed `node`. No-op outside IN_PLACE.
+    	*
+    	* @param node the node being processed
+    	*/
+    	const _markVisited = function _markVisited(node) {
+    		if (IN_PLACE_VISITED) setAdd(IN_PLACE_VISITED, node);
+    	};
+    	/**
+    	* Patch-linkage attributes (declarative partial updates): `patchsrc`
+    	* always, `for` everywhere except on <label> and <output>. Gated on
+    	* SAFE_FOR_XML. Shared by the IN_PLACE pre-pass and _isValidAttribute.
+    	*
+    	* @param lcName the transformCaseFunc'd attribute name
+    	* @param lcTag the transformCaseFunc'd tag name of the carrying element
+    	* @return true if the attribute is patch linkage and must be dropped
+    	*/
+    	const _isPatchLinkageAttribute = function _isPatchLinkageAttribute(lcName, lcTag) {
+    		if (!SAFE_FOR_XML) return false;
+    		if (lcName === "patchsrc") return true;
+    		return lcName === "for" && lcTag !== "label" && lcTag !== "output";
+    	};
+    	/**
+    	* IN_PLACE pre-pass: sever all patch linkage before the walk, so no patch
+    	* can fire mid-walk into a part of the tree the walker already passed.
+    	* Removes range markers (processing instructions, comments with markup)
+    	* and strips linkage attributes. It cannot undo a patch that already fired.
+    	*
+    	* TODO: if the shipped feature can patch through `for` on <label>/<output>,
+    	* drop that pair here too (see test/declarative-patch-probe.html).
+    	*
+    	* @param root the in-place root to sweep
+    	*/
+    	const _neutralizePatchLinkage = function _neutralizePatchLinkage(root) {
+    		if (!SAFE_FOR_XML) return;
+    		_walkTree(root, (node) => {
+    			const nodeType = _readNodeType(node);
+    			if (nodeType === NODE_TYPE.processingInstruction || nodeType === NODE_TYPE.comment && regExpTest(COMMENT_MARKUP_PROBE, node.data)) {
+    				try {
+    					remove(node);
+    				} catch (_) {}
+    				return false;
+    			}
+    			if (nodeType === NODE_TYPE.element) {
+    				const element = node;
+    				const lcTag = transformCaseFunc(_readNodeName(node));
+    				try {
+    					if (element.hasAttribute && element.hasAttribute("patchsrc")) element.removeAttribute("patchsrc");
+    					if (element.hasAttribute && element.hasAttribute("for") && _isPatchLinkageAttribute("for", lcTag)) element.removeAttribute("for");
+    				} catch (_) {}
+    			}
+    			return true;
+    		});
+    	};
+    	/**
+    	* _initDocument
+    	*
+    	* @param dirty - a string of dirty markup
+    	* @return a DOM, filled with the dirty markup
+    	*/
+    	const _initDocument = function _initDocument(dirty) {
+    		let doc = null;
+    		let leadingWhitespace = null;
+    		if (FORCE_BODY) dirty = "<remove></remove>" + dirty;
+    		else {
+    			const matches = stringMatch(dirty, /^[\r\n\t ]+/);
+    			leadingWhitespace = matches && matches[0];
+    		}
+    		if (PARSER_MEDIA_TYPE === "application/xhtml+xml" && NAMESPACE === HTML_NAMESPACE) dirty = "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head></head><body>" + dirty + "</body></html>";
+    		const dirtyPayload = trustedTypesPolicy ? _createTrustedHTML(dirty) : dirty;
+    		if (NAMESPACE === HTML_NAMESPACE) try {
+    			doc = new DOMParser().parseFromString(dirtyPayload, PARSER_MEDIA_TYPE);
+    		} catch (_) {}
+    		if (!doc || !doc.documentElement) {
+    			doc = implementation.createDocument(NAMESPACE, "template", null);
+    			try {
+    				doc.documentElement.innerHTML = IS_EMPTY_INPUT ? emptyHTML : dirtyPayload;
+    			} catch (_) {}
+    		}
+    		const body = doc.body || doc.documentElement;
+    		if (dirty && leadingWhitespace) body.insertBefore(document.createTextNode(leadingWhitespace), body.childNodes[0] || null);
+    		if (NAMESPACE === HTML_NAMESPACE) return getElementsByTagName.call(doc, WHOLE_DOCUMENT ? "html" : "body")[0];
+    		return WHOLE_DOCUMENT ? doc.documentElement : body;
+    	};
+    	/**
+    	* Creates a NodeIterator object that you can use to traverse filtered lists of nodes or elements in a document.
+    	*
+    	* @param root The root element or node to start traversing on.
+    	* @return The created NodeIterator
+    	*/
+    	const _createNodeIterator = function _createNodeIterator(root) {
+    		const doc = getOwnerDocument ? getOwnerDocument(root) : root.ownerDocument;
+    		return createNodeIterator.call(doc || root, root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_TEXT | NodeFilter.SHOW_PROCESSING_INSTRUCTION | NodeFilter.SHOW_CDATA_SECTION, null);
+    	};
+    	/**
+    	* Replace template expression syntax (mustache, ERB, template
+    	* literal) with a space; shared by all SAFE_FOR_TEMPLATES scrub
+    	* sites. Order matters: mustache, then ERB, then template literal.
+    	*
+    	* @param value the string to scrub
+    	* @returns the scrubbed string
+    	*/
+    	const _stripTemplateExpressions = function _stripTemplateExpressions(value) {
+    		value = stringReplace(value, MUSTACHE_EXPR$1, " ");
+    		value = stringReplace(value, ERB_EXPR$1, " ");
+    		value = stringReplace(value, TMPLIT_EXPR$1, " ");
+    		return value;
+    	};
+    	/**
+    	* Strip template-engine expressions ({{...}}, ${...}, <%...%>) from the
+    	* character data of an element subtree. Used as the final safety net for
+    	* SAFE_FOR_TEMPLATES on every DOM-returning code path so that expressions
+    	* which only form after text-node normalization (e.g. fragments split across
+    	* stripped elements) cannot survive into a template-evaluating framework.
+    	*
+    	* Walks text/comment/CDATA/processing-instruction nodes and mutates `.data`
+    	* in place rather than round-tripping through innerHTML. This preserves
+    	* descendant node references (important for IN_PLACE callers), avoids a
+    	* serialize/reparse cycle, and reads literal character data — which means
+    	* `<%...%>` in text content matches the ERB regex against its real bytes
+    	* instead of the HTML-entity-escaped form innerHTML would produce.
+    	*
+    	* Attribute values are not visited here; SAFE_FOR_TEMPLATES handling for
+    	* attributes is performed during the per-node `_sanitizeAttributes` pass.
+    	*
+    	* @param node The root element whose character data should be scrubbed.
+    	*/
+    	const _scrubTemplateExpressions2 = function _scrubTemplateExpressions(node) {
+    		var _node$querySelectorAl;
+    		_scrubOwnCharacterData(node);
+    		const templates = (_node$querySelectorAl = node.querySelectorAll) === null || _node$querySelectorAl === void 0 ? void 0 : _node$querySelectorAl.call(node, "template");
+    		if (templates) arrayForEach(templates, (tmpl) => {
+    			if (_isDocumentFragment(tmpl.content)) _scrubTemplateExpressions2(tmpl.content);
+    		});
+    	};
+    	/**
+    	* _scrubOwnCharacterData
+    	*
+    	* Non-recursive core of _scrubTemplateExpressions: normalize `node` and
+    	* strip template expressions from its own character data only. Does not
+    	* enter <template>.content or attached shadow roots (NodeIterator never
+    	* does). Used by _sanitizeShadowDOM, where every nested template content
+    	* and shadow root is already walked - and therefore scrubbed - by its own
+    	* recursive _sanitizeShadowDOM call; recursing here as well would rescrub
+    	* each nested fragment once per ancestor, which is quadratic in nesting
+    	* depth.
+    	*
+    	* @param node The root whose own character data should be scrubbed.
+    	*/
+    	const _scrubOwnCharacterData = function _scrubOwnCharacterData(node) {
+    		node.normalize();
+    		const doc = getOwnerDocument ? getOwnerDocument(node) : node.ownerDocument;
+    		const walker = createNodeIterator.call(doc || node, node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_CDATA_SECTION | NodeFilter.SHOW_PROCESSING_INSTRUCTION, null);
+    		let currentNode = walker.nextNode();
+    		while (currentNode) {
+    			currentNode.data = _stripTemplateExpressions(currentNode.data);
+    			currentNode = walker.nextNode();
+    		}
+    	};
+    	/**
+    	* _isClobbered
+    	*
+    	* Detect DOM-clobbering on HTMLFormElement nodes. Form is the only HTML
+    	* interface with [LegacyOverrideBuiltIns]; a descendant element with a
+    	* `name` attribute matching a prototype property shadows that property
+    	* on direct reads. We use this check at the IN_PLACE entry-point and
+    	* during attribute sanitization to refuse clobbered forms.
+    	*
+    	* @param element element to check for clobbering attacks
+    	* @return true if clobbered, false if safe
+    	*/
+    	const _isClobbered = function _isClobbered(element) {
+    		const realTagName = getNodeName ? getNodeName(element) : null;
+    		if (typeof realTagName !== "string") return false;
+    		if (transformCaseFunc(realTagName) !== "form") return false;
+    		return typeof element.nodeName !== "string" || typeof element.textContent !== "string" || typeof element.removeChild !== "function" || element.attributes !== getAttributes(element) || typeof element.removeAttribute !== "function" || typeof element.removeAttributeNode !== "function" || typeof element.getAttributeNode !== "function" || typeof element.setAttribute !== "function" || typeof element.namespaceURI !== "string" || typeof element.insertBefore !== "function" || typeof element.hasChildNodes !== "function" || element.nodeType !== getNodeType(element) || element.childNodes !== getChildNodes(element);
+    	};
+    	/**
+    	* Checks whether the given value is a DocumentFragment from any realm.
+    	*
+    	* The realm-independent replacement reads `nodeType` through the cached
+    	* Node.prototype getter and compares to the DOCUMENT_FRAGMENT_NODE
+    	* constant (11). nodeType is a numeric value resolved from the node's
+    	* internal slot, identical across realms for the same kind of node.
+    	*
+    	* @param value object to check
+    	* @return true if value is a DocumentFragment-shaped node from any realm
+    	*/
+    	const _isDocumentFragment = function _isDocumentFragment(value) {
+    		if (!getNodeType || typeof value !== "object" || value === null) return false;
+    		try {
+    			return getNodeType(value) === NODE_TYPE.documentFragment;
+    		} catch (_) {
+    			return false;
+    		}
+    	};
+    	/**
+    	* Checks whether the given object is a DOM node, including nodes that
+    	* originate from a different window/realm (e.g. an iframe's
+    	* contentDocument). The previous `value instanceof Node` check was
+    	* realm-bound: nodes from a different window failed it, causing
+    	* sanitize() to silently stringify them and reset IN_PLACE to false,
+    	* returning the original node unsanitized. See GHSA-4w3q-35jp-p934.
+    	*
+    	* @param value object to check whether it's a DOM node
+    	* @return true if value is a DOM node from any realm
+    	*/
+    	const _isNode = function _isNode(value) {
+    		if (!getNodeType || typeof value !== "object" || value === null) return false;
+    		try {
+    			return typeof getNodeType(value) === "number";
+    		} catch (_) {
+    			return false;
+    		}
+    	};
+    	function _executeHooks(hooks, currentNode, data) {
+    		if (hooks.length === 0) return;
+    		arrayForEach(hooks, (hook) => {
+    			hook.call(DOMPurify, currentNode, data, CONFIG);
+    		});
+    	}
+    	/**
+    	* Structural-threat checks that condemn a node regardless of the
+    	* allowlists: mXSS via namespace confusion, risky CSS construction,
+    	* processing instructions, markup-bearing comments. Pure predicate;
+    	* the caller removes. Check order is load-bearing.
+    	*
+    	* @param currentNode the node to inspect
+    	* @param tagName the node's transformCaseFunc'd tag name
+    	* @return true if the node must be removed
+    	*/
+    	const _isUnsafeNode = function _isUnsafeNode(currentNode, tagName) {
+    		if (SAFE_FOR_XML && currentNode.hasChildNodes() && !_isNode(currentNode.firstElementChild) && regExpTest(ELEMENT_MARKUP_PROBE, currentNode.textContent) && regExpTest(ELEMENT_MARKUP_PROBE, currentNode.innerHTML)) return true;
+    		if (SAFE_FOR_XML && LITERAL_TEXT_ELEMENTS[tagName] && _readNodeType(currentNode) === NODE_TYPE.element && _readNamespaceURI(currentNode) === HTML_NAMESPACE && (_isNode(currentNode.firstElementChild) || typeof currentNode.textContent === "string" && regExpTest(ELEMENT_MARKUP_PROBE, currentNode.textContent))) return true;
+    		if (currentNode.nodeType === NODE_TYPE.processingInstruction) return true;
+    		if (SAFE_FOR_XML && currentNode.nodeType === NODE_TYPE.comment && regExpTest(COMMENT_MARKUP_PROBE, currentNode.data)) return true;
+    		return false;
+    	};
+    	/**
+    	* Evaluate a CUSTOM_ELEMENT_HANDLING check (a RegExp or a predicate
+    	* function, per the validation in _parseConfig) against a name.
+    	* Additional arguments are forwarded to predicate functions - the
+    	* attributeNameCheck predicate receives the tag name as its second
+    	* argument. A null/absent check never matches.
+    	*
+    	* @param check the configured tagNameCheck / attributeNameCheck value
+    	* @param name the name to test
+    	* @param args extra arguments forwarded to a predicate function
+    	* @return true if the check matches the name
+    	*/
+    	const _matchesNameCheck = function _matchesNameCheck(check, name) {
+    		if (check instanceof RegExp) return regExpTest(check, name);
+    		if (check instanceof Function) {
+    			for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) args[_key - 2] = arguments[_key];
+    			return Boolean(check(name, ...args));
+    		}
+    		return false;
+    	};
+    	/**
+    	* Handle a node whose tag is forbidden or not allowlisted: keep
+    	* allowed custom elements (false return exits _sanitizeElements
+    	* early - the namespace and fallback-tag removal checks are
+    	* intentionally skipped for kept custom elements), else hoist
+    	* content per KEEP_CONTENT and remove.
+    	*
+    	* A kept custom element is the ONLY case in which this function
+    	* returns false, so the caller uses that return value to run the
+    	* afterSanitizeElements hook on the kept element and keep the
+    	* element-hook lifecycle consistent with normal allowlisted
+    	* elements (GHSA-c2j3-45gr-mqc4).
+    	*
+    	* @param currentNode the disallowed node
+    	* @param tagName the node's transformCaseFunc'd tag name
+    	* @return true if the node was removed, false if kept
+    	*/
+    	const _sanitizeDisallowedNode = function _sanitizeDisallowedNode(currentNode, tagName, root) {
+    		if (!FORBID_TAGS[tagName] && _isBasicCustomElement(tagName) && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.tagNameCheck, tagName)) return false;
+    		if (KEEP_CONTENT && !FORBID_CONTENTS[tagName] && !FORBID_CONTENTS[stringToLowerCase(tagName)]) {
+    			const parentNode = getParentNode(currentNode);
+    			const childNodes = getChildNodes(currentNode);
+    			if (childNodes && parentNode) {
+    				const childCount = childNodes.length;
+    				for (let i = childCount - 1; i >= 0; --i) {
+    					const hoisted = currentNode === root ? cloneNode(childNodes[i], true) : childNodes[i];
+    					parentNode.insertBefore(hoisted, getNextSibling(currentNode));
+    				}
+    			}
+    		}
+    		_forceRemove(currentNode);
+    		return true;
+    	};
+    	/**
+    	* Fork a hook-mutable allowlist off its shared binding the first time a
+    	* (possibly lazily-installed) uponSanitize* hook is about to see it, so the
+    	* hook cannot widen the per-instance default or the setConfig binding by
+    	* reference and leak past the call. Returns the set unchanged once it is
+    	* already call-local, so repeated calls across elements are idempotent.
+    	*
+    	* @param hookList the uponSanitize* hook array for this event
+    	* @param set the current ALLOWED_TAGS / ALLOWED_ATTR binding
+    	* @param defaultSet the per-instance DEFAULT_ALLOWED_* constant
+    	* @param setConfigSet the captured setConfig() binding, or null
+    	* @return a call-local clone if a hook is present and set is still shared,
+    	*   else set unchanged
+    	*/
+    	const _forkSharedAllowlist = function _forkSharedAllowlist(hookList, set, defaultSet, setConfigSet) {
+    		if (hookList.length === 0) return set;
+    		return set === defaultSet || set === setConfigSet ? clone(set) : set;
+    	};
+    	/**
+    	* A hook may have detached the node it was called for. If so, treat it as
+    	* removed and stop processing it; the walk root is exempt. On the IN_PLACE
+    	* path the detached subtree is neutralized right away.
+    	*
+    	* @param currentNode the node a hook may have detached
+    	* @param root the current walk root
+    	* @return true if the node was detached
+    	*/
+    	const _handleHookDetachedNode = function _handleHookDetachedNode(currentNode, root) {
+    		if (currentNode === root || getParentNode(currentNode) !== null) return false;
+    		if (IN_PLACE) _neutralizeSubtree(currentNode);
+    		return true;
+    	};
+    	/**
+    	* _sanitizeElements
+    	*
+    	* @protect nodeName
+    	* @protect textContent
+    	* @protect removeChild
+    	* @param currentNode to check for permission to exist
+    	* @return true if node was killed, false if left alive
+    	*/
+    	const _sanitizeElements = function _sanitizeElements(currentNode, root) {
+    		_markVisited(currentNode);
+    		_executeHooks(hooks.beforeSanitizeElements, currentNode, null);
+    		if (_handleHookDetachedNode(currentNode, root)) return true;
+    		if (_isClobbered(currentNode)) {
+    			_forceRemove(currentNode);
+    			return true;
+    		}
+    		const tagName = transformCaseFunc(_readNodeName(currentNode));
+    		ALLOWED_TAGS = _forkSharedAllowlist(hooks.uponSanitizeElement, ALLOWED_TAGS, DEFAULT_ALLOWED_TAGS, SET_CONFIG_ALLOWED_TAGS);
+    		_executeHooks(hooks.uponSanitizeElement, currentNode, {
+    			tagName,
+    			allowedTags: ALLOWED_TAGS
+    		});
+    		if (_handleHookDetachedNode(currentNode, root)) return true;
+    		if (_isUnsafeNode(currentNode, tagName)) {
+    			_forceRemove(currentNode);
+    			return true;
+    		}
+    		if (FORBID_TAGS[tagName] || !(EXTRA_ELEMENT_HANDLING.tagCheck instanceof Function && EXTRA_ELEMENT_HANDLING.tagCheck(tagName)) && !ALLOWED_TAGS[tagName]) {
+    			const removed = _sanitizeDisallowedNode(currentNode, tagName, root);
+    			if (removed === false) {
+    				_executeHooks(hooks.afterSanitizeElements, currentNode, null);
+    				if (_handleHookDetachedNode(currentNode, root)) return true;
+    			}
+    			return removed;
+    		}
+    		if (_readNodeType(currentNode) === NODE_TYPE.element && !_checkValidNamespace(currentNode)) {
+    			_forceRemove(currentNode);
+    			return true;
+    		}
+    		if ((tagName === "noscript" || tagName === "noembed" || tagName === "noframes") && regExpTest(FALLBACK_TAG_CLOSE, currentNode.innerHTML)) {
+    			_forceRemove(currentNode);
+    			return true;
+    		}
+    		if (SAFE_FOR_TEMPLATES && currentNode.nodeType === NODE_TYPE.text) {
+    			const content = _stripTemplateExpressions(currentNode.textContent);
+    			if (currentNode.textContent !== content) {
+    				arrayPush(DOMPurify.removed, { element: currentNode.cloneNode() });
+    				currentNode.textContent = content;
+    			}
+    		}
+    		_executeHooks(hooks.afterSanitizeElements, currentNode, null);
+    		return _handleHookDetachedNode(currentNode, root);
+    	};
+    	/**
+    	* _isValidAttribute
+    	*
+    	* @param lcTag Lowercase tag name of containing element.
+    	* @param lcName Lowercase attribute name.
+    	* @param value Attribute value.
+    	* @return Returns true if `value` is valid, otherwise false.
+    	*/
+    	const _isValidAttribute = function _isValidAttribute(lcTag, lcName, value) {
+    		if (FORBID_ATTR[lcName]) return false;
+    		if (_isPatchLinkageAttribute(lcName, lcTag)) return false;
+    		if (SANITIZE_DOM && (lcName === "id" || lcName === "name") && (value in document || value in formElement)) return false;
+    		const nameIsPermitted = ALLOWED_ATTR[lcName] || EXTRA_ELEMENT_HANDLING.attributeCheck instanceof Function && EXTRA_ELEMENT_HANDLING.attributeCheck(lcName, lcTag);
+    		if (ALLOW_DATA_ATTR && regExpTest(DATA_ATTR$1, lcName)) return true;
+    		if (ALLOW_ARIA_ATTR && regExpTest(ARIA_ATTR$1, lcName)) return true;
+    		if (!nameIsPermitted) return _isBasicCustomElement(lcTag) && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.tagNameCheck, lcTag) && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.attributeNameCheck, lcName, lcTag) || lcName === "is" && CUSTOM_ELEMENT_HANDLING.allowCustomizedBuiltInElements && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.tagNameCheck, value);
+    		if (URI_SAFE_ATTRIBUTES[lcName]) return true;
+    		if (regExpTest(IS_ALLOWED_URI$1, stringReplace(value, ATTR_WHITESPACE$1, ""))) return true;
+    		if ((lcName === "src" || lcName === "xlink:href" || lcName === "href") && lcTag !== "script" && stringIndexOf(value, "data:") === 0 && DATA_URI_TAGS[lcTag]) return true;
+    		if (ALLOW_UNKNOWN_PROTOCOLS && !regExpTest(IS_SCRIPT_OR_DATA$1, stringReplace(value, ATTR_WHITESPACE$1, ""))) return true;
+    		return !value;
+    	};
+    	const RESERVED_CUSTOM_ELEMENT_NAMES = addToSet({}, [
+    		"annotation-xml",
+    		"color-profile",
+    		"font-face",
+    		"font-face-format",
+    		"font-face-name",
+    		"font-face-src",
+    		"font-face-uri",
+    		"missing-glyph"
+    	]);
+    	/**
+    	* _isBasicCustomElement
+    	* checks if at least one dash is included in tagName, and it's not the first char
+    	* for more sophisticated checking see https://github.com/sindresorhus/validate-element-name
+    	*
+    	* @param tagName name of the tag of the node to sanitize
+    	* @returns Returns true if the tag name meets the basic criteria for a custom element, otherwise false.
+    	*/
+    	const _isBasicCustomElement = function _isBasicCustomElement(tagName) {
+    		return !RESERVED_CUSTOM_ELEMENT_NAMES[stringToLowerCase(tagName)] && regExpTest(CUSTOM_ELEMENT$1, tagName);
+    	};
+    	/**
+    	* Wrap an attribute value in the matching Trusted Types object when
+    	* the active policy requires it. Namespaced attributes pass through
+    	* unchanged (no TT support yet, see
+    	* https://bugs.chromium.org/p/chromium/issues/detail?id=1305293).
+    	*
+    	* @param lcTag lowercase tag name of the containing element
+    	* @param lcName lowercase attribute name
+    	* @param namespaceURI the attribute's namespace, if any
+    	* @param value the attribute value to wrap
+    	* @return the value, wrapped when Trusted Types demand it
+    	*/
+    	const _applyTrustedTypesToAttribute = function _applyTrustedTypesToAttribute(lcTag, lcName, namespaceURI, value) {
+    		if (trustedTypesPolicy && typeof trustedTypes === "object" && typeof trustedTypes.getAttributeType === "function" && !namespaceURI) switch (trustedTypes.getAttributeType(lcTag, lcName)) {
+    			case "TrustedHTML": return _createTrustedHTML(value);
+    			case "TrustedScriptURL": return _createTrustedScriptURL(value);
+    		}
+    		return value;
+    	};
+    	/**
+    	* Write a modified attribute value back onto the element. On
+    	* success, re-probe for clobbering introduced by the new value and
+    	* remove the element when found; otherwise, when this writeback is the
+    	* recreate half of the SANITIZE_NAMED_PROPS remove-and-recreate, pop the
+    	* removal entry that path recorded so it does not show as removed. On
+    	* failure, remove the attribute instead.
+    	*
+    	* Returns true only on a clean write (the value was set and the new value
+    	* introduced no clobbering). The caller uses that, together with its own
+    	* knowledge of whether this attribute pushed a DOMPurify.removed record, to
+    	* decide whether to pop that record. The pop must happen ONLY for the
+    	* named-prop remove-and-recreate; popping on any other value change (trim,
+    	* template scrubbing, Trusted Types) would consume an unrelated _forceRemove
+    	* subtree-cleanup record and let that detached subtree keep a live event
+    	* handler through the IN_PLACE neutralization pass (SO-001).
+    	*
+    	* @param currentNode the element carrying the attribute
+    	* @param name the attribute name as present on the element
+    	* @param namespaceURI the attribute's namespace, if any
+    	* @param value the new attribute value
+    	* @return true if the value was written without introducing clobbering
+    	*/
+    	const _setAttributeValue = function _setAttributeValue(currentNode, name, namespaceURI, value) {
+    		try {
+    			if (namespaceURI) currentNode.setAttributeNS(namespaceURI, name, value);
+    			else currentNode.setAttribute(name, value);
+    			if (_isClobbered(currentNode)) {
+    				_forceRemove(currentNode);
+    				return false;
+    			}
+    			return true;
+    		} catch (_) {
+    			_removeAttribute(name, currentNode);
+    			return false;
+    		}
+    	};
+    	/**
+    	* _isUnsafeAttributeValue
+    	*
+    	* Value-based attribute checks that the attribute walk applies before any
+    	* hook can force-keep an attribute, shared with the public
+    	* isValidAttribute() so that it never approves a value sanitize() would
+    	* strip.
+    	*
+    	* @param name the attribute name as found on the node (case preserved)
+    	* @param value the attribute value
+    	* @returns true if the attribute must be removed because of its value
+    	*/
+    	const _isUnsafeAttributeValue = function _isUnsafeAttributeValue(name, value) {
+    		if (SAFE_FOR_XML && regExpTest(/((--!?|])>)|<\/(style|script|title|xmp|textarea|noscript|iframe|noembed|noframes)/i, value)) return true;
+    		return stringToLowerCase(name) === "attributename" && stringMatch(value, "href") !== null;
+    	};
+    	/**
+    	* _sanitizeAttributes
+    	*
+    	* @protect attributes
+    	* @protect nodeName
+    	* @protect removeAttribute
+    	* @protect setAttribute
+    	*
+    	* @param currentNode to sanitize
+    	* @param root the current walk root
+    	*/
+    	const _sanitizeAttributes = function _sanitizeAttributes(currentNode, root) {
+    		_executeHooks(hooks.beforeSanitizeAttributes, currentNode, null);
+    		if (_handleHookDetachedNode(currentNode, root)) return;
+    		const attributes = currentNode.attributes;
+    		if (!attributes || _isClobbered(currentNode)) return;
+    		ALLOWED_ATTR = _forkSharedAllowlist(hooks.uponSanitizeAttribute, ALLOWED_ATTR, DEFAULT_ALLOWED_ATTR, SET_CONFIG_ALLOWED_ATTR);
+    		const hookEvent = {
+    			attrName: "",
+    			attrValue: "",
+    			keepAttr: true,
+    			allowedAttributes: ALLOWED_ATTR,
+    			forceKeepAttr: void 0
+    		};
+    		let l = attributes.length;
+    		const lcTag = transformCaseFunc(currentNode.nodeName);
+    		while (l--) {
+    			const attr = attributes[l];
+    			const name = attr.name, namespaceURI = attr.namespaceURI, attrValue = attr.value;
+    			const lcName = transformCaseFunc(name);
+    			const initValue = attrValue;
+    			let value = name === "value" ? initValue : stringTrim(initValue);
+    			let recreatedNamedProp = false;
+    			hookEvent.attrName = lcName;
+    			hookEvent.attrValue = value;
+    			hookEvent.keepAttr = true;
+    			hookEvent.forceKeepAttr = void 0;
+    			_executeHooks(hooks.uponSanitizeAttribute, currentNode, hookEvent);
+    			value = hookEvent.attrValue;
+    			if (SANITIZE_NAMED_PROPS && (lcName === "id" || lcName === "name") && stringIndexOf(value, SANITIZE_NAMED_PROPS_PREFIX) !== 0) {
+    				_removeAttribute(name, currentNode, attr);
+    				value = SANITIZE_NAMED_PROPS_PREFIX + value;
+    				recreatedNamedProp = true;
+    			}
+    			if (_isUnsafeAttributeValue(name, value)) {
+    				_removeAttribute(name, currentNode, attr);
+    				continue;
+    			}
+    			if (hookEvent.forceKeepAttr) continue;
+    			if (!hookEvent.keepAttr) {
+    				_removeAttribute(name, currentNode, attr);
+    				continue;
+    			}
+    			if (!ALLOW_SELF_CLOSE_IN_ATTR && regExpTest(SELF_CLOSING_TAG, value)) {
+    				_removeAttribute(name, currentNode, attr);
+    				continue;
+    			}
+    			if (SAFE_FOR_TEMPLATES) value = _stripTemplateExpressions(value);
+    			if (!_isValidAttribute(lcTag, lcName, value)) {
+    				_removeAttribute(name, currentNode, attr);
+    				continue;
+    			}
+    			value = _applyTrustedTypesToAttribute(lcTag, lcName, namespaceURI, value);
+    			if (value !== initValue) {
+    				if (_setAttributeValue(currentNode, name, namespaceURI, value) && recreatedNamedProp) arrayPop(DOMPurify.removed);
+    			}
+    		}
+    		_executeHooks(hooks.afterSanitizeAttributes, currentNode, null);
+    		_handleHookDetachedNode(currentNode, root);
+    	};
+    	/**
+    	* _sanitizeShadowDOM
+    	*
+    	* @param fragment to iterate over recursively
+    	*/
+    	const _sanitizeShadowDOM2 = function _sanitizeShadowDOM(fragment) {
+    		let shadowNode = null;
+    		const shadowIterator = _createNodeIterator(fragment);
+    		_executeHooks(hooks.beforeSanitizeShadowDOM, fragment, null);
+    		while (shadowNode = shadowIterator.nextNode()) {
+    			_executeHooks(hooks.uponSanitizeShadowNode, shadowNode, null);
+    			_sanitizeElements(shadowNode, fragment);
+    			_sanitizeAttributes(shadowNode, fragment);
+    			if (_isDocumentFragment(shadowNode.content)) _sanitizeShadowDOM2(shadowNode.content);
+    			if (_readNodeType(shadowNode) === NODE_TYPE.element) {
+    				const innerSr = getShadowRoot(shadowNode);
+    				if (_isDocumentFragment(innerSr)) {
+    					_sanitizeAttachedShadowRoots(innerSr);
+    					_sanitizeShadowDOM2(innerSr);
+    				}
+    			}
+    		}
+    		if (SAFE_FOR_TEMPLATES) _scrubOwnCharacterData(fragment);
+    		_executeHooks(hooks.afterSanitizeShadowDOM, fragment, null);
+    	};
+    	/**
+    	* Sanitizes every attached shadow root under `root`, since the node
+    	* iterator does not enter shadow trees. Needed for IN_PLACE input and for
+    	* DOM input whose clonable shadow roots were copied by importNode().
+    	*
+    	* @param root the subtree root to walk for attached shadow roots
+    	*/
+    	const _sanitizeAttachedShadowRoots = function _sanitizeAttachedShadowRoots(root) {
+    		const stack = [{
+    			node: root,
+    			shadow: null
+    		}];
+    		while (stack.length > 0) {
+    			const item = stack.pop();
+    			if (item.shadow) {
+    				_sanitizeShadowDOM2(item.shadow);
+    				continue;
+    			}
+    			const node = item.node;
+    			const isElement = _readNodeType(node) === NODE_TYPE.element;
+    			const childNodes = getChildNodes(node);
+    			if (childNodes) for (let i = childNodes.length - 1; i >= 0; --i) stack.push({
+    				node: childNodes[i],
+    				shadow: null
+    			});
+    			if (isElement) {
+    				const rootName = getNodeName ? getNodeName(node) : null;
+    				if (typeof rootName === "string" && transformCaseFunc(rootName) === "template") {
+    					const content = node.content;
+    					if (_isDocumentFragment(content)) stack.push({
+    						node: content,
+    						shadow: null
+    					});
+    				}
+    			}
+    			if (isElement) {
+    				const sr = getShadowRoot(node);
+    				if (_isDocumentFragment(sr)) stack.push({
+    					node: null,
+    					shadow: sr
+    				}, {
+    					node: sr,
+    					shadow: null
+    				});
+    			}
+    		}
+    	};
+    	DOMPurify.sanitize = function(dirty) {
+    		let cfg = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : {};
+    		let body = null;
+    		let importedNode = null;
+    		let currentNode = null;
+    		let returnNode = null;
+    		IS_EMPTY_INPUT = !dirty;
+    		if (IS_EMPTY_INPUT) dirty = "<!-->";
+    		if (typeof dirty !== "string" && !_isNode(dirty)) {
+    			dirty = stringifyValue(dirty);
+    			if (typeof dirty !== "string") throw typeErrorCreate("dirty is not a string, aborting");
+    		}
+    		if (!DOMPurify.isSupported) return dirty;
+    		if (SET_CONFIG) {
+    			ALLOWED_TAGS = SET_CONFIG_ALLOWED_TAGS;
+    			ALLOWED_ATTR = SET_CONFIG_ALLOWED_ATTR;
+    		} else _parseConfig(cfg);
+    		if (hooks.uponSanitizeElement.length > 0 || hooks.uponSanitizeAttribute.length > 0) ALLOWED_TAGS = clone(ALLOWED_TAGS);
+    		if (hooks.uponSanitizeAttribute.length > 0) ALLOWED_ATTR = clone(ALLOWED_ATTR);
+    		DOMPurify.removed = [];
+    		const inPlace = IN_PLACE && typeof dirty !== "string" && _isNode(dirty);
+    		let inPlaceNodes = [];
+    		const outerVisited = IN_PLACE_VISITED;
+    		if (inPlace) {
+    			_neutralizePatchLinkage(dirty);
+    			const nn = _readNodeName(dirty);
+    			if (typeof nn === "string") {
+    				const tagName = transformCaseFunc(nn);
+    				if (!ALLOWED_TAGS[tagName] || FORBID_TAGS[tagName]) {
+    					_neutralizeRoot(dirty);
+    					throw typeErrorCreate("root node is forbidden and cannot be sanitized in-place");
+    				}
+    			}
+    			if (_isClobbered(dirty)) {
+    				_neutralizeRoot(dirty);
+    				throw typeErrorCreate("root node is clobbered and cannot be sanitized in-place");
+    			}
+    			inPlaceNodes = _collectLiveNodes(dirty);
+    			IN_PLACE_VISITED = setCreate();
+    		} else if (_isNode(dirty)) {
+    			body = _initDocument("<!---->");
+    			importedNode = body.ownerDocument.importNode(dirty, true);
+    			if (importedNode.nodeType === NODE_TYPE.element && importedNode.nodeName === "BODY") body = importedNode;
+    			else if (importedNode.nodeName === "HTML") body = importedNode;
+    			else body.appendChild(importedNode);
+    			_sanitizeAttachedShadowRoots(body);
+    		} else {
+    			if (!RETURN_DOM && !SAFE_FOR_TEMPLATES && !WHOLE_DOCUMENT && dirty.indexOf("<") === -1) return trustedTypesPolicy && RETURN_TRUSTED_TYPE ? _createTrustedHTML(dirty) : dirty;
+    			body = _initDocument(dirty);
+    			if (!body) return RETURN_DOM ? null : RETURN_TRUSTED_TYPE ? emptyHTML : "";
+    		}
+    		if (body && FORCE_BODY) _forceRemove(body.firstChild);
+    		const walkRoot = inPlace ? dirty : body;
+    		try {
+    			if (inPlace) _sanitizeAttachedShadowRoots(dirty);
+    			const nodeIterator = _createNodeIterator(walkRoot);
+    			while (currentNode = nodeIterator.nextNode()) {
+    				_sanitizeElements(currentNode, walkRoot);
+    				_sanitizeAttributes(currentNode, walkRoot);
+    				if (_isDocumentFragment(currentNode.content)) _sanitizeShadowDOM2(currentNode.content);
+    			}
+    			if (inPlace) _sanitizeUnvisitedNodes(dirty, inPlaceNodes);
+    		} catch (error) {
+    			if (inPlace) {
+    				_neutralizeRoot(dirty);
+    				_neutralizeDiscarded(dirty, inPlaceNodes);
+    			}
+    			throw error;
+    		} finally {
+    			IN_PLACE_VISITED = outerVisited;
+    		}
+    		if (inPlace) {
+    			if (_neutralizeDiscarded(dirty, inPlaceNodes)) throw typeErrorCreate("a node selected for removal could not be safely returned; refusing to sanitize in place");
+    			if (SAFE_FOR_TEMPLATES) _scrubTemplateExpressions2(dirty);
+    			return dirty;
+    		}
+    		if (RETURN_DOM) {
+    			if (SAFE_FOR_TEMPLATES) _scrubTemplateExpressions2(body);
+    			if (RETURN_DOM_FRAGMENT) {
+    				returnNode = createDocumentFragment.call(body.ownerDocument);
+    				while (body.firstChild) returnNode.appendChild(body.firstChild);
+    			} else returnNode = body;
+    			if (ALLOWED_ATTR.shadowroot || ALLOWED_ATTR.shadowrootmode) returnNode = importNode.call(originalDocument, returnNode, true);
+    			return returnNode;
+    		}
+    		let serializedHTML = WHOLE_DOCUMENT ? body.outerHTML : body.innerHTML;
+    		if (WHOLE_DOCUMENT && ALLOWED_TAGS["!doctype"] && body.ownerDocument && body.ownerDocument.doctype && body.ownerDocument.doctype.name && regExpTest(DOCTYPE_NAME, body.ownerDocument.doctype.name)) serializedHTML = "<!DOCTYPE " + body.ownerDocument.doctype.name + ">\n" + serializedHTML;
+    		if (SAFE_FOR_TEMPLATES) serializedHTML = _stripTemplateExpressions(serializedHTML);
+    		return trustedTypesPolicy && RETURN_TRUSTED_TYPE ? _createTrustedHTML(serializedHTML) : serializedHTML;
+    	};
+    	DOMPurify.setConfig = function() {
+    		let cfg = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : {};
+    		_parseConfig(cfg);
+    		SET_CONFIG = true;
+    		SET_CONFIG_ALLOWED_TAGS = ALLOWED_TAGS;
+    		SET_CONFIG_ALLOWED_ATTR = ALLOWED_ATTR;
+    	};
+    	DOMPurify.clearConfig = function() {
+    		CONFIG = null;
+    		SET_CONFIG = false;
+    		SET_CONFIG_ALLOWED_TAGS = null;
+    		SET_CONFIG_ALLOWED_ATTR = null;
+    		trustedTypesPolicy = defaultTrustedTypesPolicy;
+    		emptyHTML = "";
+    	};
+    	DOMPurify.isValidAttribute = function(tag, attr, value) {
+    		if (!CONFIG) _parseConfig({});
+    		const lcTag = transformCaseFunc(tag);
+    		const lcName = transformCaseFunc(attr);
+    		if (typeof value === "string" && (_isUnsafeAttributeValue(attr, value) || !ALLOW_SELF_CLOSE_IN_ATTR && regExpTest(SELF_CLOSING_TAG, value))) return false;
+    		return _isValidAttribute(lcTag, lcName, value);
+    	};
+    	DOMPurify.addHook = function(entryPoint, hookFunction) {
+    		if (typeof hookFunction !== "function") return;
+    		if (!objectHasOwnProperty(hooks, entryPoint)) return;
+    		arrayPush(hooks[entryPoint], hookFunction);
+    	};
+    	DOMPurify.removeHook = function(entryPoint, hookFunction) {
+    		if (!objectHasOwnProperty(hooks, entryPoint)) return;
+    		if (hookFunction !== void 0) {
+    			const index = arrayLastIndexOf(hooks[entryPoint], hookFunction);
+    			return index === -1 ? void 0 : arraySplice(hooks[entryPoint], index, 1)[0];
+    		}
+    		return arrayPop(hooks[entryPoint]);
+    	};
+    	DOMPurify.removeHooks = function(entryPoint) {
+    		if (!objectHasOwnProperty(hooks, entryPoint)) return;
+    		hooks[entryPoint] = [];
+    	};
+    	DOMPurify.removeAllHooks = function() {
+    		hooks = _createHooksMap();
+    	};
+    	return DOMPurify;
     }
-    var purify = createDOMPurify();
+    var purify_default = createDOMPurify();
 
-    const sanitizeHtmlString = (html) => purify().sanitize(html);
+    const sanitizeHtmlString = (html) => purify_default().sanitize(html);
 
     var global$6 = tinymce.util.Tools.resolve('tinymce.util.I18n');
 
@@ -18742,6 +19885,7 @@
     const optionalLabel = optionString('label');
     const optionalShortcut = optionString('shortcut');
     const optionalSelect = optionFunction('select');
+    const optionalOnDoubleClick = optionFunction('onDoubleClick');
     const active = defaultedBoolean('active', false);
     const borderless = defaultedBoolean('borderless', false);
     const enabled = defaultedBoolean('enabled', true);
@@ -19149,7 +20293,8 @@
     ];
     const tabPanelFields = [
         type,
-        requiredArrayOfObj('tabs', tabFields)
+        requiredArrayOfObj('tabs', tabFields),
+        defaultedBoolean('dynamicHeight', false)
     ];
     const tabPanelSchema = objOf(tabPanelFields);
 
@@ -19271,17 +20416,6 @@
         optionalText,
         optionalIcon
     ]);
-    objOf([
-        type,
-        requiredString('trigger'),
-        defaultedNumber('minChars', 1),
-        defaultedColumns(1),
-        defaultedNumber('maxResults', 10),
-        optionFunction('matches'),
-        fetch,
-        onAction,
-        defaultedArrayOf('highlightOn', [], string)
-    ]);
     const createSeparatorItem = (spec) => asRaw('Autocompleter.Separator', separatorMenuItemSchema, spec);
     const createAutocompleterItem = (spec) => asRaw('Autocompleter.Item', autocompleterItemSchema, spec);
 
@@ -19306,6 +20440,7 @@
     const toggleButtonSchema = objOf(baseToolbarToggleButtonFields.concat([
         type,
         onAction,
+        optionalOnDoubleClick,
         optionalShortcut
     ]));
     const createToggleButton = (spec) => asRaw('ToggleButton', toggleButtonSchema, spec);
@@ -19529,6 +20664,7 @@
     const sidebarSchema = objOf([
         optionalIcon,
         optionalTooltip,
+        defaultedBoolean('resizable', false),
         defaultedFunction('onShow', noop),
         defaultedFunction('onHide', noop),
         onSetup
@@ -19599,6 +20735,7 @@
 
     const viewSchema = objOf([
         defaultedArrayOf('buttons', [], viewButtonSchema),
+        defaultedBoolean('keepToolbar', false),
         requiredFunction('onShow'),
         requiredFunction('onHide')
     ]);
@@ -20155,58 +21292,6 @@
         }, structure, itemResponse, sharedBackstage.providers);
     };
 
-    const render$2 = (items, extras) => map$2(items, (item) => {
-        switch (item.type) {
-            case 'cardcontainer':
-                return renderContainer(item, render$2(item.items, extras));
-            case 'cardimage':
-                return renderImage(item.src, item.classes, item.alt);
-            case 'cardtext':
-                // Only highlight targeted text components
-                const shouldHighlight = item.name.exists((name) => contains$2(extras.cardText.highlightOn, name));
-                const matchText = shouldHighlight ? Optional.from(extras.cardText.matchText).getOr('') : '';
-                return renderHtml(replaceText(item.text, matchText), item.classes);
-        }
-    });
-    const renderCardMenuItem = (spec, itemResponse, sharedBackstage, extras) => {
-        const getApi = (component) => ({
-            isEnabled: () => !Disabling.isDisabled(component),
-            setEnabled: (state) => {
-                Disabling.set(component, !state);
-                // Disable sub components
-                each$1(descendants(component.element, '*'), (elm) => {
-                    component.getSystem().getByDom(elm).each((comp) => {
-                        if (comp.hasConfigured(Disabling)) {
-                            Disabling.set(comp, !state);
-                        }
-                    });
-                });
-            }
-        });
-        const structure = {
-            dom: renderItemDomStructure(spec.label, []),
-            optComponents: [
-                Optional.some({
-                    dom: {
-                        tag: 'div',
-                        classes: [containerClass, containerRowClass]
-                    },
-                    components: render$2(spec.items, extras)
-                })
-            ]
-        };
-        return renderCommonItem({
-            context: 'mode:design',
-            data: buildData({ text: Optional.none(), ...spec }),
-            enabled: spec.enabled,
-            getApi,
-            onAction: spec.onAction,
-            onSetup: spec.onSetup,
-            triggersSubmenu: false,
-            itemBehaviours: Optional.from(extras.itemBehaviours).getOr([])
-        }, structure, itemResponse, sharedBackstage.providers);
-    };
-
     const renderChoiceItem = (spec, useText, presets, onItemValueHandler, isSelected, itemResponse, providersBackstage, renderIcons = true) => {
         const getApi = (component) => ({
             setActive: (state) => {
@@ -20257,6 +21342,125 @@
                 selected: spec.active,
                 exclusive: true
             }
+        });
+    };
+
+    const renderSeparatorItem = (spec) => ({
+        type: 'separator',
+        dom: {
+            tag: 'div',
+            classes: [selectableClass, groupHeadingClass]
+        },
+        components: spec.text.map(text$2).toArray()
+    });
+
+    // Note, this does not create a valid SketchSpec.
+    const renderNormalItem = (spec, itemResponse, providersBackstage, renderIcons = true) => {
+        const getApi = (component) => ({
+            isEnabled: () => !Disabling.isDisabled(component),
+            setEnabled: (state) => Disabling.set(component, !state)
+        });
+        const structure = renderItemStructure({
+            presets: 'normal',
+            iconContent: spec.icon,
+            textContent: spec.text,
+            htmlContent: Optional.none(),
+            labelContent: Optional.none(),
+            ariaLabel: spec.text,
+            caret: Optional.none(),
+            checkMark: Optional.none(),
+            shortcutContent: spec.shortcut
+        }, providersBackstage, renderIcons);
+        return renderCommonItem({
+            context: spec.context,
+            data: buildData(spec),
+            getApi,
+            enabled: spec.enabled,
+            onAction: spec.onAction,
+            onSetup: spec.onSetup,
+            triggersSubmenu: false,
+            itemBehaviours: []
+        }, structure, itemResponse, providersBackstage);
+    };
+
+    // Note, this does not create a valid SketchSpec.
+    const renderNestedItem = (spec, itemResponse, providersBackstage, renderIcons = true, downwardsCaret = false) => {
+        const caret = downwardsCaret ? renderDownwardsCaret(providersBackstage.icons) : renderSubmenuCaret(providersBackstage.icons);
+        const getApi = (component) => ({
+            isEnabled: () => !Disabling.isDisabled(component),
+            setEnabled: (state) => Disabling.set(component, !state),
+            setIconFill: (id, value) => {
+                descendant(component.element, `svg path[class="${id}"], rect[class="${id}"]`).each((underlinePath) => {
+                    set$9(underlinePath, 'fill', value);
+                });
+            },
+            setTooltip: (tooltip) => {
+                const translatedTooltip = providersBackstage.translate(tooltip);
+                set$9(component.element, 'aria-label', translatedTooltip);
+            }
+        });
+        const structure = renderItemStructure({
+            presets: 'normal',
+            iconContent: spec.icon,
+            textContent: spec.text,
+            htmlContent: Optional.none(),
+            ariaLabel: spec.text,
+            labelContent: Optional.none(),
+            caret: Optional.some(caret),
+            checkMark: Optional.none(),
+            shortcutContent: spec.shortcut
+        }, providersBackstage, renderIcons);
+        return renderCommonItem({
+            context: spec.context,
+            data: buildData(spec),
+            getApi,
+            enabled: spec.enabled,
+            onAction: noop,
+            onSetup: spec.onSetup,
+            triggersSubmenu: true,
+            itemBehaviours: []
+        }, structure, itemResponse, providersBackstage);
+    };
+
+    const renderToggleMenuItem = (spec, itemResponse, providersBackstage, renderIcons = true) => {
+        const getApi = (component) => ({
+            setActive: (state) => {
+                Toggling.set(component, state);
+            },
+            isActive: () => Toggling.isOn(component),
+            isEnabled: () => !Disabling.isDisabled(component),
+            setEnabled: (state) => Disabling.set(component, !state)
+        });
+        // BespokeSelects use meta to pass through styling information. Bespokes should only
+        // be togglemenuitems hence meta is only passed through in this MenuItem.
+        const structure = renderItemStructure({
+            iconContent: spec.icon,
+            textContent: spec.text,
+            htmlContent: Optional.none(),
+            labelContent: Optional.none(),
+            ariaLabel: spec.text,
+            checkMark: Optional.some(renderCheckmark(providersBackstage.icons)),
+            caret: Optional.none(),
+            shortcutContent: spec.shortcut,
+            presets: 'normal',
+            meta: spec.meta
+        }, providersBackstage, renderIcons);
+        return deepMerge(renderCommonItem({
+            context: spec.context,
+            data: buildData(spec),
+            enabled: spec.enabled,
+            getApi,
+            onAction: spec.onAction,
+            onSetup: spec.onSetup,
+            triggersSubmenu: false,
+            itemBehaviours: []
+        }, structure, itemResponse, providersBackstage), {
+            toggling: {
+                toggleClass: tickedClass,
+                toggleOnExecute: false,
+                selected: spec.active
+            },
+            role: spec.role.getOrUndefined()
         });
     };
 
@@ -20487,6 +21691,12 @@
     };
     const fireToggleSidebar = (editor) => {
         editor.dispatch('ToggleSidebar');
+    };
+    const fireSidebarResizeStart = (dispatcher) => {
+        dispatcher.dispatch('SidebarResizeStart');
+    };
+    const fireSidebarResized = (dispatcher, width) => {
+        dispatcher.dispatch('SidebarResized', { width });
     };
     const fireToggleView = (editor) => {
         editor.dispatch('ToggleView');
@@ -21066,7 +22276,6 @@
         else if (item.type === 'resetimage') {
             return createResetImageItem(item).fold(handleError, (d) => Optional.some(renderChoiceItem(({
                 ...d,
-                type: 'choiceitem',
                 text: d.tooltip,
                 icon: Optional.some(d.icon),
                 label: Optional.some(d.label),
@@ -21080,7 +22289,7 @@
     const deriveMenuMovement = (columns, presets) => {
         const menuMarkers = markers(presets);
         if (columns === 1) {
-            return { mode: 'menu', moveOnTab: true };
+            return { mode: 'menu' };
         }
         else if (columns === 'auto') {
             return {
@@ -21115,7 +22324,6 @@
         if (columns === 1) {
             return {
                 mode: 'menu',
-                moveOnTab: false,
                 selector: '.tox-collection__item'
             };
         }
@@ -21321,132 +22529,57 @@
     };
     const renderFancyMenuItem = (spec, backstage) => get$h(fancyMenuItems, spec.fancytype).map((render) => render(spec, backstage));
 
-    // Note, this does not create a valid SketchSpec.
-    const renderNestedItem = (spec, itemResponse, providersBackstage, renderIcons = true, downwardsCaret = false) => {
-        const caret = downwardsCaret ? renderDownwardsCaret(providersBackstage.icons) : renderSubmenuCaret(providersBackstage.icons);
+    const render$2 = (items, extras) => map$2(items, (item) => {
+        switch (item.type) {
+            case 'cardcontainer':
+                return renderContainer(item, render$2(item.items, extras));
+            case 'cardimage':
+                return renderImage(item.src, item.classes, item.alt);
+            case 'cardtext':
+                // Only highlight targeted text components
+                const shouldHighlight = item.name.exists((name) => contains$2(extras.cardText.highlightOn, name));
+                const matchText = shouldHighlight ? Optional.from(extras.cardText.matchText).getOr('') : '';
+                return renderHtml(replaceText(item.text, matchText), item.classes);
+        }
+    });
+    const renderCardMenuItem = (spec, itemResponse, sharedBackstage, extras) => {
         const getApi = (component) => ({
             isEnabled: () => !Disabling.isDisabled(component),
-            setEnabled: (state) => Disabling.set(component, !state),
-            setIconFill: (id, value) => {
-                descendant(component.element, `svg path[class="${id}"], rect[class="${id}"]`).each((underlinePath) => {
-                    set$9(underlinePath, 'fill', value);
+            setEnabled: (state) => {
+                Disabling.set(component, !state);
+                // Disable sub components
+                each$1(descendants(component.element, '*'), (elm) => {
+                    component.getSystem().getByDom(elm).each((comp) => {
+                        if (comp.hasConfigured(Disabling)) {
+                            Disabling.set(comp, !state);
+                        }
+                    });
                 });
-            },
-            setTooltip: (tooltip) => {
-                const translatedTooltip = providersBackstage.translate(tooltip);
-                set$9(component.element, 'aria-label', translatedTooltip);
             }
         });
-        const structure = renderItemStructure({
-            presets: 'normal',
-            iconContent: spec.icon,
-            textContent: spec.text,
-            htmlContent: Optional.none(),
-            ariaLabel: spec.text,
-            labelContent: Optional.none(),
-            caret: Optional.some(caret),
-            checkMark: Optional.none(),
-            shortcutContent: spec.shortcut
-        }, providersBackstage, renderIcons);
+        const structure = {
+            dom: renderItemDomStructure(spec.label, []),
+            optComponents: [
+                Optional.some({
+                    dom: {
+                        tag: 'div',
+                        classes: [containerClass, containerRowClass]
+                    },
+                    components: render$2(spec.items, extras)
+                })
+            ]
+        };
         return renderCommonItem({
-            context: spec.context,
-            data: buildData(spec),
-            getApi,
-            enabled: spec.enabled,
-            onAction: noop,
-            onSetup: spec.onSetup,
-            triggersSubmenu: true,
-            itemBehaviours: []
-        }, structure, itemResponse, providersBackstage);
-    };
-
-    // Note, this does not create a valid SketchSpec.
-    const renderNormalItem = (spec, itemResponse, providersBackstage, renderIcons = true) => {
-        const getApi = (component) => ({
-            isEnabled: () => !Disabling.isDisabled(component),
-            setEnabled: (state) => Disabling.set(component, !state)
-        });
-        const structure = renderItemStructure({
-            presets: 'normal',
-            iconContent: spec.icon,
-            textContent: spec.text,
-            htmlContent: Optional.none(),
-            labelContent: Optional.none(),
-            ariaLabel: spec.text,
-            caret: Optional.none(),
-            checkMark: Optional.none(),
-            shortcutContent: spec.shortcut
-        }, providersBackstage, renderIcons);
-        return renderCommonItem({
-            context: spec.context,
-            data: buildData(spec),
-            getApi,
-            enabled: spec.enabled,
-            onAction: spec.onAction,
-            onSetup: spec.onSetup,
-            triggersSubmenu: false,
-            itemBehaviours: []
-        }, structure, itemResponse, providersBackstage);
-    };
-
-    const renderSeparatorItem = (spec) => ({
-        type: 'separator',
-        dom: {
-            tag: 'div',
-            classes: [selectableClass, groupHeadingClass]
-        },
-        components: spec.text.map(text$2).toArray()
-    });
-
-    const renderToggleMenuItem = (spec, itemResponse, providersBackstage, renderIcons = true) => {
-        const getApi = (component) => ({
-            setActive: (state) => {
-                Toggling.set(component, state);
-            },
-            isActive: () => Toggling.isOn(component),
-            isEnabled: () => !Disabling.isDisabled(component),
-            setEnabled: (state) => Disabling.set(component, !state)
-        });
-        // BespokeSelects use meta to pass through styling information. Bespokes should only
-        // be togglemenuitems hence meta is only passed through in this MenuItem.
-        const structure = renderItemStructure({
-            iconContent: spec.icon,
-            textContent: spec.text,
-            htmlContent: Optional.none(),
-            labelContent: Optional.none(),
-            ariaLabel: spec.text,
-            checkMark: Optional.some(renderCheckmark(providersBackstage.icons)),
-            caret: Optional.none(),
-            shortcutContent: spec.shortcut,
-            presets: 'normal',
-            meta: spec.meta
-        }, providersBackstage, renderIcons);
-        return deepMerge(renderCommonItem({
-            context: spec.context,
-            data: buildData(spec),
+            context: 'mode:design',
+            data: buildData({ text: Optional.none(), ...spec }),
             enabled: spec.enabled,
             getApi,
             onAction: spec.onAction,
             onSetup: spec.onSetup,
             triggersSubmenu: false,
-            itemBehaviours: []
-        }, structure, itemResponse, providersBackstage), {
-            toggling: {
-                toggleClass: tickedClass,
-                toggleOnExecute: false,
-                selected: spec.active
-            },
-            role: spec.role.getOrUndefined()
-        });
+            itemBehaviours: Optional.from(extras.itemBehaviours).getOr([])
+        }, structure, itemResponse, sharedBackstage.providers);
     };
-
-    const autocomplete = renderAutocompleteItem;
-    const separator$3 = renderSeparatorItem;
-    const normal = renderNormalItem;
-    const nested = renderNestedItem;
-    const toggle = renderToggleMenuItem;
-    const fancy = renderFancyMenuItem;
-    const card = renderCardMenuItem;
 
     const identifyMenuLayout = (searchMode) => {
         switch (searchMode.searchMode) {
@@ -21564,17 +22697,17 @@
         });
         switch (item.type) {
             case 'menuitem':
-                return createMenuItem(item).fold(handleError, (d) => Optional.some(normal(parseForHorizontalMenu(d), itemResponse, providersBackstage, menuHasIcons)));
+                return createMenuItem(item).fold(handleError, (d) => Optional.some(renderNormalItem(parseForHorizontalMenu(d), itemResponse, providersBackstage, menuHasIcons)));
             case 'nestedmenuitem':
-                return createNestedMenuItem(item).fold(handleError, (d) => Optional.some(nested(parseForHorizontalMenu(d), itemResponse, providersBackstage, menuHasIcons, isHorizontalMenu)));
+                return createNestedMenuItem(item).fold(handleError, (d) => Optional.some(renderNestedItem(parseForHorizontalMenu(d), itemResponse, providersBackstage, menuHasIcons, isHorizontalMenu)));
             case 'togglemenuitem':
-                return createToggleMenuItem(item).fold(handleError, (d) => Optional.some(toggle(parseForHorizontalMenu(d), itemResponse, providersBackstage, menuHasIcons)));
+                return createToggleMenuItem(item).fold(handleError, (d) => Optional.some(renderToggleMenuItem(parseForHorizontalMenu(d), itemResponse, providersBackstage, menuHasIcons)));
             case 'separator':
-                return createSeparatorMenuItem(item).fold(handleError, (d) => Optional.some(separator$3(d)));
+                return createSeparatorMenuItem(item).fold(handleError, (d) => Optional.some(renderSeparatorItem(d)));
             case 'fancymenuitem':
                 return createFancyMenuItem(item).fold(handleError, 
                 // Fancy menu items don't have shortcuts or icons
-                (d) => fancy(d, backstage));
+                (d) => renderFancyMenuItem(d, backstage));
             default: {
                 // eslint-disable-next-line no-console
                 console.error('Unknown item in general menu', item);
@@ -21589,9 +22722,9 @@
         return cat(map$2(items, (item) => {
             switch (item.type) {
                 case 'separator':
-                    return createSeparatorItem(item).fold(handleError, (d) => Optional.some(separator$3(d)));
+                    return createSeparatorItem(item).fold(handleError, (d) => Optional.some(renderSeparatorItem(d)));
                 case 'cardmenuitem':
-                    return createCardMenuItem(item).fold(handleError, (d) => Optional.some(card({
+                    return createCardMenuItem(item).fold(handleError, (d) => Optional.some(renderCardMenuItem({
                         ...d,
                         // Intercept action
                         onAction: (api) => {
@@ -21607,7 +22740,7 @@
                     })));
                 case 'autocompleteitem':
                 default:
-                    return createAutocompleterItem(item).fold(handleError, (d) => Optional.some(autocomplete(d, matchText, renderText, 'normal', onItemValueHandler, itemResponse, sharedBackstage, renderIcons)));
+                    return createAutocompleterItem(item).fold(handleError, (d) => Optional.some(renderAutocompleteItem(d, matchText, renderText, 'normal', onItemValueHandler, itemResponse, sharedBackstage, renderIcons)));
             }
         }));
     };
@@ -23593,7 +24726,8 @@
                 Optional.some(iconSpec)
             ]),
             matchWidth: true,
-            useMinWidth: true,
+            useMinWidth: spec.useMinWidth ?? true,
+            sandboxClasses: spec.sandboxClasses ?? [],
             // When the dropdown opens, if we are in search mode, then we want to
             // focus our searcher.
             onOpen: (anchor, dropdownComp, tmenuComp) => {
@@ -23672,7 +24806,7 @@
                 Keying.config({
                     mode: 'special',
                     onLeft: onLeftOrRightInMenu,
-                    onRight: onLeftOrRightInMenu
+                    onRight: onLeftOrRightInMenu,
                 }),
                 config('dropdown-sandbox-events', [
                     run$1(refetchTriggerEvent, (originalSandboxComp, se) => {
@@ -23915,6 +25049,8 @@
                     columns: 1,
                     presets: 'normal',
                     classes: [],
+                    useMinWidth: false,
+                    sandboxClasses: ['tox-listbox__menu'],
                     dropdownBehaviours: [
                         Tabstopping.config({}),
                         withComp(initialItem.map((item) => item.value), (comp) => get$g(comp.element, dataAttribute), (comp, data) => {
@@ -24978,11 +26114,8 @@
         const buttonSpec = {
             ...spec,
             name: spec.name ?? '',
-            primary: buttonType === 'primary',
             tooltip: spec.tooltip,
-            enabled: spec.enabled ?? false,
-            borderless: false
-        };
+            enabled: spec.enabled ?? false};
         const tooltipAttributes = buttonSpec.tooltip.or(spec.text).map((tooltip) => ({
             'aria-label': providers.translate(tooltip),
         })).getOr({});
@@ -26406,9 +27539,9 @@
 
     var StaticHeader = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        setup: setup$a,
+        getBehaviours: getBehaviours$1,
         isDocked: isDocked$1,
-        getBehaviours: getBehaviours$1
+        setup: setup$a
     });
 
     const toolbarHeightChange = constant$1(generate$6('toolbar-height-change'));
@@ -26663,9 +27796,9 @@
 
     var StickyHeader = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        setup: setup$9,
+        getBehaviours: getBehaviours,
         isDocked: isDocked,
-        getBehaviours: getBehaviours
+        setup: setup$9
     });
 
     const renderHeader = (spec) => {
@@ -26803,6 +27936,98 @@
         };
     };
 
+    const parseToInt = (val) => {
+        // if size is a number or '_px', will return the number
+        const re = /^[0-9\.]+(|px)$/i;
+        if (re.test('' + val)) {
+            return Optional.some(parseInt('' + val, 10));
+        }
+        return Optional.none();
+    };
+    const numToPx = (val) => isNumber(val) ? val + 'px' : val;
+    const calcCappedSize = (size, minSize, maxSize) => {
+        const minOverride = minSize.filter((min) => size < min);
+        const maxOverride = maxSize.filter((max) => size > max);
+        return minOverride.or(maxOverride).getOr(size);
+    };
+    const convertValueToPx = (element, value) => {
+        if (typeof value === 'number') {
+            return Optional.from(value);
+        }
+        const splitValue = /^([0-9.]+)(pt|em|px)$/.exec(value.trim());
+        if (splitValue) {
+            const type = splitValue[2];
+            const parsed = Number.parseFloat(splitValue[1]);
+            if (Number.isNaN(parsed) || parsed < 0) {
+                return Optional.none();
+            }
+            else if (type === 'em') {
+                return Optional.from(parsed * Number.parseFloat(window.getComputedStyle(element.dom).fontSize));
+            }
+            else if (type === 'pt') {
+                return Optional.from(parsed * (72 / 96));
+            }
+            else if (type === 'px') {
+                return Optional.from(parsed);
+            }
+        }
+        return Optional.none();
+    };
+
+    const requestedWidthProperty = '--tox-private-requested-sidebar-width';
+    const resolvedWidthProperty = '--tox-private-resolved-sidebar-width';
+    const minEditingAreaWidthProperty = '--tox-private-min-editing-area-width';
+    const resizableClass = 'tox-sidebar-wrap--resizable';
+    const applyWidth = (sidebar, width) => {
+        set$7(sidebar, requestedWidthProperty, numToPx(width));
+    };
+    const getMinEditingAreaWidth = (sidebar) => parseToInt(get$e(sidebar, minEditingAreaWidthProperty));
+
+    const findSidebar = (handle) => ancestor$1(handle.element, '.tox-sidebar');
+    const findSidebarWrap = (handle) => ancestor$1(handle.element, '.tox-sidebar-wrap');
+    const makeSidebarResizeHandle = (sizeConstraints, eventDispatcher) => {
+        const { minWidth, maxWidth } = sizeConstraints;
+        const growSign = Cell(-1);
+        return {
+            dom: {
+                tag: 'div',
+                classes: ['tox-sidebar__resize-handle']
+            },
+            behaviours: derive$1([
+                Dragging.config({
+                    mode: 'pointer',
+                    repositionTarget: false,
+                    onDragStart: (handle) => {
+                        findSidebar(handle).each((sidebar) => {
+                            const sidebarWidth = get$c(sidebar);
+                            const availableMax = lift2(findSidebarWrap(handle), getMinEditingAreaWidth(sidebar), (wrap, minEditingAreaWidth) => Math.floor(get$c(wrap)) - minEditingAreaWidth).getOr(maxWidth);
+                            const effectiveMax = Math.min(maxWidth, availableMax);
+                            // When the editor is too narrow to honour both the sidebar's configured minimum
+                            // and the editing area's minimum, the range is unsatisfiable. Skip the resize so a
+                            // drag can't clobber the preserved requested width with the clamped value.
+                            if (effectiveMax >= minWidth) {
+                                growSign.set(getDirection(handle.element) === 'ltr' ? -1 : 1);
+                                Resizing.start(handle, sidebarWidth, get$d(sidebar), { minWidth, maxWidth: effectiveMax });
+                                fireSidebarResizeStart(eventDispatcher);
+                            }
+                        });
+                    },
+                    onDrag: (handle, _target, delta) => {
+                        Resizing.moveBy(handle, SugarPosition(growSign.get() * delta.left, 0)).each(({ width }) => {
+                            findSidebar(handle).each((sidebar) => applyWidth(sidebar, width));
+                        });
+                    },
+                    onDrop: (handle) => {
+                        Resizing.stop(handle).each(({ width }) => {
+                            fireSidebarResized(eventDispatcher, width);
+                        });
+                    }
+                }),
+                Resizing.config({})
+            ])
+        };
+    };
+
     const setup$8 = (editor) => {
         const { sidebars } = editor.ui.registry.getAll();
         // Setup each registered sidebar
@@ -26813,7 +28038,7 @@
                 icon: spec.icon,
                 tooltip: spec.tooltip,
                 onAction: (buttonApi) => {
-                    editor.execCommand('ToggleSidebar', false, name);
+                    editor.execCommand('ToggleSidebar', false, name, { skip_focus: true });
                     buttonApi.setActive(isActive());
                 },
                 onSetup: (buttonApi) => {
@@ -26840,7 +28065,8 @@
                 getApi,
                 onSetup: bridged.onSetup,
                 onShow: bridged.onShow,
-                onHide: bridged.onHide
+                onHide: bridged.onHide,
+                resizable: bridged.resizable
             };
         });
         return map$2(specs, (spec) => {
@@ -26857,6 +28083,7 @@
                         const data = se.event;
                         const optSidePanelSpec = find$5(specs, (config) => config.name === data.name);
                         optSidePanelSpec.each((sidePanelSpec) => {
+                            emitWith(sidepanel, sidebarContentChanged, data.visible ? { visible: true, resizable: sidePanelSpec.resizable } : { visible: false });
                             const handler = data.visible ? sidePanelSpec.onShow : sidePanelSpec.onHide;
                             handler(sidePanelSpec.getApi(sidepanel));
                         });
@@ -26865,20 +28092,23 @@
             });
         });
     };
-    const makeSidebar = (panelConfigs) => SlotContainer.sketch((parts) => ({
+    const makeSidebar = (panelConfigs, sizeConstraints, eventDispatcher) => SlotContainer.sketch((parts) => ({
         dom: {
             tag: 'div',
             classes: ['tox-sidebar__pane-container']
         },
-        components: makePanels(parts, panelConfigs),
+        components: [
+            makeSidebarResizeHandle(sizeConstraints, eventDispatcher),
+            ...makePanels(parts, panelConfigs)
+        ],
         slotBehaviours: SimpleBehaviours.unnamedEvents([
             runOnAttached((slotContainer) => SlotContainer.hideAllSlots(slotContainer))
         ])
     }));
-    const setSidebar = (sidebar, panelConfigs, showSidebar) => {
+    const setSidebar = (sidebar, panelConfigs, showSidebar, sizeConstraints, eventDispatcher) => {
         const optSlider = Composing.getCurrent(sidebar);
         optSlider.each((slider) => {
-            Replacing.set(slider, [makeSidebar(panelConfigs)]);
+            Replacing.set(slider, [makeSidebar(panelConfigs, sizeConstraints, eventDispatcher)]);
             // Show the default sidebar
             const configKey = showSidebar?.toLowerCase();
             if (isString(configKey) && has$2(panelConfigs, configKey)) {
@@ -26922,6 +28152,12 @@
             });
         });
     };
+    const closeSidebar = (sidebar) => {
+        Composing.getCurrent(sidebar).each((slider) => {
+            Sliding.immediateShrink(slider);
+            updateSidebarRoleOnToggle(sidebar.element, "presentation" /* SidebarStateRoleAttr.Shrunk */);
+        });
+    };
     const whichSidebar = (sidebar) => {
         const optSlider = Composing.getCurrent(sidebar);
         return optSlider.bind((slider) => {
@@ -26937,11 +28173,15 @@
     };
     const fixSize = generate$6('FixSizeEvent');
     const autoSize = generate$6('AutoSizeEvent');
+    const sidebarContentChanged = generate$6('SidebarContentChanged');
     const renderSidebar = (spec) => ({
         uid: spec.uid,
         dom: {
             tag: 'div',
             classes: ['tox-sidebar'],
+            styles: {
+                [requestedWidthProperty]: numToPx(spec.configuredSidebarWidth)
+            },
             attributes: {
                 role: "presentation" /* SidebarStateRoleAttr.Shrunk */
             }
@@ -26996,9 +28236,11 @@
             config('sidebar-sliding-events', [
                 run$1(fixSize, (comp, se) => {
                     set$7(comp.element, 'width', se.event.width);
+                    set$7(comp.element, resolvedWidthProperty, se.event.width);
                 }),
                 run$1(autoSize, (comp, _se) => {
                     remove$6(comp.element, 'width');
+                    remove$6(comp.element, resolvedWidthProperty);
                 })
             ])
         ])
@@ -27219,14 +28461,9 @@
                 }),
                 'overflow-button': renderIconButtonSpec({
                     context: 'any',
-                    name: 'more',
                     icon: Optional.some('more-drawer'),
                     enabled: true,
-                    tooltip: Optional.some('Reveal or hide additional toolbar items'),
-                    primary: false,
-                    buttonType: Optional.none(),
-                    borderless: false
-                }, Optional.none(), toolbarSpec.providers, [], 'overflow-button')
+                    tooltip: Optional.some('Reveal or hide additional toolbar items')}, Optional.none(), toolbarSpec.providers, [], 'overflow-button')
             },
             splitToolbarBehaviours: getToolbarBehaviours(toolbarSpec, modeName)
         };
@@ -27572,8 +28809,10 @@
     const runOnShow = (slotContainer, name) => runOnPaneWithInstanceApi(slotContainer, name, View.getOnShow);
     const runOnHide = (slotContainer, name) => runOnPaneWithInstanceApi(slotContainer, name, View.getOnHide);
     const factory$1 = (detail, spec) => {
-        const setViews = (comp, viewConfigs) => {
-            Replacing.set(comp, [makeSlotContainer(viewConfigs, spec.backstage.shared.providers)]);
+        let viewConfigs = {};
+        const setViews = (comp, configs) => {
+            viewConfigs = configs;
+            Replacing.set(comp, [makeSlotContainer(configs, spec.backstage.shared.providers)]);
         };
         const whichView = (comp) => {
             return Composing.getCurrent(comp).bind(getCurrentName);
@@ -27586,7 +28825,7 @@
                 if (exists) {
                     SlotContainer.hideAllSlots(slotContainer);
                     if (!isTogglingCurrentView) {
-                        hideMainView();
+                        hideMainView(viewConfigs[name]?.keepToolbar === true);
                         showContainer(comp);
                         SlotContainer.showSlot(slotContainer, name);
                         runOnShow(slotContainer, name);
@@ -27641,26 +28880,36 @@
         }
     });
 
+    const keepToolbarClass = 'tox-editor-container--keep-toolbar';
+    const setHidden = (element, hidden) => {
+        if (hidden) {
+            set$7(element, 'display', 'none');
+            set$9(element, 'aria-hidden', 'true');
+        }
+        else {
+            remove$6(element, 'display');
+            remove$8(element, 'aria-hidden');
+        }
+    };
     const factory = (detail, components, _spec) => {
         let toolbarDrawerOpenState = false;
-        const toggleStatusbar = (editorContainer) => {
+        let toolbarVisible = true;
+        const setStatusbarHidden = (editorContainer, hidden) => {
             sibling(editorContainer, '.tox-statusbar').each((statusBar) => {
-                if (get$e(statusBar, 'display') === 'none' && get$g(statusBar, 'aria-hidden') === 'true') {
-                    remove$6(statusBar, 'display');
-                    remove$8(statusBar, 'aria-hidden');
-                }
-                else {
-                    set$7(statusBar, 'display', 'none');
-                    set$9(statusBar, 'aria-hidden', 'true');
-                }
+                setHidden(statusBar, hidden);
+            });
+        };
+        const setSidebarWrapHidden = (editorContainer, hidden) => {
+            descendant(editorContainer, '.tox-sidebar-wrap').each((wrap) => {
+                setHidden(wrap, hidden);
             });
         };
         const apis = {
             getSocket: (comp) => {
                 return parts$g.getPart(comp, detail, 'socket');
             },
-            setSidebar: (comp, panelConfigs, showSidebar) => {
-                parts$g.getPart(comp, detail, 'sidebar').each((sidebar) => setSidebar(sidebar, panelConfigs, showSidebar));
+            setSidebar: (comp, panelConfigs, showSidebar, sizeConstraints, eventDispatcher) => {
+                parts$g.getPart(comp, detail, 'sidebar').each((sidebar) => setSidebar(sidebar, panelConfigs, showSidebar, sizeConstraints, eventDispatcher));
             },
             toggleSidebar: (comp, name) => {
                 parts$g.getPart(comp, detail, 'sidebar').each((sidebar) => toggleSidebar(sidebar, name));
@@ -27731,36 +28980,63 @@
                 });
                 const configKey = showView?.toLowerCase();
                 if (isString(configKey) && has$2(viewConfigs, configKey)) {
-                    apis.toggleView(comp, configKey);
+                    apis.toggleView(comp, configKey, false);
                 }
             },
-            toggleView: (comp, name) => {
-                return parts$g.getPart(comp, detail, 'viewWrapper').exists((wrapper) => ViewWrapper.toggleView(wrapper, () => apis.showMainView(comp), () => apis.hideMainView(comp), name));
+            toggleView: (comp, name, skipFocus) => {
+                return parts$g.getPart(comp, detail, 'viewWrapper').exists((wrapper) => ViewWrapper.toggleView(wrapper, () => apis.showMainView(comp, skipFocus), (keepToolbar) => apis.hideMainView(comp, keepToolbar), name));
             },
             whichView: (comp) => {
                 return parts$g.getPart(comp, detail, 'viewWrapper').bind(ViewWrapper.whichView).getOrNull();
             },
-            hideMainView: (comp) => {
-                toolbarDrawerOpenState = apis.isToolbarDrawerToggled(comp);
-                if (toolbarDrawerOpenState) {
-                    apis.toggleToolbarDrawer(comp);
+            hideMainView: (comp, keepToolbar) => {
+                const restoreDrawer = keepToolbar && !toolbarVisible && toolbarDrawerOpenState;
+                if (keepToolbar) {
+                    toolbarDrawerOpenState = false;
                 }
+                else if (toolbarVisible) {
+                    toolbarDrawerOpenState = apis.isToolbarDrawerToggled(comp);
+                    if (toolbarDrawerOpenState) {
+                        apis.toggleToolbarDrawer(comp);
+                    }
+                }
+                toolbarVisible = keepToolbar;
                 parts$g.getPart(comp, detail, 'editorContainer').each((editorContainer) => {
                     const element = editorContainer.element;
-                    toggleStatusbar(element);
-                    set$7(element, 'display', 'none');
-                    set$9(element, 'aria-hidden', 'true');
+                    setStatusbarHidden(element, !keepToolbar);
+                    if (keepToolbar) {
+                        parts$g.getPart(comp, detail, 'sidebar').each(closeSidebar);
+                        add$2(element, keepToolbarClass);
+                        setHidden(element, false);
+                        setSidebarWrapHidden(element, true);
+                    }
+                    else {
+                        remove$3(element, keepToolbarClass);
+                        setSidebarWrapHidden(element, false);
+                        setHidden(element, true);
+                    }
                 });
-            },
-            showMainView: (comp) => {
-                if (toolbarDrawerOpenState) {
-                    apis.toggleToolbarDrawer(comp);
+                if (restoreDrawer) {
+                    apis.toggleToolbarDrawerWithoutFocusing(comp);
                 }
+            },
+            showMainView: (comp, skipFocus) => {
+                if (toolbarDrawerOpenState) {
+                    if (skipFocus) {
+                        apis.toggleToolbarDrawerWithoutFocusing(comp);
+                    }
+                    else {
+                        apis.toggleToolbarDrawer(comp);
+                    }
+                    toolbarDrawerOpenState = false;
+                }
+                toolbarVisible = true;
                 parts$g.getPart(comp, detail, 'editorContainer').each((editorContainer) => {
                     const element = editorContainer.element;
-                    toggleStatusbar(element);
-                    remove$6(element, 'display');
-                    remove$8(element, 'aria-hidden');
+                    remove$3(element, keepToolbarClass);
+                    setSidebarWrapHidden(element, false);
+                    setStatusbarHidden(element, false);
+                    setHidden(element, false);
                 });
             }
         };
@@ -27889,7 +29165,8 @@
         },
         name: 'sidebar',
         schema: [
-            required$1('dom')
+            required$1('dom'),
+            required$1('configuredSidebarWidth')
         ]
     });
     const partThrobber = partType$1.optional({
@@ -27946,8 +29223,8 @@
             getSocket: (apis, comp) => {
                 return apis.getSocket(comp);
             },
-            setSidebar: (apis, comp, panelConfigs, showSidebar) => {
-                apis.setSidebar(comp, panelConfigs, showSidebar);
+            setSidebar: (apis, comp, panelConfigs, showSidebar, sizeConstraints, eventDispatcher) => {
+                apis.setSidebar(comp, panelConfigs, showSidebar, sizeConstraints, eventDispatcher);
             },
             toggleSidebar: (apis, comp, name) => {
                 apis.toggleSidebar(comp, name);
@@ -27995,8 +29272,8 @@
             setViews: (apis, comp, views, showView) => {
                 apis.setViews(comp, views, showView);
             },
-            toggleView: (apis, comp, name) => {
-                return apis.toggleView(comp, name);
+            toggleView: (apis, comp, name, skipFocus) => {
+                return apis.toggleView(comp, name, skipFocus);
             },
             whichView: (apis, comp) => {
                 return apis.whichView(comp);
@@ -28352,7 +29629,13 @@
         ].concat(bonusEvents.length > 0 ? [
             // TODO: May have to pass through eventOrder if events start clashing
             config('toolbarToggleButtonWith', bonusEvents)
-        ] : []),
+        ] : []).concat(spec.onDoubleClick.map((onDoubleClick) => config('toolbarToggleButtonDoubleClick', [
+            run$1(dblclick(), (comp) => {
+                if (!Disabling.isDisabled(comp)) {
+                    onDoubleClick(getToggleApi(comp));
+                }
+            })
+        ])).toArray()),
         getApi: getToggleApi,
         onSetup: spec.onSetup
     }, providersBackstage, btnName);
@@ -29703,7 +30986,10 @@
         attachSystemAfter(eTargetNode, mainUi.mothership);
         attachUiMotherships(editor, uiRoot, uiRefs);
         editor.on('PostRender', () => {
-            OuterContainer.setSidebar(outerContainer, rawUiConfig.sidebar, getSidebarShow(editor));
+            OuterContainer.setSidebar(outerContainer, rawUiConfig.sidebar, getSidebarShow(editor), {
+                minWidth: getSidebarMinWidth(editor),
+                maxWidth: getSidebarMaxWidth(editor)
+            }, editor);
             OuterContainer.setViews(outerContainer, rawUiConfig.views, getViewShow(editor));
         }, true);
         // TINY-10343: Using `SkinLoaded` instead of `PostRender` because if the skin loading takes too long you run in to rendering problems since things are measured before the CSS is being applied
@@ -29734,18 +31020,25 @@
             fireToggleSidebar(editor);
         });
         editor.addQueryValueHandler('ToggleSidebar', () => OuterContainer.whichSidebar(outerContainer) ?? '');
-        editor.addCommand('ToggleView', (_ui, value) => {
-            if (OuterContainer.toggleView(outerContainer, value)) {
+        editor.addCommand('ToggleView', (_ui, value, args) => {
+            const skipFocus = args?.skip_focus === true;
+            const sidebarBefore = OuterContainer.whichSidebar(outerContainer);
+            if (OuterContainer.toggleView(outerContainer, value, skipFocus)) {
                 const target = outerContainer.element;
                 mainUi.mothership.broadcastOn([dismissPopups()], { target });
                 each$1(uiMotherships, (m) => {
                     m.broadcastOn([dismissPopups()], { target });
                 });
-                // Switching back to main view should focus the editor and update any UIs
+                // Switching back to main view should focus the editor, unless the caller asked to skip it, and update any UIs
                 if (isNull(OuterContainer.whichView(outerContainer))) {
-                    editor.focus();
+                    if (!skipFocus) {
+                        editor.focus({ scrollToSelection: false });
+                    }
                     editor.nodeChanged();
                     OuterContainer.refreshToolbar(outerContainer);
+                }
+                if (sidebarBefore !== OuterContainer.whichSidebar(outerContainer)) {
+                    fireToggleSidebar(editor);
                 }
                 fireToggleView(editor);
             }
@@ -29783,44 +31076,6 @@
         __proto__: null,
         render: render$1
     });
-
-    const parseToInt = (val) => {
-        // if size is a number or '_px', will return the number
-        const re = /^[0-9\.]+(|px)$/i;
-        if (re.test('' + val)) {
-            return Optional.some(parseInt('' + val, 10));
-        }
-        return Optional.none();
-    };
-    const numToPx = (val) => isNumber(val) ? val + 'px' : val;
-    const calcCappedSize = (size, minSize, maxSize) => {
-        const minOverride = minSize.filter((min) => size < min);
-        const maxOverride = maxSize.filter((max) => size > max);
-        return minOverride.or(maxOverride).getOr(size);
-    };
-    const convertValueToPx = (element, value) => {
-        if (typeof value === 'number') {
-            return Optional.from(value);
-        }
-        const splitValue = /^([0-9.]+)(pt|em|px)$/.exec(value.trim());
-        if (splitValue) {
-            const type = splitValue[2];
-            const parsed = Number.parseFloat(splitValue[1]);
-            if (Number.isNaN(parsed) || parsed < 0) {
-                return Optional.none();
-            }
-            else if (type === 'em') {
-                return Optional.from(parsed * Number.parseFloat(window.getComputedStyle(element.dom).fontSize));
-            }
-            else if (type === 'pt') {
-                return Optional.from(parsed * (72 / 96));
-            }
-            else if (type === 'px') {
-                return Optional.from(parsed);
-            }
-        }
-        return Optional.none();
-    };
 
     const getHeight = (editor) => {
         const baseHeight = convertValueToPx(SugarElement.fromDom(editor.targetElm), getHeightOption(editor));
@@ -29985,7 +31240,7 @@
                 const baseProperties = {
                     position: 'absolute',
                     left: Math.round(left) + 'px',
-                    top: getTop() + 'px'
+                    top: Math.round(getTop()) + 'px'
                 };
                 setAll(mainUi.outerContainer.element, {
                     ...baseProperties,
@@ -30424,11 +31679,10 @@
     const renderContextFormSizeInput = (ctx, providersBackstage, onEnter, valueState) => {
         const { width, height } = ctx.initValue();
         let converter = noSizeConversion;
-        const enabled = true;
         const ratioEvent = generate$6('ratio-event');
         const getApi = (comp) => getFormApi(comp, valueState);
         const makeIcon = (iconName) => render$4(iconName, { tag: 'span', classes: ['tox-icon', 'tox-lock-icon__' + iconName] }, providersBackstage.icons);
-        const disabled = () => !enabled;
+        const disabled = () => false;
         const label = ctx.label.getOr('Constrain proportions');
         const translatedLabel = providersBackstage.translate(label);
         const pLock = FormCoupledInputs.parts.lock({
@@ -30804,9 +32058,9 @@
         .filter((elem) => inBody(elem) && isHTMLElement(elem))
         .map(absolute$2)
         .getOrThunk(() => getSelectionBounds(editor));
-    const getHorizontalBounds = (contentAreaBox, viewportBounds, margin) => {
-        const x = Math.max(contentAreaBox.x + margin, viewportBounds.x);
-        const right = Math.min(contentAreaBox.right - margin, viewportBounds.right);
+    const getHorizontalBounds = (contentAreaBox, viewportBounds) => {
+        const x = Math.max(contentAreaBox.x, viewportBounds.x);
+        const right = Math.min(contentAreaBox.right, viewportBounds.right);
         return { x, width: right - x };
     };
     const getVerticalBounds = (editor, contentAreaBox, viewportBounds, isToolbarLocationTop, toolbarType, margin) => {
@@ -30848,7 +32102,7 @@
         const viewportBounds = getBounds$1(window);
         const contentAreaBox = box$1(SugarElement.fromDom(editor.getContentAreaContainer()));
         const toolbarOrMenubarEnabled = isMenubarEnabled(editor) || isToolbarEnabled(editor) || isMultipleToolbars(editor);
-        const { x, width } = getHorizontalBounds(contentAreaBox, viewportBounds, margin);
+        const { x, width } = getHorizontalBounds(contentAreaBox, viewportBounds);
         // Create bounds that lets the context toolbar overflow outside the content area, but remains in the viewport
         if (editor.inline && !toolbarOrMenubarEnabled) {
             return bounds(x, viewportBounds.y, width, viewportBounds.height);
@@ -30957,8 +32211,8 @@
             return {
                 bubble: nu$6(bubbleSize$1, 0, bubbleAlignments$1),
                 layouts: {
-                    onLtr: () => [east$2],
-                    onRtl: () => [west$2]
+                    onLtr: () => [east$2, west$2],
+                    onRtl: () => [west$2, east$2]
                 },
                 overrides: anchorOverrides
             };
@@ -31343,7 +32597,8 @@
         }, 17); // 17ms is used as that's about 1 frame at 60fps
         editor.on('init', () => {
             editor.on('remove', close);
-            editor.on('ScrollContent ScrollWindow ObjectResized ResizeEditor longpress', hideOrRepositionIfNecessary);
+            editor.on('ScrollContent ScrollWindow longpress', hideOrRepositionIfNecessary);
+            editor.on('ObjectResized ResizeEditor', instantReposition);
             // FIX: Make it go away when the action makes it go away. E.g. deleting a column deletes the table.
             editor.on('click focus SetContent', launchContextToolbar.throttle);
             editor.on('keyup', (e) => {
@@ -32388,6 +33643,12 @@
     const isHidden = (elm) => elm.nodeName === 'BR' || !!elm.getAttribute('data-mce-bogus') || elm.getAttribute('data-mce-type') === 'bookmark';
     const renderElementPath = (editor, settings, providersBackstage) => {
         const delimiter = settings.delimiter ?? '\u203A';
+        const isViewOpen = () => editor.queryCommandValue('ToggleView') !== '';
+        const isDisabled = () => providersBackstage.isDisabled() || isViewOpen();
+        const getContext = () => {
+            const context = providersBackstage.checkUiComponentContext('any');
+            return { contextType: context.contextType, shouldDisable: context.shouldDisable || isViewOpen() };
+        };
         const renderElement = (name, element, index) => Button.sketch({
             dom: {
                 tag: 'div',
@@ -32416,8 +33677,8 @@
                         }
                     }),
                 }),
-                DisablingConfigs.button(providersBackstage.isDisabled),
-                toggleOnReceive(() => providersBackstage.checkUiComponentContext('any'))
+                DisablingConfigs.button(isDisabled),
+                toggleOnReceive(getContext)
             ])
         });
         const renderDivider = () => ({
@@ -32473,9 +33734,9 @@
                     selector: 'div[role=button]'
                 }),
                 Disabling.config({
-                    disabled: providersBackstage.isDisabled
+                    disabled: isDisabled
                 }),
-                toggleOnReceive(() => providersBackstage.checkUiComponentContext('any')),
+                toggleOnReceive(getContext),
                 Tabstopping.config({}),
                 Replacing.config({}),
                 config('elementPathEvents', [
@@ -32486,6 +33747,15 @@
                             const newPath = updatePath(e.parents);
                             const newChildren = newPath.length > 0 ? renderPathData(newPath) : [];
                             Replacing.set(comp, newChildren);
+                        });
+                        editor.on('ToggleView', () => {
+                            const disabled = isDisabled();
+                            Disabling.set(comp, disabled);
+                            each$1(Replacing.contents(comp), (child) => {
+                                if (child.hasConfigured(Disabling)) {
+                                    Disabling.set(child, disabled);
+                                }
+                            });
                         });
                     })
                 ])
@@ -32532,6 +33802,7 @@
         return dimensions;
     };
 
+    const keyboardResizeStepInPx = 20;
     const getResizeType = (editor) => {
         const resize = getResize(editor);
         if (resize === false) {
@@ -32549,14 +33820,22 @@
             ? global$6.translate([`Editor's height: {0} pixels, Editor's width: {1} pixels`, dimensions.height, dimensions.width])
             : global$6.translate([`Editor's height: {0} pixels`, dimensions.height]);
     };
-    const setAriaValuetext = (comp, dimensions, resizeType) => {
+    const setAriaDimensions = (comp, dimensions, resizeType, minHeight, maxHeight) => {
         set$9(comp.element, 'aria-valuetext', getAriaValuetext(dimensions, resizeType));
+        // aria-valuenow/valuemin/valuemax are single numeric values, so they can only
+        // meaningfully represent one dimension. In 'both' mode the handle resizes both
+        // width and height, which has no sensible single-value representation, so we only
+        // set these attributes for vertical resizing and rely on aria-valuetext otherwise.
+        if (resizeType === ResizeTypes.Vertical) {
+            set$9(comp.element, 'aria-valuenow', dimensions.height);
+            set$9(comp.element, 'aria-valuemin', minHeight.getOr(0));
+            set$9(comp.element, 'aria-valuemax', maxHeight.getOr(dimensions.height + keyboardResizeStepInPx));
+        }
     };
-    const keyboardHandler = (editor, comp, resizeType, x, y) => {
-        const scale = 20;
-        const delta = SugarPosition(x * scale, y * scale);
+    const keyboardHandler = (editor, comp, resizeType, x, y, minHeight, maxHeight) => {
+        const delta = SugarPosition(x * keyboardResizeStepInPx, y * keyboardResizeStepInPx);
         const newDimentions = resize(editor, delta, resizeType);
-        setAriaValuetext(comp, newDimentions, resizeType);
+        setAriaDimensions(comp, newDimentions, resizeType, minHeight, maxHeight);
         return Optional.some(true);
     };
     const renderResizeHandler = (editor, providersBackstage) => {
@@ -32564,6 +33843,8 @@
         if (resizeType === ResizeTypes.None) {
             return Optional.none();
         }
+        const minHeight = getMinHeightOption(editor);
+        const maxHeight = getMaxHeightOption(editor);
         const resizeLabel = resizeType === ResizeTypes.Both
             ? global$6.translate('Press the arrow keys to resize the editor.')
             : global$6.translate('Press the Up and Down arrow keys to resize the editor.');
@@ -32580,20 +33861,26 @@
             },
             behaviours: [
                 Dragging.config({
-                    mode: 'mouse',
+                    mode: 'pointer',
                     repositionTarget: false,
+                    onDragStart: (comp) => {
+                        Tooltipping.immediateOpenClose(comp, false);
+                        Tooltipping.setEnabled(comp, false);
+                    },
                     onDrag: (comp, _target, delta) => {
                         const newDimentions = resize(editor, delta, resizeType);
-                        setAriaValuetext(comp, newDimentions, resizeType);
+                        setAriaDimensions(comp, newDimentions, resizeType, minHeight, maxHeight);
                     },
-                    blockerClass: 'tox-blocker'
+                    onDrop: (comp) => {
+                        Tooltipping.setEnabled(comp, true);
+                    },
                 }),
                 Keying.config({
                     mode: 'special',
-                    onLeft: (comp) => keyboardHandler(editor, comp, resizeType, -1, 0),
-                    onRight: (comp) => keyboardHandler(editor, comp, resizeType, 1, 0),
-                    onUp: (comp) => keyboardHandler(editor, comp, resizeType, 0, -1),
-                    onDown: (comp) => keyboardHandler(editor, comp, resizeType, 0, 1),
+                    onLeft: (comp) => keyboardHandler(editor, comp, resizeType, -1, 0, minHeight, maxHeight),
+                    onRight: (comp) => keyboardHandler(editor, comp, resizeType, 1, 0, minHeight, maxHeight),
+                    onUp: (comp) => keyboardHandler(editor, comp, resizeType, 0, -1, minHeight, maxHeight),
+                    onDown: (comp) => keyboardHandler(editor, comp, resizeType, 0, 1, minHeight, maxHeight),
                 }),
                 Tabstopping.config({}),
                 Focusing.config({}),
@@ -32603,7 +33890,7 @@
                 config('set-aria-valuetext', [
                     runOnAttached((comp) => {
                         const setInitialValuetext = () => {
-                            setAriaValuetext(comp, getOriginalDimensions(editor), resizeType);
+                            setAriaDimensions(comp, getOriginalDimensions(editor), resizeType, minHeight, maxHeight);
                         };
                         if (editor._skinLoaded) {
                             setInitialValuetext();
@@ -32928,7 +34215,8 @@
                 dom: {
                     tag: 'div',
                     classes: ['tox-sidebar']
-                }
+                },
+                configuredSidebarWidth: getSidebarWidth(editor)
             });
             return {
                 dom: {
@@ -32938,9 +34226,24 @@
                 components: [
                     partSocket,
                     partSidebar
-                ]
+                ],
+                behaviours: SimpleBehaviours.unnamedEvents([
+                    run$1(sidebarContentChanged, (comp, se) => {
+                        const shouldBeResizable = se.event.visible && se.event.resizable;
+                        const toggle = shouldBeResizable ? add$2 : remove$3;
+                        toggle(comp.element, resizableClass);
+                    })
+                ])
             };
         };
+        // TINY-14384: we want to restrict the bounds to the host element, rather than the entire window when the sink is attached in a ShadowDOM (ie: webcomponent)
+        const getSinkBounds = (sinkOpt) => sinkOpt.bind(({ sink }) => {
+            const rootNode = getRootNode(sink.element);
+            if (isShadowRoot(rootNode)) {
+                return Optional.some(box$1(getShadowHost(rootNode)));
+            }
+            return Optional.none();
+        }).getOr(win());
         const renderDialogUi = () => {
             const uiContainer = getUiContainer(editor);
             // TINY-3321: When the body is using a grid layout, we need to ensure the sink width is manually set
@@ -32955,8 +34258,9 @@
                 },
                 behaviours: derive$1([
                     Positioning.config({
-                        useFixed: () => header.isDocked(lazyHeader)
-                    })
+                        useFixed: () => header.isDocked(lazyHeader),
+                        getBounds: () => getSinkBounds(lazyUiRefs.dialogUi.get())
+                    }),
                 ])
             };
             const reactiveWidthSpec = {
@@ -33265,7 +34569,7 @@
             return -1;
         }
         else if (a < b) {
-            return +1;
+            return 1;
         }
         else {
             return 0;
@@ -33379,6 +34683,15 @@
             selectFirst
         };
     };
+    // Set tab heights within a dialog to vary according to their contents
+    const naiveMode = (_allTabs) => {
+        const extraEvents = [];
+        const selectFirst = true;
+        return {
+            extraEvents,
+            selectFirst
+        };
+    };
 
     const SendDataToSectionChannel = 'send-data-to-section';
     const SendDataToViewChannel = 'send-data-to-view';
@@ -33447,7 +34760,9 @@
             };
         });
         // Assign fixed height or variable height to the tabs
-        const tabMode = smartMode(allTabs);
+        const tabMode = spec.dynamicHeight
+            ? naiveMode() // Height is determined by the content of the tab, which may cause layout shifts when switching tabs.
+            : smartMode(allTabs); // Height is determined by the tallest tab, which prevents layout shifts but may cause excessive whitespace in shorter tabs.
         return TabSection.sketch({
             dom: {
                 tag: 'div',
@@ -33892,7 +35207,7 @@
         const dialogBody = SugarElement.fromDom(comp.element.dom);
         const classes = get$7(dialogBody);
         const currentSizeClass = find$5(classes, (c) => c === largeDialogClass || c === mediumDialogClass).or(getDialogSizeClass(currentSize));
-        toggle$3(dialogBody, [fullscreenClass, ...currentSizeClass.toArray()]);
+        toggle$2(dialogBody, [fullscreenClass, ...currentSizeClass.toArray()]);
     };
     const renderModalDialog = (spec, dialogEvents, backstage) => build$1(renderDialog$1({
         ...spec,
@@ -34798,17 +36113,24 @@
                     },
                     // Fires the default dismiss event.
                     fireDismissalEventInstead: (windowParams.persistent ? { event: 'doNotDismissYet' } : {}),
+                    // The default reposition would re-anchor the dialog to the toolbar and undo any docking, so
+                    // reposition and then refresh the docking instead.
                     // TINY-9412: The docking behaviour for inline dialogs is inconsistent
                     // for toolbar_location: bottom. We need to clarify exactly what the behaviour
                     // should be. The intent here might have been that they shouldn't automatically
                     // reposition at all because they aren't visually connected to the toolbar
                     // (i.e. inline "toolbar" dialogs still display at the top, even when the
                     // toolbar_location is bottom), but it's unclear.
-                    ...isToolbarLocationTop ? {} : { fireRepositionEventInstead: {} },
+                    fireRepositionEventInstead: {},
                     inlineBehaviours: derive$1([
                         config('window-manager-inline-events', [
                             run$1(dismissRequested(), (_comp, _se) => {
                                 emit(dialogUi.dialog, formCancelEvent);
+                            }),
+                            run$1(repositionRequested(), () => {
+                                if (isToolbarLocationTop) {
+                                    refreshDocking();
+                                }
                             })
                         ]),
                         ...inlineAdditionalBehaviours(editor, isStickyToolbar$1, isToolbarLocationTop, dismissPopups$1)

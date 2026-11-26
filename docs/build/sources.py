@@ -51,6 +51,8 @@ SECTIONS = {
                                      'mail_smtp_username', 'mail_smtp_password', 'mail_color', 'mail_signature', 'notify_account_deletion']),
     'maintenance': ('Paramètres > Maintenance', ['maintenance_mode', 'maintenance_message']),
     'api': ('Intégrations API', ['api_enabled']),
+    'sso': ("Paramètres > Compte de l'établissement", ['sso_driver', 'sso_label', 'sso_auto_create', 'oidc_issuer', 'oidc_client_id', 'oidc_client_secret',
+                                                        'oidc_scopes', 'cas_url', 'cas_email_attribute']),
     'backup': ('Mise à jour > Sauvegardes', ['backup_enabled', 'backup_frequency', 'backup_time', 'backup_weekday', 'backup_keep']),
 }
 
@@ -105,6 +107,15 @@ ROLES = {
     'maintenance_mode': "1 : le site affiche le message de maintenance (et l'API répond 503), sauf pour le personnel et les administrateurs.",
     'maintenance_message': 'Message affiché pendant la maintenance.',
     'api_enabled': "Interrupteur général de l'API : 0 la coupe pour tout le monde sans supprimer les jetons.",
+    'sso_driver': "Méthode de connexion par l'établissement : none (désactivée), oidc (OpenID Connect) ou cas. Elle ne s'active que si les champs obligatoires de la méthode sont remplis.",
+    'sso_label': "Texte du bouton affiché sur la page de connexion.",
+    'sso_auto_create': "1 : une adresse inconnue du site crée un compte (rôle par défaut) à la première connexion, si son domaine est autorisé. 0 : seuls les comptes existants se connectent.",
+    'oidc_issuer': "OpenID Connect : adresse de l'émetteur (https). Le site lit sa configuration à /.well-known/openid-configuration.",
+    'oidc_client_id': "OpenID Connect : identifiant du client déclaré auprès du fournisseur.",
+    'oidc_client_secret': "OpenID Connect : secret du client. Chiffré en base.",
+    'oidc_scopes': "OpenID Connect : portées demandées.",
+    'cas_url': "CAS : adresse du serveur (https).",
+    'cas_email_attribute': "CAS : attribut qui contient l'adresse e-mail.",
     'backup_enabled': 'Active la sauvegarde automatique de la base.',
     'backup_frequency': 'daily (tous les jours), weekly (chaque semaine) ou monthly (le 1er du mois).',
     'backup_time': 'Heure de la sauvegarde (HH:MM).',
@@ -129,6 +140,7 @@ def _code_setting_keys():
     keys |= set(re.findall(r"->set\('([a-z0-9_]+)'", ctrl))
     keys |= set(re.findall(r"^\s*'([a-z_]+)' => \[", re.search(r'GENERAL = \[(.*?)\];', read('app/Support/Customization.php'), re.S).group(1), re.M))
     keys |= set(re.findall(r"->set\('(backup_[a-z]+)'", read('app/Services/Backup/BackupSettings.php')))
+    keys |= set(re.findall(r"^\s*'([a-z_]+)' =>", re.search(r'function rules\(\).*?return \[(.*?)\];', read('app/Support/SsoSettings.php'), re.S).group(1), re.M))
     keys |= set(re.findall(r"->set\('([a-z_]+)'", read('app/Http/Controllers/Admin/ApiTokenController.php')))
     keys -= {'clear_secrets', 'mail_use_site_color', 'test_email', 'logo', 'roles', 'unlimited'}
     return keys
@@ -150,6 +162,13 @@ def _defaults():
     pm = re.search(r"PASSWORD_MIN_LENGTH = \['default' => (\d+)", read('app/Support/Customization.php')).group(1)
     d['password_min_length'] = {pm}
     d.setdefault('mail_smtp_port', {'587'})
+    sso = read('app/Support/SsoSettings.php')
+    const = lambda n: re.search(r"const %s = (\"[^\"]*\"|'[^']*')" % n, sso).group(1)[1:-1]
+    d['sso_driver'] = {const('NONE')}
+    d['sso_label'] = {const('DEFAULT_LABEL')}
+    d['oidc_scopes'] = {const('DEFAULT_SCOPES')}
+    d['cas_email_attribute'] = {const('DEFAULT_CAS_ATTRIBUTE')}
+    d['sso_auto_create'] = {re.search(r"sso_auto_create', '(\d)'", sso).group(1)}
     # valeurs écrites par l'assistant d'installation : ce sont elles qu'un site neuf contient
     inst = re.search(r'\$defaults = \[(.*?)\];', read('app/Http/Controllers/InstallController.php'), re.S).group(1)
     for k, v in re.findall(r"'([a-z_]+)'\s*=>\s*'([^']*)'", inst):
@@ -666,6 +685,8 @@ SUMMARY = {
     'v1.6.6': "Les QR codes de la double authentification sont produits sur le serveur : aucun service extérieur n'est appelé. Corrections d'affichage (créneaux, rôles, thèmes, profil).",
     'v1.6.7': "Ouverture des réservations « la veille » : le jour le plus lointain s'ouvre à l'heure d'ouverture de la ressource. L'heure limite d'annulation est affichée dans « Mes réservations ».",
     'v1.6.8': "Planning du jour par ressource et par créneau, avec réservation pour le compte d'un élève. Le journal d'activité montre le détail avant et après de chaque modification, y compris des réglages.",
+    'v1.6.11': "Export PDF du planning au choix : une seule liste, un bloc par créneau, ou une page par créneau (feuille d'appel avec une case de présence).",
+    'v1.6.10': "Connexion avec le compte de l'établissement (OpenID Connect ou CAS). Export, import et modèles de configuration (ressources, créneaux, rôles, textes). Mises à jour plus sûres : arrêt si la sauvegarde de la base échoue, nouvel essai des migrations, retour à la version précédente avec la base d'avant la mise à jour. Le compte est verrouillé pendant une réservation, pour que deux demandes simultanées ne dépassent pas les limites du rôle.",
     'v1.6.9': "Les adresses e-mail sont enregistrées en minuscules : « Lea.Martin@... » et « lea.martin@... » sont le même compte. Les adresses existantes sont converties à la mise à jour.",
 }
 
@@ -687,3 +708,11 @@ def admin_menu_table():
         else:
             rows.append((cell(head), ', '.join('**%s**' % l for l in labels)))
     return table(['Rubrique du menu', 'Entrées'], rows)
+
+
+def config_templates_table():
+    rows = []
+    for f in sorted(glob.glob(os.path.join(ROOT, 'resources', 'configuration-templates', '*.json'))):
+        d = json.load(open(f, encoding='utf-8'))
+        rows.append(('**%s**' % cell(d.get('title', '')), cell(d.get('description', ''))))
+    return table(['Modèle', 'Contenu'], rows)

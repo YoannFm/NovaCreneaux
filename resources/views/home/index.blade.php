@@ -239,7 +239,7 @@
                     <div class="upcoming-res">
                         {{ $resa->slot->resource->name ?? '' }}
                         @if($resa->slot)
-                            &middot; {{ substr($resa->slot->start_time,0,5) }}–{{ substr($resa->slot->end_time,0,5) }}
+                            &middot; {{ substr($resa->slot->start_time,0,5) }} - {{ substr($resa->slot->end_time,0,5) }}
                         @endif
                     </div>
                 </div>

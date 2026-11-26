@@ -255,7 +255,7 @@
             @endphp
             <div class="slot-item {{ $canBook ? 'available' : 'full' }}">
                 <div class="slot-time">
-                    {{ substr($slot->start_time,0,5) }} – {{ substr($slot->end_time,0,5) }}
+                    {{ substr($slot->start_time,0,5) }} - {{ substr($slot->end_time,0,5) }}
                 </div>
                 <div class="slot-name">{{ $slot->name }}</div>
 

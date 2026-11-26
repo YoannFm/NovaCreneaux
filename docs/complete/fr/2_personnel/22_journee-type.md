@@ -4,7 +4,7 @@
 
 1. Ouvrez **Réservations** : le planning du jour s'affiche, ressource par ressource et créneau par créneau.
 2. Filtrez sur votre ressource si le site en compte plusieurs.
-3. Cliquez sur **PDF** pour imprimer la liste des inscrits, à garder à l'accueil. Le bouton **CSV** donne la même liste pour un tableur.
+3. Cliquez sur **PDF > Une page par créneau** pour imprimer une feuille d'appel par créneau, ou **PDF > Une seule liste** pour la liste des inscrits, à garder à l'accueil. Le bouton **CSV** donne la même liste pour un tableur.
 
 ## Inscrire un élève qui n'a pas accès à son compte
 

@@ -67,6 +67,40 @@ Pendant la maintenance, la connexion, la déconnexion, la double authentificatio
 
 *Paramètres > Réservations.* Les quatre limites de chaque rôle. Elles sont décrites au chapitre [[n regles]].
 
+## Compte de l'établissement
+
+*Paramètres > Compte de l'établissement.* Permet de se connecter avec le compte de l'établissement (ENT, Google Workspace, Microsoft 365...) au lieu du mot de passe du site. Deux protocoles sont pris en charge : **OpenID Connect** (OIDC) et **CAS**. La connexion par mot de passe reste toujours possible.
+
+[[settings sso]]
+
+**Mise en place.**
+
+1. Choisissez la méthode, puis déclarez le site auprès du service de l'établissement avec l'**adresse de retour** affichée sur la page (`https://<votre-site>/login/etablissement/retour`).
+2. Recopiez l'émetteur, l'identifiant et le secret fournis (OIDC), ou l'adresse du serveur (CAS). Enregistrez.
+3. Un bouton « Se connecter avec le compte de l'établissement » (texte modifiable) apparaît sur la page de connexion.
+
+**Comment le compte est retrouvé.** Le site reconnaît la personne à son **adresse e-mail** fournie par l'établissement. Un compte existant avec cette adresse se connecte ; un compte désactivé est refusé ; un compte qui a activé la double authentification doit encore saisir son code. Une adresse inconnue est refusée, avec le message « Aucun compte ne correspond à l'adresse ... », sauf si « Créer le compte d'une adresse inconnue » est coché : le compte est alors créé avec le rôle par défaut, si le domaine de l'adresse est autorisé (**Paramètres > Authentification**).
+
+> **Exemple.** Un lycée utilise l'ENT de l'académie en CAS. L'administrateur choisit « CAS », saisit l'adresse du serveur CAS de l'ENT et garde l'attribut `mail`. Les élèves dont le compte a été importé avec leur adresse de l'ENT cliquent sur le bouton de l'établissement et entrent sans mot de passe propre au site.
+
+## Configuration : export, import et modèles
+
+*Paramètres > Configuration.* Un **fichier de configuration** (JSON) transporte le réglage d'un site vers un autre, ou sert de sauvegarde du paramétrage.
+
+| Contenu du fichier | Jamais dans le fichier |
+|---|---|
+| Ressources et leurs créneaux, rôles non administrateurs (limites, permissions, accès à l'API), textes de l'établissement (vocabulaire, qui contacter...), couleurs | Mots de passe et secrets, comptes, réservations, adresse du site, proxys, réglages de sécurité |
+
+- **Exporter** télécharge la configuration actuelle.
+- **Importer** applique un fichier. L'import **fusionne** : un rôle est retrouvé par son nom interne, une ressource par son nom, un créneau par ses horaires dans sa ressource. Ce qui existe est mis à jour, ce qui manque est créé, **rien n'est supprimé** : aucune réservation ne peut être perdue. Un rôle administrateur n'est jamais modifié. En cas d'erreur, rien n'est appliqué.
+- **Modèles prêts à importer** : configurations de départ, à ajuster ensuite.
+
+Ces actions demandent votre mot de passe administrateur.
+
+[[config_templates]]
+
+> **Exemple.** Un établissement ouvre un deuxième site pour son annexe. Sur le premier site : **Exporter**. Sur le nouveau : **Importer** ce fichier. Les ressources, créneaux, rôles et textes sont repris ; il reste à créer les comptes et à saisir les réglages propres au site (e-mail, sécurité).
+
 ## Intégrations API et sauvegardes
 
 Ces réglages ont leur propre page (chapitres [[n exploitation-site]] et [[n integrations]]) :

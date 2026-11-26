@@ -6,7 +6,7 @@ Le CDI du lycée Louis Rascol, à Albi, accueille les élèves pour lire, travai
 
 Le site s'appuie sur le logiciel libre **NovaCreneaux**. Ce document en décrit la version **[[version]]**, telle qu'elle est configurée au CDI.
 
-![Page de réservation du site du CDI](images/rascol-reservation.jpg)
+![Page de réservation du site du CDI](images/rascol-reservation.png)
 
 ## Deux types de comptes
 
@@ -19,7 +19,7 @@ Dans le logiciel, les documentalistes ont le rôle **Administrateur** et les él
 
 ## Organisation de ce document
 
-Ce document sert à la fois de documentation et de support de formation. Il est divisé en trois parties, une par public. Chacune se lit seule.
+Ce guide est divisé en trois parties, une par public. Chacune se lit seule.
 
 | Partie | Pour qui | Contenu |
 |---|---|---|

@@ -1,5 +1,5 @@
 /**
- * TinyMCE version 8.6.0 (2026-06-03)
+ * TinyMCE version 8.11.0 (2026-11-25)
  */
 
 (function () {
@@ -321,7 +321,6 @@
         }
     }
 
-    const nativeSlice = Array.prototype.slice;
     const nativeIndexOf = Array.prototype.indexOf;
     const nativePush = Array.prototype.push;
     const rawIndexOf = (ts, t) => nativeIndexOf.call(ts, t);
@@ -370,7 +369,6 @@
     const bind = (xs, f) => flatten(map(xs, f));
     const get = (xs, i) => i >= 0 && i < xs.length ? Optional.some(xs[i]) : Optional.none();
     const head = (xs) => get(xs, 0);
-    isFunction(Array.from) ? Array.from : (x) => nativeSlice.call(x);
     const findMap = (arr, f) => {
         for (let i = 0; i < arr.length; i++) {
             const r = f(arr[i], i);
@@ -475,7 +473,7 @@
         return str.substring(numChars);
     };
 
-    const checkRange = (str, substr, start) => substr === '' || str.length >= substr.length && str.substr(start, start + substr.length) === substr;
+    const checkRange = (str, substr, start) => str.length >= substr.length && str.substr(start, start + substr.length) === substr;
     const removeLeading = (str, prefix) => {
         return startsWith(str, prefix) ? removeFromStart(str, prefix.length) : str;
     };
@@ -1442,12 +1440,21 @@
     const hasOnlyAltModifier = (e) => {
         return e.altKey === true && e.shiftKey === false && e.ctrlKey === false && e.metaKey === false;
     };
+    const openEnclosingDetails = (editor, target) => {
+        each$1(editor.dom.getParents(target.parentNode, 'details', editor.getBody()), (details) => {
+            if (!details.querySelector(':scope > summary')?.contains(target)) {
+                details.setAttribute('open', 'open');
+            }
+        });
+    };
     const gotoLink = (editor, a) => {
         if (a) {
             const href = getHref(a);
             if (/^#/.test(href)) {
-                const targetEl = editor.dom.select(`${href},[name="${removeLeading(href, '#')}"]`);
+                const id = removeLeading(href, '#');
+                const targetEl = editor.dom.select(`[id="${id}"],[name="${id}"]`);
                 if (targetEl.length) {
+                    openEnclosingDetails(editor, targetEl[0]);
                     editor.selection.scrollIntoView(targetEl[0], true);
                 }
             }
@@ -1692,12 +1699,16 @@
         setupContextToolbars(editor, openLink);
     };
 
+    const PLUGIN_CODE = 'link';
     var Plugin = () => {
-        global$5.add('link', (editor) => {
+        global$5.add(PLUGIN_CODE, (editor) => {
             register$1(editor);
             register(editor);
             setup(editor);
             setup$2(editor);
+            return {
+                getMetadata: () => ({ name: 'Link', type: 'opensource', slug: PLUGIN_CODE })
+            };
         });
     };
 
