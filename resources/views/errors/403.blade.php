@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Accès refusé')
+@section('code', '403')
+@section('heading', 'Accès refusé')
+@section('message', $exception?->getMessage() && $exception->getMessage() !== 'This action is unauthorized.' ? $exception->getMessage() : "Vous n'avez pas le droit d'ouvrir cette page.")

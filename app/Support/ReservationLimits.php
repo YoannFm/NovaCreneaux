@@ -57,6 +57,19 @@ final class ReservationLimits
         return ($value === self::UNLIMITED && $field['unlimited'] !== null) || ($value >= $field['min'] && $value <= $field['max']);
     }
 
+    /** Message d'un champ vide sans l'interrupteur "sans limite" (la regle cite sinon le nom technique de l'interrupteur). */
+    public static function messages(): array
+    {
+        $messages = [];
+        foreach (self::fields() as $key => $field) {
+            if ($field['unlimited'] !== null) {
+                $messages["roles.*.{$key}.required_without"] = "Indiquez une valeur pour « :attribute » ou cochez « {$field['unlimited']} ».";
+            }
+        }
+
+        return $messages;
+    }
+
     /** Noms des champs dans les messages d'erreur. */
     public static function attributes(): array
     {
