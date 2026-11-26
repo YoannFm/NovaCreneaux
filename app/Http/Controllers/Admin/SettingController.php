@@ -334,7 +334,7 @@ class SettingController extends Controller
 
     public function updateReservations(Request $request)
     {
-        $input = $request->validate(ReservationLimits::rules(), [], ReservationLimits::attributes())['roles'];
+        $input = $request->validate(ReservationLimits::rules(), ReservationLimits::messages(), ReservationLimits::attributes())['roles'];
 
         // Un role absent du formulaire (cree entre l'affichage et l'envoi) garde ses limites
         foreach (Role::whereKey(array_keys($input))->get() as $role) {

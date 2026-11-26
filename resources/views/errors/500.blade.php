@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Erreur du serveur')
+@section('code', '500')
+@section('heading', 'Une erreur est survenue')
+@section('message', "Le site n'a pas pu traiter la demande. Réessayez dans un instant ; si l'erreur se répète, prévenez l'administrateur du site.")

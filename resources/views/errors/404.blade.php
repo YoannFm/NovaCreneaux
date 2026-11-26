@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Page introuvable')
+@section('code', '404')
+@section('heading', 'Page introuvable')
+@section('message', "Cette page n'existe pas ou a été déplacée. Vérifiez l'adresse, ou repartez de l'accueil.")

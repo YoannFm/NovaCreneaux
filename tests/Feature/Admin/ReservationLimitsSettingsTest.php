@@ -80,6 +80,16 @@ class ReservationLimitsSettingsTest extends TestCase
         $this->assertSame(14, $role->advance_days);
     }
 
+    public function test_an_empty_limit_without_the_switch_gets_a_readable_message(): void
+    {
+        $this->actingAs($this->admin());
+        $role = $this->userRole();
+
+        // Avant : la page affichait la cle brute "validation.required_without"
+        $this->save([$role->id => $this->limits(['max_reservations_day' => ''])])
+            ->assertSessionHasErrors(["roles.{$role->id}.max_reservations_day" => 'Indiquez une valeur pour « réservations par jour » ou cochez « Illimité ».']);
+    }
+
     public function test_a_refused_form_keeps_what_was_typed_and_the_switches_as_sent(): void
     {
         $this->actingAs($this->admin());
