@@ -53,7 +53,7 @@ class EmailLowercaseTest extends TestCase
         $file = UploadedFile::fake()->createWithContent('eleves.csv', $csv);
 
         $this->actingAs($this->admin())->post(route('admin.users.import.store'), ['csv' => $file])
-            ->assertSessionHas('success', '1 utilisateur(s) importé(s), 1 ignoré(s).');
+            ->assertSessionHas('success', '1 utilisateur(s) importé(s), 1 ignoré(s). Ligne 3 : adresse déjà utilisée (zoe.moreau@exemple.fr).');
 
         $this->assertTrue(User::where('email', 'lea.martin@exemple.fr')->exists());
         $this->assertFalse(User::where('email', 'Lea.Martin@Exemple.FR')->exists());
@@ -69,7 +69,7 @@ class EmailLowercaseTest extends TestCase
         $this->post(route('admin.users.store'), ['name' => 'Copie', 'email' => 'PRIS@exemple.fr', 'role_id' => Role::defaultUser()->id])->assertSessionHasErrors('email');
 
         $student = $this->student();
-        $this->actingAs($student)->patch('/profile', ['name' => $student->name, 'email' => 'Nouvelle.Adresse@Exemple.fr'])->assertSessionHasNoErrors();
+        $this->actingAs($student)->patch('/profile', ['name' => $student->name, 'email' => 'Nouvelle.Adresse@Exemple.fr', 'current_password' => 'password'])->assertSessionHasNoErrors();
         $this->assertSame('nouvelle.adresse@exemple.fr', $student->fresh()->email);
     }
 

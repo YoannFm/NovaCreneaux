@@ -75,19 +75,32 @@ class SecurityHardeningTest extends TestCase
 
     // --- Logo ---
 
+    /** Fichiers temporaires envoyes comme logo, et logos deja presents avant le test (jamais supprimes). */
+    private array $uploads = [];
+    private ?array $logosBefore = null;
+
     private function realUpload(string $name, string $content, string $mime): UploadedFile
     {
+        $this->logosBefore ??= glob(public_path('uploads/logo/*')) ?: [];
         $path = tempnam(sys_get_temp_dir(), 'nc-logo-');
         file_put_contents($path, $content);
+        $this->uploads[] = $path;
 
         return new UploadedFile($path, $name, $mime, null, true);
     }
 
-    private function cleanLogos(): void
+    /** Meme si une assertion echoue : ni fichier temporaire laisse, ni logo d'un test, ni logo du site supprime. */
+    protected function tearDown(): void
     {
-        foreach (glob(public_path('uploads/logo/*')) ?: [] as $file) {
-            @unlink($file);
+        foreach ($this->uploads as $path) {
+            @unlink($path);
         }
+        if ($this->logosBefore !== null) {
+            foreach (array_diff(glob(public_path('uploads/logo/*')) ?: [], $this->logosBefore) as $file) {
+                @unlink($file);
+            }
+        }
+        parent::tearDown();
     }
 
     public function test_the_logo_extension_comes_from_the_content_and_the_name_is_random(): void
@@ -101,7 +114,6 @@ class SecurityHardeningTest extends TestCase
         $stored = setting('site_logo');
         $this->assertMatchesRegularExpression('#^uploads/logo/logo_[a-f0-9]{16}\.gif$#', $stored);
         $this->assertSame([], glob(public_path('uploads/logo/*.php')) ?: []);
-        $this->cleanLogos();
     }
 
     public function test_non_images_are_refused_as_logo_whatever_their_name_or_declared_type(): void
@@ -109,7 +121,7 @@ class SecurityHardeningTest extends TestCase
         $this->actingAs($this->admin());
 
         foreach ([
-            $this->realUpload('logo.png', '<?php system($_GET["c"]); ?>', 'image/png'),
+            $this->realUpload('logo.png', '<?php echo "test"; ?>', 'image/png'),
             $this->realUpload('logo.php', base64_decode('R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='), 'image/gif'),
             $this->realUpload('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>', 'image/svg+xml'),
         ] as $file) {
@@ -117,19 +129,17 @@ class SecurityHardeningTest extends TestCase
             $this->assertSame([], glob(public_path('uploads/logo/*.php')) ?: []);
             $this->assertSame([], glob(public_path('uploads/logo/*.svg')) ?: []);
         }
-        $this->cleanLogos();
     }
 
     public function test_a_gif_with_php_code_appended_is_stored_as_a_harmless_gif_with_a_random_name(): void
     {
         $this->actingAs($this->admin());
 
-        $this->post(route('admin.settings.logo.upload'), ['logo' => $this->realUpload('logo.jpg', "GIF89a\x01\x00\x01\x00\x00\x00\x00;<?php system(\$_GET['c']); ?>", 'image/jpeg')]);
+        $this->post(route('admin.settings.logo.upload'), ['logo' => $this->realUpload('logo.jpg', "GIF89a\x01\x00\x01\x00\x00\x00\x00;<?php echo 'test'; ?>", 'image/jpeg')]);
 
         $stored = (string) setting('site_logo');
         $this->assertTrue($stored === '' || preg_match('#^uploads/logo/logo_[a-f0-9]{16}\.gif$#', $stored) === 1, $stored);
         $this->assertSame([], glob(public_path('uploads/logo/*.php')) ?: []);
-        $this->cleanLogos();
     }
 
     public function test_only_files_of_the_logo_folder_are_ever_deleted(): void

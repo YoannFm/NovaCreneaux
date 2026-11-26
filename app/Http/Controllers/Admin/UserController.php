@@ -4,6 +4,8 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AccountDeletionNotice;
 use App\Services\ActivityLogger;
+use App\Services\ReservationService;
+use App\Services\UserCsvImport;
 use App\Services\UserExporter;
 use App\Support\ActivityChanges;
 use Illuminate\Http\Request;
@@ -14,6 +16,9 @@ use App\Models\Role;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller {
+    /** Lignes ignorees citees dans le message apres un import (toutes sont dans le journal d'activite). */
+    private const SKIPPED_SHOWN = 5;
+
 
     public function index(Request $request) {
         $query = User::with('role')->withExists(['sanctions as is_suspended' => fn ($q) => $q->activeBan()]);
@@ -45,7 +50,7 @@ class UserController extends Controller {
         $data = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email',
-            'classe'   => 'nullable|string|max:50',
+            'classe'   => User::classeRules(),
             'role_id'  => 'required|exists:roles,id',
             'password' => ['nullable', 'string', Password::defaults()],
             'is_active'=> 'boolean',
@@ -85,20 +90,22 @@ class UserController extends Controller {
         $data = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => ['required','email', Rule::unique('users')->ignore($user->id)],
-            'classe'   => 'nullable|string|max:50',
+            'classe'   => User::classeRules(),
             'role_id'  => 'required|exists:roles,id',
             'password' => ['nullable', 'string', Password::defaults()],
-            'is_active'=> 'boolean',
         ]);
 
         $role = $this->assignableRole($data['role_id']);
+        // Sans administrateur, plus personne n'accede aux reglages, aux roles ni aux mises a jour
+        if (!$role->is_admin && $user->isLastActiveAdmin()) {
+            return back()->withInput()->withErrors(['role_id' => "C'est le seul administrateur actif : il doit le rester. Donnez d'abord ce rôle à un autre compte."]);
+        }
         $update = [
             'name'     => $data['name'],
             'email'    => $data['email'],
             'classe'   => $data['classe'] ?? null,
             'role_id'  => $role->id,
             'is_admin' => $role->is_admin,
-            'is_active'=> $request->boolean('is_active', true),
         ];
         if (!empty($data['password'])) {
             $update['password'] = Hash::make($data['password']);
@@ -144,11 +151,17 @@ class UserController extends Controller {
         return back()->with('success', "MFA de {$user->name} désactivée.");
     }
 
-    public function toggle(User $user) {
+    public function toggle(ReservationService $reservations, User $user) {
         $this->authorizeManage($user);
+        // On s'enfermerait dehors (comme les actions groupees, qui ignorent son propre compte)
+        if ($user->is_active && $user->is(auth()->user())) {
+            return back()->with('error', 'Vous ne pouvez pas désactiver votre propre compte.');
+        }
         $user->update(['is_active' => !$user->is_active]);
         ActivityLogger::log($user->is_active ? 'Utilisateur activé' : 'Utilisateur désactivé', $user->name);
-        return back()->with('success', 'Statut mis à jour.');
+        // Un compte desactive ne viendra plus : ses places a venir sont liberees
+        $cancelled = $user->is_active ? 0 : $reservations->cancelUpcomingForUsers([$user->id], ReservationService::DEACTIVATION_REASON);
+        return back()->with('success', 'Statut mis à jour.' . ReservationService::cancelledNote($cancelled));
     }
 
     public function destroy(AccountDeletionNotice $notice, User $user) {
@@ -184,31 +197,20 @@ class UserController extends Controller {
 
     public function importForm() { return view('admin.users.import'); }
 
-    public function import(Request $request) {
+    public function import(Request $request, UserCsvImport $importer) {
         $request->validate(['csv' => 'required|file|mimes:csv,txt|max:2048']);
-        $path = $request->file('csv')->getRealPath();
-        $lines = array_filter(array_map('str_getcsv', file($path)));
-        $created = $skipped = 0;
-        $defaultRoleId = Role::defaultUser()?->id;
-        foreach ($lines as $i => $row) {
-            if ($i === 0 && strtolower(trim($row[0])) === 'nom') continue;
-            [$nom,$prenom,$classe,$email] = array_pad(array_map('trim',$row),4,'');
-            $email = User::normalizeEmail($email); // "Lea.Martin@..." et "lea.martin@..." sont le meme compte
-            if (!$email || !filter_var($email,FILTER_VALIDATE_EMAIL)) { $skipped++; continue; }
-            if (User::where('email',$email)->exists()) { $skipped++; continue; }
-            User::create([
-                'name'     => "{$prenom} {$nom}",
-                'email'    => $email,
-                'password' => Hash::make(Str::random(10)),
-                'classe'   => $classe,
-                'role_id'  => $defaultRoleId,
-                'is_active'=> true,
-            ]);
-            $created++;
+        $result = $importer->import($request->file('csv')->getRealPath());
+        $skipped = $result['skipped'];
+        ActivityLogger::log('Import CSV utilisateurs', "{$result['created']} créé(s), " . count($skipped) . ' ignoré(s)', $skipped ? ['lignes ignorées' => ['new' => $skipped]] : []);
+
+        $message = "{$result['created']} utilisateur(s) importé(s), " . count($skipped) . ' ignoré(s).';
+        if ($skipped) {
+            $shown = array_slice($skipped, 0, self::SKIPPED_SHOWN);
+            $more = count($skipped) - count($shown);
+            $message .= ' ' . ucfirst(implode(' ; ', $shown)) . ($more > 0 ? " ; et {$more} autre(s), voir le journal d'activité." : '.');
         }
-        ActivityLogger::log('Import CSV utilisateurs', "{$created} créé(s), {$skipped} ignoré(s)");
-        return redirect()->route('admin.users.index')
-            ->with('success', "{$created} utilisateur(s) importé(s), {$skipped} ignoré(s).");
+
+        return redirect()->route('admin.users.index')->with('success', $message);
     }
 
     /** Le personnel delegue ne touche ni aux administrateurs ni aux autres membres du personnel. */

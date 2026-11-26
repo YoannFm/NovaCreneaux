@@ -31,6 +31,16 @@ class Role extends Model
 
     public function users() { return $this->hasMany(User::class); }
 
+    /** Les comptes du role recopient son statut d'administrateur (users.is_admin), aussi quand on modifie le role. */
+    protected static function booted(): void
+    {
+        static::saved(function (Role $role) {
+            if ($role->wasChanged('is_admin')) {
+                $role->users()->update(['is_admin' => $role->is_admin]);
+            }
+        });
+    }
+
     /** Limites d'un nouveau role : celles du role par defaut ("Utilisateur") ; sans lui, celles de la base (sans limite). */
     public static function defaultLimits(): array
     {

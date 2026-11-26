@@ -51,13 +51,16 @@ class ReservationController extends Controller {
      */
     private function planning($reservations, $resources, ?int $resourceId): array {
         $bySlot = $reservations->groupBy('slot_id');
-        $shown = $resourceId ? $resources->where('id', $resourceId) : $resources;
-        $slots = Slot::whereIn('resource_id', $shown->pluck('id'))->orderBy('start_time')->get()->groupBy('resource_id');
+        // Une ressource supprimee n'apparait que pour un jour ou elle a des reservations (historique)
+        $deleted = $reservations->pluck('slot.resource')->filter(fn (Resource $resource) => $resource->trashed())->unique('id');
+        $shown = $resources->concat($deleted)->sortBy('name');
+        if ($resourceId) $shown = $shown->where('id', $resourceId);
+        $slots = Slot::withTrashed()->whereIn('resource_id', $shown->pluck('id'))->orderBy('start_time')->get()->groupBy('resource_id');
 
         $planning = [];
         foreach ($shown as $resource) {
             $rows = ($slots[$resource->id] ?? collect())
-                ->filter(fn (Slot $slot) => $slot->is_active || $bySlot->has($slot->id))
+                ->filter(fn (Slot $slot) => $slot->isOpenForBooking() || $bySlot->has($slot->id))
                 ->map(fn (Slot $slot) => ['slot' => $slot, 'reservations' => ($bySlot[$slot->id] ?? collect())->sortBy(fn ($r) => self::sortKey($r->user->name))->values()])
                 ->values();
             if ($rows->isNotEmpty() || $resourceId) {
@@ -72,7 +75,7 @@ class ReservationController extends Controller {
         // Erreurs dans le sac "add" : la fenetre d'ajout se rouvre avec la saisie
         $data = $request->validateWithBag('add', [
             'user_id' => 'required|integer|exists:users,id',
-            'slot_id' => 'required|integer|exists:slots,id',
+            'slot_id' => ['required', 'integer', Slot::existsRule()],
             'date' => 'required|date_format:Y-m-d',
         ], [], ['user_id' => 'personne', 'slot_id' => 'créneau']);
         $user = User::findOrFail($data['user_id']);
@@ -112,6 +115,8 @@ class ReservationController extends Controller {
         ])->values());
     }
     public function destroy(Request $request, Reservation $reservation) {
+        // Meme regle que l'ajout : le personnel delegue ne touche pas aux reservations des administrateurs ni du personnel
+        abort_unless($request->user()->canManage($reservation->user), 403);
         $reason = $request->validate(['reason' => 'nullable|string|max:300'])['reason'] ?? null;
         $this->service->cancelByAdmin($reservation, $reason);
         ActivityLogger::log('Réservation supprimée (admin)', "#{$reservation->id}" . ($reason ? ", motif : {$reason}" : ''));

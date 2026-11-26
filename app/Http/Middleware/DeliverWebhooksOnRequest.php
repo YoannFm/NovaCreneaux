@@ -23,7 +23,7 @@ class DeliverWebhooksOnRequest
     public function terminate(Request $request, Response $response): void
     {
         try {
-            if (! config('nova.webhooks.on_request') || ! Cache::get(WebhookDispatcher::PENDING_FLAG) || ! Cache::add('webhooks_check', 1, 10)) {
+            if ($request->is('install*') || ! config('nova.webhooks.on_request') || ! Cache::get(WebhookDispatcher::PENDING_FLAG) || ! Cache::add('webhooks_check', 1, 10)) {
                 return;
             }
 

@@ -21,13 +21,15 @@ class ReservationController extends Controller {
         }
 
         $counts = $this->availability->freeSpots($resources->flatMap->activeSlots, $dates);
+        $statuses = $this->service->statuses(auth()->user(), $resources, $dates, $counts);
 
-        return view('reservations.index', compact('resources', 'today', 'dates', 'counts', 'advanceDays'));
+        return view('reservations.index', compact('resources', 'today', 'dates', 'counts', 'statuses', 'advanceDays'));
     }
+
     public function store(Request $request) {
         $data = $request->validate([
-            'slot_id'=>'required|integer|exists:slots,id',
-            'reservation_date'=>'required|date|after_or_equal:today',
+            'slot_id'=>['required', 'integer', Slot::existsRule()],
+            'reservation_date'=>'required|date_format:Y-m-d|after_or_equal:today',
         ]);
         $result = $this->service->create(auth()->user(), $data['slot_id'], $data['reservation_date']);
         if (!$result['ok']) return back()->withErrors(['reservation'=>$result['error']]);

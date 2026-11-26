@@ -55,7 +55,7 @@ class InstallationState
 
     public function lockPath(): string
     {
-        return storage_path('app/installed.lock');
+        return config('nova.install_lock');
     }
 
     private function writeLock(): void

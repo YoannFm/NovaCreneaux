@@ -50,6 +50,32 @@ class InstallFlowTest extends TestCase
         $page->assertSee('vérification de la signature des mises à jour');
     }
 
+    public function test_the_site_name_and_timezone_chosen_in_the_installer_apply_even_if_read_earlier(): void
+    {
+        // Pendant l'assistant, chaque page lit deja ces reglages (AppServiceProvider) : le cache gardait le nom par defaut
+        setting('app_name', 'NovaCreneaux');
+        setting('timezone', '');
+        setting('registration_open', '0');
+
+        $this->post(route('install.site-config.store'), [
+            'app_name' => 'Lycee Test', 'app_url' => 'https://reservation.exemple.fr', 'timezone' => 'Europe/London',
+            'max_reservations_per_day' => 2, 'registration_open' => '1',
+        ])->assertRedirect(route('install.admin'));
+
+        $this->assertSame('Lycee Test', setting('app_name'));
+        $this->assertSame('Europe/London', setting('timezone'));
+        $this->assertSame('1', setting('registration_open'));
+        $this->post(route('install.admin.store'), $this->admin());
+        auth()->logout();
+        $this->get(route('login'))->assertSee('<title>Connexion - Lycee Test</title>', false);
+    }
+
+    public function test_the_tests_never_use_the_lock_file_of_the_site(): void
+    {
+        $this->assertNotSame(storage_path('app/installed.lock'), app(InstallationState::class)->lockPath());
+        $this->assertFalse(config('app.installed'), 'phpunit.xml force APP_INSTALLED=false, meme si le .env local dit true');
+    }
+
     public function test_creating_the_administrator_locks_the_installation_everywhere(): void
     {
         $this->post(route('install.admin.store'), $this->admin())->assertRedirect(route('login'))->assertSessionHas('success');

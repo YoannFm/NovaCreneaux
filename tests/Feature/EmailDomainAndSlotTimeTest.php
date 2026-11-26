@@ -26,7 +26,7 @@ class EmailDomainAndSlotTimeTest extends TestCase
         $this->allowDomain('eleves.exemple.fr');
         $user = User::factory()->create(['email' => 'eleve@eleves.exemple.fr']);
 
-        $this->actingAs($user)->patch('/profile', ['name' => $user->name, 'email' => 'eleve@gmail.com'])
+        $this->actingAs($user)->patch('/profile', ['name' => $user->name, 'email' => 'eleve@gmail.com', 'current_password' => 'password'])
             ->assertSessionHasErrors('email');
         $this->assertSame('eleve@eleves.exemple.fr', $user->fresh()->email);
     }
@@ -36,7 +36,7 @@ class EmailDomainAndSlotTimeTest extends TestCase
         $this->allowDomain('eleves.exemple.fr');
         $user = User::factory()->create(['email' => 'eleve@eleves.exemple.fr']);
 
-        $this->actingAs($user)->patch('/profile', ['name' => $user->name, 'email' => 'autre@eleves.exemple.fr'])
+        $this->actingAs($user)->patch('/profile', ['name' => $user->name, 'email' => 'autre@eleves.exemple.fr', 'current_password' => 'password'])
             ->assertSessionHasNoErrors();
     }
 

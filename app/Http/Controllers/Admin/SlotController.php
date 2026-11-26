@@ -26,7 +26,7 @@ class SlotController extends Controller {
     public function destroy(ReservationService $reservations, Resource $resource, Slot $slot) {
         $cancelled = $reservations->cancelUpcomingForSlots([$slot->id], "Le créneau {$slot->name} de {$resource->name} n'existe plus.");
         $slot->delete();
-        $note = $cancelled > 0 ? " {$cancelled} réservation(s) à venir annulée(s), les personnes concernées ont été prévenues." : '';
+        $note = ReservationService::cancelledNote($cancelled);
         return redirect()->route('admin.slots.index',$resource)->with('success','Créneau supprimé.' . $note);
     }
     private function validated(Request $request): array {

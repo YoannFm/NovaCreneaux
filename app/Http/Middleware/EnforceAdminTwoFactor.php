@@ -17,10 +17,12 @@ class EnforceAdminTwoFactor
     {
         $user = $request->user();
 
-        if (setting('require_2fa_admin', '0') === '1'
-            && $user?->hasAdminAccess()
-            && !$user->hasAnyMfa()
-            && !$request->is(...self::ALWAYS_OPEN)) {
+        // Visiteur non connecte (dont l'assistant d'installation) : aucune lecture en base
+        if ($user
+            && !$request->is(...self::ALWAYS_OPEN)
+            && setting('require_2fa_admin', '0') === '1'
+            && $user->hasAdminAccess()
+            && !$user->hasAnyMfa()) {
             return redirect()->route('profile.edit')
                 ->with('error', 'La double authentification est obligatoire pour les administrateurs. Activez-la pour continuer.');
         }

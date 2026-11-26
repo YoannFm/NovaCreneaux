@@ -78,7 +78,8 @@
                     <div class="fw-semibold" style="min-width:7.5rem;">{{ substr($slot->start_time, 0, 5) }} - {{ substr($slot->end_time, 0, 5) }}</div>
                     <div class="flex-grow-1">
                         {{ $slot->name }}
-                        @unless($slot->is_active)<span class="badge bg-secondary ms-1">Inactif</span>@endunless
+                        @if($slot->trashed())<span class="badge bg-secondary ms-1">Supprimé</span>
+                        @elseif(!$slot->is_active)<span class="badge bg-secondary ms-1">Inactif</span>@endif
                     </div>
                     <div class="d-flex align-items-center gap-2 small" style="min-width:9rem;">
                         <div class="progress flex-grow-1" style="height:6px;" role="progressbar" aria-label="Remplissage" aria-valuenow="{{ $fill }}" aria-valuemin="0" aria-valuemax="100">
@@ -87,7 +88,7 @@
                         <span class="text-muted text-nowrap">{{ $taken }} / {{ $slot->max_capacity }}</span>
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#add-modal"
-                            data-slot-id="{{ $slot->id }}" @disabled($full || !$slot->is_active) title="Ajouter une personne à ce créneau">
+                            data-slot-id="{{ $slot->id }}" @disabled($full || !$slot->isOpenForBooking()) title="Ajouter une personne à ce créneau">
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
@@ -163,7 +164,7 @@
                         @foreach($planning as ['resource' => $resource, 'slots' => $slots])
                             <optgroup label="{{ $resource->name }}">
                                 @foreach($slots as ['slot' => $slot, 'reservations' => $rows])
-                                    @continue(!$slot->is_active)
+                                    @continue(!$slot->isOpenForBooking())
                                     <option value="{{ $slot->id }}" @selected(old('slot_id') == $slot->id) @disabled($rows->count() >= $slot->max_capacity)>
                                         {{ substr($slot->start_time, 0, 5) }} - {{ $slot->name }} ({{ $rows->count() }}/{{ $slot->max_capacity }})
                                     </option>

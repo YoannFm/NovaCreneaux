@@ -3,6 +3,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Loggable;
 use App\Support\HtmlSanitizer;
+use App\Support\Permission;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
@@ -39,8 +40,16 @@ class Page extends Model
         return $this->belongsToMany(Role::class, 'page_role');
     }
 
-    public function isRestricted(): bool
+    /**
+     * Page restreinte : seulement les roles coches (aucun role coche = tout compte connecte). Celui qui gere les pages
+     * (administrateur ou personnel delegue) les voit toutes, pour verifier ce qu'il publie.
+     */
+    public function isVisibleTo(User $user): bool
     {
-        return (bool) $this->is_restricted;
+        if (!$this->is_restricted || $user->hasPermission(Permission::PAGES)) {
+            return true;
+        }
+
+        return $this->roles->isEmpty() || $this->roles->contains('id', $user->role_id);
     }
 }

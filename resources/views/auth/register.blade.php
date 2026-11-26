@@ -22,7 +22,7 @@
 
             <div class="mb-3">
                 <label for="classe" class="form-label">{{ \App\Support\Customization::get('group_label') }}</label>
-                <input id="classe" type="text" name="classe" class="form-control @error('classe') is-invalid @enderror"
+                <input id="classe" type="text" name="classe" maxlength="{{ \App\Models\User::CLASSE_MAX }}" class="form-control @error('classe') is-invalid @enderror"
                        value="{{ old('classe') }}" placeholder="{{ \App\Support\Customization::get('group_placeholder') }}">
             </div>
 
