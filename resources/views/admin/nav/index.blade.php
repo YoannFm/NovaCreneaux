@@ -56,13 +56,6 @@
 
 @section('content')
 
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible mb-4">
-        <i class="bi bi-check-circle me-1"></i> {{ session('success') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-@endif
-
 <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
         <span class="fw-semibold"><i class="bi bi-list-ul me-2"></i>Navbar</span>

@@ -20,7 +20,7 @@ class SlotController extends Controller {
         return view('admin.slots.form', compact('resource','slot'));
     }
     public function update(ReservationService $reservations, Request $request, Resource $resource, Slot $slot) {
-        [$previousStart, $previousEnd] = [$slot->start_time, $slot->end_time];
+        [$previousStart, $previousEnd, $wasActive] = [$slot->start_time, $slot->end_time, $slot->is_active];
         $slot->update($this->validated($request));
 
         $message = 'Créneau mis à jour.';
@@ -28,7 +28,12 @@ class SlotController extends Controller {
             $warned = $reservations->notifyRescheduled($slot, $previousStart, $previousEnd);
             $message .= $warned > 0 ? " {$warned} personne(s) ayant réservé ont été prévenues du nouvel horaire." : '';
         }
-        return redirect()->route('admin.slots.index',$resource)->with('success', $message)->with('warning', $this->overbookedWarning($slot));
+        $deactivated = $wasActive && !$slot->is_active ? $reservations->countUpcomingForSlots([$slot->id]) : 0;
+        $warning = $deactivated > 0
+            ? "Créneau désactivé : {$deactivated} réservation(s) à venir sont conservées et les personnes n'ont pas été prévenues. Retirez-les depuis le planning si besoin."
+            : $this->overbookedWarning($slot);
+
+        return redirect()->route('admin.slots.index',$resource)->with('success', $message)->with('warning', $warning);
     }
 
     /**

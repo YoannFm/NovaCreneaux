@@ -24,7 +24,8 @@ class UserController extends Controller {
     public function index(Request $request) {
         // Filtres de l'adresse : un filtre invalide est ignore (QueryFilters), jamais d'erreur 500 ni de redirection
         $filters = QueryFilters::valid($request, ['search' => 'string|max:100', 'role' => 'integer']);
-        $query = User::with('role')->withExists(['sanctions as is_suspended' => fn ($q) => $q->activeBan()]);
+        // Le personnel delegue ne voit pas les administrateurs ni les autres membres du personnel
+        $query = User::manageableBy($request->user())->with('role')->withExists(['sanctions as is_suspended' => fn ($q) => $q->activeBan()]);
         if ($search = $filters['search'] ?? null) {
             $query->where(function($q) use ($search) {
                 $q->where('name','like',"%{$search}%")
@@ -181,18 +182,22 @@ class UserController extends Controller {
         return redirect()->route('admin.users.index')->with('success', 'Utilisateur supprimé.');
     }
 
-    public function exportZip(UserExporter $exporter) {
-        $users = User::with('role')->withCount('reservations')->orderBy('name')->get();
+    public function exportZip(Request $request, UserExporter $exporter) {
+        // Seulement les comptes que l'on gere (le personnel delegue n'exporte pas les administrateurs)
+        $users = User::manageableBy($request->user())->with('role')->withCount('reservations')->orderBy('name')->get();
         $csv = $exporter->csv($users);
 
-        $zipPath = storage_path('app/exports/utilisateurs-' . now()->format('Ymd-His') . '.zip');
-        $dir = dirname($zipPath);
-        if (!is_dir($dir)) mkdir($dir, 0755, true);
-
-        $zip = new \ZipArchive();
-        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-        $zip->addFromString('utilisateurs.csv', $csv);
-        $zip->close();
+        // Fichier temporaire hors de storage, supprime apres l'envoi ou en cas d'erreur : il contient toutes les adresses
+        $zipPath = tempnam(sys_get_temp_dir(), 'nc-export-');
+        try {
+            $zip = new \ZipArchive();
+            $zip->open($zipPath, \ZipArchive::OVERWRITE);
+            $zip->addFromString('utilisateurs.csv', $csv);
+            $zip->close();
+        } catch (\Throwable $e) {
+            @unlink($zipPath);
+            throw $e;
+        }
 
         ActivityLogger::log('Export ZIP utilisateurs', $users->count() . ' utilisateur(s)');
 

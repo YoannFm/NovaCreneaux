@@ -27,6 +27,12 @@ class Reservation extends Model {
         return Carbon::parse($this->reservation_date->toDateString() . ' ' . $this->slot->end_time);
     }
 
+    /** Le creneau est termine : la reservation fait partie de l'historique. */
+    public function hasEnded(): bool
+    {
+        return $this->endsAt()->isPast();
+    }
+
     public function startsAt(): Carbon
     {
         return Carbon::parse($this->reservation_date->toDateString() . ' ' . $this->slot->start_time);

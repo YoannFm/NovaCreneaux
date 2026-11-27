@@ -71,6 +71,57 @@ class AdminInputValidationTest extends TestCase
         $this->get('/admin/users?search=lea&role=1')->assertOk()->assertDontSee("Un filtre de l'adresse n'est pas valide");
     }
 
+    public function test_a_field_sent_as_an_array_is_treated_as_empty_instead_of_error_500(): void
+    {
+        $this->actingAs($this->admin());
+        $this->post(route('admin.settings.configuration.export'), ['password' => ['x']])->assertRedirect();
+        $this->post(route('admin.backups.download', 'nova-20261127-120000-manual-0123456789abcdef.sql.gz'), ['password' => ['x']])->assertRedirect();
+
+    }
+
+    /** Retours des connexions par l'etablissement (adresses publiques) avec un ticket ou un code en tableau. */
+    public function test_an_sso_callback_with_an_array_parameter_is_refused_cleanly(): void
+    {
+        \Illuminate\Support\Facades\Http::fake(['https://connexion.exemple.fr/.well-known/openid-configuration' => \Illuminate\Support\Facades\Http::response([
+            'issuer' => 'https://connexion.exemple.fr', 'authorization_endpoint' => 'https://connexion.exemple.fr/auth', 'token_endpoint' => 'https://connexion.exemple.fr/token',
+        ])]);
+        $drivers = [
+            ['sso_driver' => 'cas', 'cas_url' => 'https://cas.exemple.fr/cas'],
+            ['sso_driver' => 'oidc', 'oidc_issuer' => 'https://connexion.exemple.fr', 'oidc_client_id' => 'nova'],
+        ];
+        foreach ($drivers as $settings) {
+            foreach ($settings as $key => $value) {
+                app(\App\Services\SettingService::class)->set($key, $value);
+            }
+            $this->get(route('sso.redirect'))->assertRedirect();
+            $state = session('sso_attempt.state');
+            $this->assertNotNull($state, $settings['sso_driver']);
+
+            $this->get(route('sso.callback', ['state' => $state, 'ticket' => ['x'], 'code' => ['x']]))
+                ->assertRedirect(route('login'))->assertSessionHasErrors('email');
+        }
+    }
+
+    public function test_the_maintenance_message_is_plain_text(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('admin.settings.maintenance.update'), ['maintenance_message' => '<p>Retour <strong>lundi</strong></p>'])->assertSessionHasNoErrors();
+        $this->assertSame('Retour lundi', setting('maintenance_message'));
+
+        $this->post(route('admin.settings.maintenance.update'), ['maintenance_message' => ['x']])->assertSessionHasErrors('maintenance_message');
+        $this->post(route('admin.settings.maintenance.update'), ['maintenance_message' => str_repeat('a', 501)])->assertSessionHasErrors('maintenance_message');
+        $this->get(route('admin.settings.maintenance'))->assertOk()->assertDontSee('tinymce.init', false);
+    }
+
+    public function test_role_permissions_sent_as_text_are_refused(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('admin.roles.store'), ['name' => 'surveillant', 'label' => 'Surveillant', 'color' => '#123456', 'permissions' => 'resources.manage'])
+            ->assertSessionHasErrors('permissions');
+    }
+
     public function test_a_long_activity_context_is_shortened_instead_of_lost(): void
     {
         ActivityLogger::log(Str::repeat('a', 200), Str::repeat('é', 800));

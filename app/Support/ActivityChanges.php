@@ -29,6 +29,7 @@ final class ActivityChanges
         'cancel_deadline_minutes' => "Délai d'annulation (min)", 'advance_days' => "Réservation à l'avance (jours)",
         'slug' => 'Adresse', 'content' => 'Contenu', 'url' => 'Adresse', 'events' => 'Événements', 'format' => 'Format',
         'preset' => 'Service', 'show_names' => 'Afficher les noms', 'password' => 'Mot de passe',
+        'type' => 'Type', 'target' => 'Ouverture', 'admin_only' => 'Réservé aux administrateurs', 'position' => 'Position',
     ];
 
     private const MAX_LENGTH = 2000;

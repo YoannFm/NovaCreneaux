@@ -55,8 +55,8 @@
 var codes = @json($codes);
 
 function downloadCodes() {
-    var text = 'Codes de récupération - {{ setting('app_name','NovaCreneaux') }}\n';
-    text += 'Générés le {{ now()->format('d/m/Y H:i') }}\n\n';
+    var text = {{ \Illuminate\Support\Js::from('Codes de récupération - ' . setting('app_name', 'NovaCreneaux')) }} + '\n';
+    text += {{ \Illuminate\Support\Js::from('Générés le ' . now()->format('d/m/Y H:i')) }} + '\n\n';
     text += codes.join('\n');
     text += '\n\nChaque code est à usage unique. Conservez ce fichier en lieu sûr.';
 

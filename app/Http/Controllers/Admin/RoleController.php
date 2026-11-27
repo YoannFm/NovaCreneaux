@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Support\Permission;
 use Illuminate\Http\Request;
@@ -61,9 +62,10 @@ class RoleController extends Controller
         if (!$role->locked) {
             $update['is_admin'] = $request->boolean('is_admin');
         }
-        // Retirer le statut d'administrateur au dernier role qui le porte enfermerait le site dehors
-        if ($role->is_admin && !($update['is_admin'] ?? true) && !Role::where('is_admin', true)->whereKeyNot($role->id)->whereHas('users')->exists()) {
-            return back()->withInput()->with('error', "Aucun autre compte n'est administrateur : ce rôle doit le rester.");
+        // Retirer le statut d'administrateur a ce role ne doit pas laisser le site sans administrateur actif
+        // (un administrateur desactive ne compte pas : personne ne pourrait plus entrer dans l'administration)
+        if ($role->is_admin && !($update['is_admin'] ?? true) && !$this->otherActiveAdminExists($role)) {
+            return back()->withInput()->with('error', "Aucun autre compte actif n'est administrateur : ce rôle doit le rester.");
         }
         $update['permissions'] = $this->permissions($request, $update['is_admin'] ?? $role->is_admin);
         $role->update($update);
@@ -74,10 +76,18 @@ class RoleController extends Controller
         return redirect()->route('admin.roles.index')->with('success', "Rôle \"{$role->label}\" mis à jour.");
     }
 
+    /** Un compte actif reste administrateur hors de ce role (users.is_admin est la copie du statut du role). */
+    private function otherActiveAdminExists(Role $role): bool
+    {
+        return User::where('is_admin', true)->where('is_active', true)
+            ->where(fn ($query) => $query->whereNull('role_id')->orWhere('role_id', '!=', $role->id))
+            ->exists();
+    }
+
     /** Le formulaire refuse une permission inconnue (l'import, lui, l'ecarte sans erreur). */
     private function rules(): array
     {
-        return ['is_admin' => 'boolean', 'permissions.*' => 'string|in:' . implode(',', array_keys(Permission::all()))] + Role::rules();
+        return ['is_admin' => 'boolean', 'permissions' => 'nullable|array', 'permissions.*' => 'string|in:' . implode(',', array_keys(Permission::all()))] + Role::rules();
     }
 
     /** Un role administrateur a deja tous les droits : ses permissions detaillees ne servent a rien. */
@@ -98,14 +108,20 @@ class RoleController extends Controller
         if ($role->users()->count() > 0) {
             return back()->with('error', 'Impossible de supprimer : des utilisateurs ont ce rôle.');
         }
+        // Une page restreinte sans role est ouverte a tout compte connecte : supprimer son seul role l'ouvrirait a tous
+        $pages = $role->pages()->pluck('title');
+        if ($pages->isNotEmpty()) {
+            return back()->with('error', 'Impossible de supprimer : ce rôle donne accès à des pages restreintes (' . $pages->implode(', ') . '). Retirez-le d\'abord de ces pages.');
+        }
         $role->delete();
         return redirect()->route('admin.roles.index')->with('success', "Rôle \"{$role->label}\" supprimé.");
     }
 
     public function reorder(Request $request)
     {
-        $request->validate(['roles' => 'required|array']);
-        foreach ($request->roles as $power => $id) {
+        // Identifiants entiers : MySQL 8 (mode strict) repond par une erreur 500 a "where id = 'x'"
+        $data = $request->validate(['roles' => 'required|array', 'roles.*' => 'integer']);
+        foreach ($data['roles'] as $power => $id) {
             Role::where('id', $id)->update(['power' => $power]);
         }
         return response()->json(['message' => 'Ordre sauvegardé.']);

@@ -115,13 +115,14 @@ class PasswordResetTest extends TestCase
         ])->assertSessionHasErrors(['email' => "Ce jeton de réinitialisation du mot de passe n'est pas valide."]);
     }
 
-    public function test_requests_are_limited_per_ip(): void
+    /** Peu de demandes par adresse saisie (le plafond par IP est verifie par ClassroomRateLimitTest). */
+    public function test_requests_are_limited_per_address(): void
     {
         Mail::fake();
 
-        foreach (range(1, 6) as $i) {
-            $this->post(route('password.email'), ['email' => "x{$i}@example.com"])->assertRedirect();
+        foreach (range(1, 3) as $i) {
+            $this->post(route('password.email'), ['email' => 'meme@example.com'])->assertRedirect();
         }
-        $this->post(route('password.email'), ['email' => 'x7@example.com'])->assertStatus(429);
+        $this->post(route('password.email'), ['email' => 'meme@example.com'])->assertStatus(429);
     }
 }

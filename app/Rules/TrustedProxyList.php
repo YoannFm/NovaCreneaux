@@ -10,7 +10,11 @@ class TrustedProxyList implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        foreach (self::parse((string) $value) as $entry) {
+        if (!is_string($value)) {
+            $fail('La liste doit être un texte : adresses séparées par des virgules.');
+            return;
+        }
+        foreach (self::parse($value) as $entry) {
             if ($entry !== '*' && !self::isIpOrCidr($entry)) {
                 $fail("« {$entry} » n'est pas une adresse IP ni un réseau valide (exemple : 127.0.0.1 ou 10.0.0.0/8).");
                 return;

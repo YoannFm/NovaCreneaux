@@ -55,8 +55,10 @@ class EmailLowercaseTest extends TestCase
         $this->actingAs($this->admin())->post(route('admin.users.import.store'), ['csv' => $file])
             ->assertSessionHas('success', '1 utilisateur(s) importé(s), 1 ignoré(s). Ligne 3 : adresse déjà utilisée (zoe.moreau@exemple.fr).');
 
-        $this->assertTrue(User::where('email', 'lea.martin@exemple.fr')->exists());
-        $this->assertFalse(User::where('email', 'Lea.Martin@Exemple.FR')->exists());
+        // Comparaison en PHP : sur MySQL, une requete ignore deja les majuscules
+        $emails = User::pluck('email')->all();
+        $this->assertContains('lea.martin@exemple.fr', $emails);
+        $this->assertNotContains('Lea.Martin@Exemple.FR', $emails);
     }
 
     public function test_the_admin_forms_and_the_profile_save_lowercase_and_refuse_a_case_variant(): void
@@ -75,6 +77,9 @@ class EmailLowercaseTest extends TestCase
 
     public function test_the_migration_lowercases_old_addresses_but_leaves_case_duplicates_alone(): void
     {
+        if (DB::getDriverName() !== 'sqlite') {
+            $this->markTestSkipped("MySQL refuse deja deux adresses qui ne different que par les majuscules (index unique insensible a la casse) : ce cas n'existe que sur SQLite.");
+        }
         // Ecriture directe : le modele mettrait deja en minuscules
         $single = User::factory()->create()->id;
         [$twinA, $twinB] = [User::factory()->create()->id, User::factory()->create()->id];

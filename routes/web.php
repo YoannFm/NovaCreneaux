@@ -51,48 +51,63 @@ Route::middleware('auth')->group(function () {
     Route::delete('/reservations/{id}', [\App\Http\Controllers\ReservationController::class, 'destroy'])->name('reservations.destroy');
     Route::get('/mes-reservations', [\App\Http\Controllers\ReservationController::class, 'my'])->name('reservations.my');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile', [ProfileController::class, 'update'])->middleware('throttle:6,1,password')->name('profile.update');
     Route::patch('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
     Route::patch('/profile/mails', [ProfileController::class, 'updateMails'])->name('profile.mails');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->middleware('throttle:6,1,password')->name('profile.destroy');
     Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'read'])->whereNumber('notification')->name('notifications.read');
     Route::delete('/notifications/{notification}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->whereNumber('notification')->name('notifications.destroy');
-    Route::post('/profile/api-tokens', [\App\Http\Controllers\ProfileApiTokenController::class, 'store'])->middleware('throttle:10,1')->name('profile.api-tokens.store');
+    Route::post('/profile/api-tokens', [\App\Http\Controllers\ProfileApiTokenController::class, 'store'])->middleware('throttle:10,1,api-token')->name('profile.api-tokens.store');
     Route::delete('/profile/api-tokens/{token}', [\App\Http\Controllers\ProfileApiTokenController::class, 'destroy'])->whereNumber('token')->name('profile.api-tokens.destroy');
 
-    // MFA - TOTP
-    Route::get('/profile/mfa/totp/enable', [\App\Http\Controllers\MfaController::class, 'totpEnableForm'])->name('mfa.totp.enable.form');
-    Route::post('/profile/mfa/totp/enable', [\App\Http\Controllers\MfaController::class, 'totpEnable'])->name('mfa.totp.enable');
-    Route::delete('/profile/mfa/totp', [\App\Http\Controllers\MfaController::class, 'totpDisable'])->name('mfa.totp.disable');
-    Route::get('/profile/mfa/recovery-codes', [\App\Http\Controllers\MfaController::class, 'recoveryCodesShow'])->name('mfa.recovery-codes');
-    Route::post('/profile/mfa/recovery-codes/confirm', [\App\Http\Controllers\MfaController::class, 'recoveryCodesConfirm'])->name('mfa.recovery-codes.confirm');
-    Route::post('/profile/mfa/recovery-codes/regenerate', [\App\Http\Controllers\MfaController::class, 'recoveryCodesRegenerate'])->name('mfa.recovery-codes.regenerate');
+    // Double authentification. Ajouter une application, un numero ou une cle demande le mot de passe (password.confirm) :
+    // sinon une session restee ouverte suffisait a installer sa propre methode et a enfermer le titulaire dehors.
+    // Codes de confirmation (mfa-code) et mot de passe actuel (password) limites : sans limite, une session ouverte
+    // permettait de les essayer tous. Le 3e parametre de throttle nomme le compteur : sans lui, toutes les routes
+    // limitees partagent le meme compteur par compte (7 recherches du planning bloquaient l'envoi d'un code).
+    $mfa = \App\Http\Controllers\MfaController::class;
 
-    // MFA - Email OTP
-    Route::post('/profile/mfa/email/enable', [\App\Http\Controllers\MfaController::class, 'emailEnable'])->middleware('throttle:5,1')->name('mfa.email.enable');
-    Route::get('/profile/mfa/email/confirm', [\App\Http\Controllers\MfaController::class, 'emailConfirmForm'])->name('mfa.email.confirm');
-    Route::post('/profile/mfa/email/confirm', [\App\Http\Controllers\MfaController::class, 'emailConfirm'])->name('mfa.email.confirm.post');
-    Route::delete('/profile/mfa/email', [\App\Http\Controllers\MfaController::class, 'emailDisable'])->name('mfa.email.disable');
+    // MFA - TOTP
+    Route::middleware('password.confirm')->group(function () use ($mfa) {
+        Route::get('/profile/mfa/totp/enable', [$mfa, 'totpEnableForm'])->name('mfa.totp.enable.form');
+        Route::post('/profile/mfa/totp/enable', [$mfa, 'totpEnable'])->middleware('throttle:6,1,mfa-code')->name('mfa.totp.enable');
+    });
+    Route::delete('/profile/mfa/totp', [$mfa, 'totpDisable'])->middleware('throttle:6,1,password')->name('mfa.totp.disable');
+    Route::get('/profile/mfa/recovery-codes', [$mfa, 'recoveryCodesShow'])->name('mfa.recovery-codes');
+    Route::post('/profile/mfa/recovery-codes/confirm', [$mfa, 'recoveryCodesConfirm'])->name('mfa.recovery-codes.confirm');
+    Route::post('/profile/mfa/recovery-codes/regenerate', [$mfa, 'recoveryCodesRegenerate'])->middleware('throttle:6,1,password')->name('mfa.recovery-codes.regenerate');
+
+    // MFA - Email OTP (le code part a l'adresse du compte : pas de mot de passe demande pour l'activer)
+    Route::post('/profile/mfa/email/enable', [$mfa, 'emailEnable'])->middleware('throttle:5,1,mfa-send')->name('mfa.email.enable');
+    Route::get('/profile/mfa/email/confirm', [$mfa, 'emailConfirmForm'])->name('mfa.email.confirm');
+    Route::post('/profile/mfa/email/confirm', [$mfa, 'emailConfirm'])->middleware('throttle:6,1,mfa-code')->name('mfa.email.confirm.post');
+    Route::delete('/profile/mfa/email', [$mfa, 'emailDisable'])->middleware('throttle:6,1,password')->name('mfa.email.disable');
 
     // MFA - SMS OTP
-    Route::get('/profile/mfa/sms/setup', [\App\Http\Controllers\MfaController::class, 'smsSetupForm'])->name('mfa.sms.setup');
-    Route::post('/profile/mfa/sms/setup', [\App\Http\Controllers\MfaController::class, 'smsSetup'])->middleware('throttle:5,1')->name('mfa.sms.setup.post');
-    Route::get('/profile/mfa/sms/confirm', [\App\Http\Controllers\MfaController::class, 'smsConfirmForm'])->name('mfa.sms.confirm');
-    Route::post('/profile/mfa/sms/confirm', [\App\Http\Controllers\MfaController::class, 'smsConfirm'])->name('mfa.sms.confirm.post');
-    Route::delete('/profile/mfa/sms', [\App\Http\Controllers\MfaController::class, 'smsDisable'])->name('mfa.sms.disable');
+    Route::middleware('password.confirm')->group(function () use ($mfa) {
+        Route::get('/profile/mfa/sms/setup', [$mfa, 'smsSetupForm'])->name('mfa.sms.setup');
+        Route::post('/profile/mfa/sms/setup', [$mfa, 'smsSetup'])->middleware('throttle:5,1,mfa-send')->name('mfa.sms.setup.post');
+        Route::get('/profile/mfa/sms/confirm', [$mfa, 'smsConfirmForm'])->name('mfa.sms.confirm');
+        Route::post('/profile/mfa/sms/confirm', [$mfa, 'smsConfirm'])->middleware('throttle:6,1,mfa-code')->name('mfa.sms.confirm.post');
+    });
+    Route::delete('/profile/mfa/sms', [$mfa, 'smsDisable'])->middleware('throttle:6,1,password')->name('mfa.sms.disable');
 
     // MFA - WebAuthn
-    Route::get('/profile/mfa/webauthn/register-options', [\App\Http\Controllers\MfaController::class, 'webAuthnRegisterOptions'])->name('mfa.webauthn.options');
-    Route::get('/profile/mfa/webauthn/add', fn() => view('profile.mfa-webauthn-add'))->name('mfa.webauthn.add');
-    Route::post('/profile/mfa/webauthn/register', [\App\Http\Controllers\MfaController::class, 'webAuthnRegister'])->name('mfa.webauthn.register');
-    Route::delete('/profile/mfa/webauthn/{credentialId}', [\App\Http\Controllers\MfaController::class, 'webAuthnRemove'])->name('mfa.webauthn.remove');
+    Route::middleware('password.confirm')->group(function () use ($mfa) {
+        Route::get('/profile/mfa/webauthn/register-options', [$mfa, 'webAuthnRegisterOptions'])->name('mfa.webauthn.options');
+        Route::get('/profile/mfa/webauthn/add', fn () => view('profile.mfa-webauthn-add'))->name('mfa.webauthn.add');
+        Route::post('/profile/mfa/webauthn/register', [$mfa, 'webAuthnRegister'])->name('mfa.webauthn.register');
+    });
+    Route::delete('/profile/mfa/webauthn/{credentialId}', [$mfa, 'webAuthnRemove'])->middleware('throttle:6,1,password')->name('mfa.webauthn.remove');
 
     // Legacy redirects (backward compat)
-    Route::get('/profile/mfa/enable', [\App\Http\Controllers\MfaController::class, 'totpEnableForm'])->name('mfa.enable.form');
-    Route::post('/profile/mfa/enable', [\App\Http\Controllers\MfaController::class, 'totpEnable'])->name('mfa.enable');
-    Route::delete('/profile/mfa', [\App\Http\Controllers\MfaController::class, 'totpDisable'])->name('mfa.disable');
+    Route::middleware('password.confirm')->group(function () use ($mfa) {
+        Route::get('/profile/mfa/enable', [$mfa, 'totpEnableForm'])->name('mfa.enable.form');
+        Route::post('/profile/mfa/enable', [$mfa, 'totpEnable'])->middleware('throttle:6,1,mfa-code')->name('mfa.enable');
+    });
+    Route::delete('/profile/mfa', [$mfa, 'totpDisable'])->middleware('throttle:6,1,password')->name('mfa.disable');
 });
 
 Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(function () {
@@ -141,7 +156,7 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
     Route::middleware('permission:'.Permission::RESERVATIONS)->group(function () {
         Route::get('/reservations', [\App\Http\Controllers\Admin\ReservationController::class, 'index'])->name('reservations.index');
         Route::post('/reservations', [\App\Http\Controllers\Admin\ReservationController::class, 'store'])->name('reservations.store');
-        Route::get('/reservations/users', [\App\Http\Controllers\Admin\ReservationController::class, 'searchUsers'])->middleware('throttle:60,1')->name('reservations.users');
+        Route::get('/reservations/users', [\App\Http\Controllers\Admin\ReservationController::class, 'searchUsers'])->middleware('throttle:60,1,planning-search')->name('reservations.users');
         Route::delete('/reservations/{reservation}', [\App\Http\Controllers\Admin\ReservationController::class, 'destroy'])->name('reservations.destroy');
     });
 
@@ -212,7 +227,7 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
             Route::prefix('configuration')->name('configuration.')->controller(\App\Http\Controllers\Admin\ConfigurationController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
                 // Mot de passe exige, essais limites
-                Route::middleware('throttle:6,1')->group(function () {
+                Route::middleware('throttle:6,1,configuration')->group(function () {
                     Route::post('/export', 'export')->name('export');
                     Route::post('/import', 'import')->name('import');
                     Route::post('/templates/{template}', 'template')->where('template', '[a-z0-9-]+')->name('template');
@@ -226,14 +241,14 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
             'index'=>'webhooks.index','create'=>'webhooks.create','store'=>'webhooks.store',
             'edit'=>'webhooks.edit','update'=>'webhooks.update','destroy'=>'webhooks.destroy',
         ]);
-        Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Admin\WebhookController::class, 'test'])->middleware('throttle:10,1')->name('webhooks.test');
+        Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Admin\WebhookController::class, 'test'])->middleware('throttle:10,1,webhook-test')->name('webhooks.test');
         Route::post('/webhooks/{webhook}/secret', [\App\Http\Controllers\Admin\WebhookController::class, 'regenerateSecret'])->name('webhooks.secret');
         Route::put('/api-tokens/status', [\App\Http\Controllers\Admin\ApiTokenController::class, 'updateStatus'])->name('api-tokens.status');
         Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Admin\ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
         Route::prefix('update')->name('update.')->group(function () {
             Route::get('/', [UpdateController::class, 'index'])->name('index');
             Route::post('/check', [UpdateController::class, 'check'])->name('check');
-            Route::middleware('throttle:10,1')->group(function () {
+            Route::middleware('throttle:10,1,update')->group(function () {
                 Route::post('/download', [UpdateController::class, 'download'])->name('download');
                 Route::post('/install', [UpdateController::class, 'install'])->name('install');
                 Route::post('/finalize', [UpdateController::class, 'finalize'])->name('finalize');
@@ -245,7 +260,7 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
             Route::post('/', [$backupController, 'store'])->name('store');
             Route::put('/schedule', [$backupController, 'updateSchedule'])->name('schedule');
             // Telechargement et suppression : mot de passe exige, essais limites
-            Route::middleware('throttle:6,1')->group(function () use ($backupController) {
+            Route::middleware('throttle:6,1,backup')->group(function () use ($backupController) {
                 Route::post('/{name}/download', [$backupController, 'download'])->name('download');
                 Route::delete('/{name}', [$backupController, 'destroy'])->name('destroy');
             });

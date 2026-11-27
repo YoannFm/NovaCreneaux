@@ -19,4 +19,20 @@
                 <i class="bi bi-check2"></i> Confirmer
             </button>
         </form>
+
+        @if($ssoEnabled)
+            {{-- Un compte cree par la connexion de l'etablissement a un mot de passe aleatoire, jamais communique --}}
+            <p class="auth-note">
+                <i class="bi bi-info-circle me-1"></i>
+                Vous vous connectez avec le compte de l'établissement et n'avez jamais choisi de mot de passe ?
+                Déconnectez-vous, puis utilisez « Mot de passe oublié » sur la page de connexion.
+            </p>
+
+            <div class="auth-links">
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="btn-link-auth"><i class="bi bi-box-arrow-left"></i> Se déconnecter</button>
+                </form>
+            </div>
+        @endif
 @endsection

@@ -137,7 +137,7 @@ class ReservationServiceCodesTest extends TestCase
         $reads = [];
         $outside = DB::transactionLevel(); // RefreshDatabase ouvre deja une transaction
         DB::listen(function ($query) use (&$reads) {
-            if (preg_match('/^select .* from "(users|slots)" where/', $query->sql, $match)) {
+            if (preg_match('/^select .* from ["`](users|slots)["`] where/', $query->sql, $match)) {
                 $reads[] = [$match[1], DB::transactionLevel()];
             }
         });

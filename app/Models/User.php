@@ -1,12 +1,14 @@
 <?php
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Casts\EncryptedOrUnreadable;
 use App\Mail\EmailVerificationLink;
 use App\Mail\PasswordResetLink;
 use App\Services\ApiTokenService;
+use App\Services\ReservationService;
 use App\Services\Webhook\WebhookDispatcher;
 use App\Services\Webhook\WebhookPayload;
 use App\Support\WebhookEvent;
@@ -137,13 +139,21 @@ class User extends Authenticatable
     public function upcomingReservations(): Collection
     {
         return $this->reservations()->with('slot.resource')->whereDate('reservation_date', '>=', today())->get()
-            ->filter(fn (Reservation $reservation) => $reservation->endsAt()->isFuture())
+            ->reject(fn (Reservation $reservation) => $reservation->hasEnded())
             ->sortBy(fn (Reservation $reservation) => $reservation->startsAt()->timestamp)
             ->values();
     }
     protected static function booted(): void
     {
         static::created(fn (self $user) => app(WebhookDispatcher::class)->dispatch(WebhookEvent::USER_CREATED, ['user' => WebhookPayload::user($user)]));
+        // Tous les chemins de suppression (profil, fiche, action groupee). Ne rien renvoyer : une valeur renvoyee par un
+        // ecouteur "deleting" arrete les ecouteurs suivants (et false annulerait la suppression).
+        static::deleting(function (self $user): void {
+            // Places a venir liberees et annoncees aux webhooks
+            app(ReservationService::class)->releaseUpcomingOfDeletedAccount($user);
+            // Jetons d'API : rien ne les relie au compte par une cle etrangere (relation polymorphe), ils restaient en base
+            $user->tokens()->delete();
+        });
         static::deleted(fn (self $user) => app(WebhookDispatcher::class)->dispatch(WebhookEvent::USER_DELETED, [
             'user' => WebhookPayload::user($user),
             // Qui a supprime le compte : lui-meme, un administrateur, ou le systeme (commande, nettoyage)
@@ -193,6 +203,21 @@ class User extends Authenticatable
     public function canManage(self $target): bool
     {
         return $this->isAdmin() || ! $target->hasAdminAccess();
+    }
+
+    /**
+     * Comptes que $staff peut gerer (meme regle que canManage, en requete) : tous pour un administrateur, sinon les
+     * comptes sans acces a l'administration (role sans permission, ou sans role et non administrateur).
+     */
+    public function scopeManageableBy(Builder $query, self $staff): Builder
+    {
+        if ($staff->isAdmin()) {
+            return $query;
+        }
+        $ordinaryRoles = Role::all()->reject(fn (Role $role) => $role->grantsAdminAccess())->modelKeys();
+
+        return $query->where(fn (Builder $q) => $q->whereIn('role_id', $ordinaryRoles)
+            ->orWhere(fn (Builder $q) => $q->whereNull('role_id')->where('is_admin', false)));
     }
 
     public function canAssign(Role $role): bool

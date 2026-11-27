@@ -17,7 +17,10 @@ class NotificationController extends Controller
 
     public function read(Request $request, int $notification): RedirectResponse
     {
-        $request->user()->siteNotifications()->unread()->findOrFail($notification)->update(['read_at' => now()]);
+        // Deja lue (double clic, second onglet) : rien a faire, sans page d'erreur
+        $item = $request->user()->siteNotifications()->findOrFail($notification);
+        $item->read_at ??= now();
+        $item->save();
 
         return back();
     }

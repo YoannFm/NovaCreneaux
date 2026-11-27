@@ -211,6 +211,6 @@ function updateSmsFields(driver) {
     document.getElementById('sms-free-mobile').style.display = driver === 'free_mobile' ? '' : 'none';
     document.getElementById('sms-webhook').style.display    = driver === 'webhook'     ? '' : 'none';
 }
-updateSmsFields('{{ $s['sms_driver'] ?? 'disabled' }}');
+updateSmsFields({{ \Illuminate\Support\Js::from($s['sms_driver'] ?? 'disabled') }});
 </script>
 @endsection

@@ -30,8 +30,10 @@ class ActivityLogDetailTest extends TestCase
 
         $resource->update(['close_time' => '11:45', 'closed_days' => [6, 7], 'name' => 'CDI']);
 
-        $this->assertSame([
-            'close_time' => ['old' => '11:30', 'new' => '11:45'],
+        // Heures au format de la base (HH:MM:SS, App\Casts\TimeOfDay). assertEquals et non assertSame : une colonne JSON
+        // de MySQL 8 range les cles a sa facon ("new" avant "old"), seul leur contenu compte.
+        $this->assertEquals([
+            'close_time' => ['old' => '11:30:00', 'new' => '11:45:00'],
             'closed_days' => ['old' => [], 'new' => [6, 7]],
         ], $this->last('Ressource modifiée')->changes);
         $this->assertSame(['new' => 'CDI'], $this->last('Ressource créée')->changes['name']);
@@ -44,7 +46,7 @@ class ActivityLogDetailTest extends TestCase
 
         $resource->delete();
 
-        $this->assertSame(['old' => 'Salle B'], $this->last('Ressource supprimée')->changes['name']);
+        $this->assertEquals(['old' => 'Salle B'], $this->last('Ressource supprimée')->changes['name']);
     }
 
     public function test_a_secret_is_never_written_only_marked_as_changed(): void
@@ -55,7 +57,7 @@ class ActivityLogDetailTest extends TestCase
 
         $created = $this->last('Webhook créé')->changes;
         $this->assertArrayNotHasKey('secret', $created);
-        $this->assertSame(['old' => ActivityChanges::MASKED, 'new' => ActivityChanges::MASKED], $this->last('Webhook modifié')->changes['secret']);
+        $this->assertEquals(['old' => ActivityChanges::MASKED, 'new' => ActivityChanges::MASKED], $this->last('Webhook modifié')->changes['secret']);
         $this->assertStringNotContainsString('secret-', json_encode(ActivityLog::pluck('changes')));
     }
 
@@ -71,9 +73,9 @@ class ActivityLogDetailTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $changes = $this->last('Utilisateur modifié')->changes;
-        $this->assertSame(['old' => '2nde A', 'new' => '1ère G'], $changes['classe']);
-        $this->assertSame(['old' => 'Utilisateur', 'new' => 'Délégué'], $changes['role']);
-        $this->assertSame(['old' => ActivityChanges::MASKED, 'new' => ActivityChanges::MASKED], $changes['password']);
+        $this->assertEquals(['old' => '2nde A', 'new' => '1ère G'], $changes['classe']);
+        $this->assertEquals(['old' => 'Utilisateur', 'new' => 'Délégué'], $changes['role']);
+        $this->assertEquals(['old' => ActivityChanges::MASKED, 'new' => ActivityChanges::MASKED], $changes['password']);
         $this->assertArrayNotHasKey('name', $changes);
         $this->assertStringNotContainsString('Nouveau-Mot', json_encode($changes));
     }
@@ -89,7 +91,7 @@ class ActivityLogDetailTest extends TestCase
 
         $changes = $this->last('Paramètres modifiés')->changes;
         $this->assertSame('smtp.exemple.fr', $changes['mail_smtp_host']['new']);
-        $this->assertSame(['old' => ActivityChanges::MASKED, 'new' => ActivityChanges::MASKED], $changes['mail_smtp_password']);
+        $this->assertEquals(['old' => ActivityChanges::MASKED, 'new' => ActivityChanges::MASKED], $changes['mail_smtp_password']);
         $this->assertStringNotContainsString('secret', json_encode(ActivityLog::pluck('changes')));
     }
 

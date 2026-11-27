@@ -2,10 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Loggable;
 use Illuminate\Database\Eloquent\Model;
 
 class NavItem extends Model
 {
+    use Loggable;
+
+    protected const ACTIVITY_NOUN = 'Lien de navigation';
+    protected const ACTIVITY_FEMININE = false;
+
+    protected function activityContext(): string
+    {
+        return $this->label;
+    }
+
     protected $fillable = ['label', 'type', 'url', 'icon', 'target', 'is_active', 'admin_only', 'position'];
     protected $casts    = ['is_active' => 'boolean', 'admin_only' => 'boolean'];
 

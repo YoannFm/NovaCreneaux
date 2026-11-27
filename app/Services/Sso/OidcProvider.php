@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Support\RequestText;
 
 /**
  * OpenID Connect, flux "authorization code" avec PKCE (S256), state et nonce. Le jeton d'identite est recu
@@ -40,9 +41,9 @@ class OidcProvider implements SsoProvider
     public function identity(Request $request, string $callback, array $state): SsoIdentity
     {
         if ($request->filled('error')) {
-            throw new SsoException('Connexion refusée par le service de l\'établissement : ' . mb_substr((string) $request->input('error_description', $request->input('error')), 0, 200));
+            throw new SsoException('Connexion refusée par le service de l\'établissement : ' . mb_substr(RequestText::get($request, 'error_description', RequestText::get($request, 'error')), 0, 200));
         }
-        $code = (string) $request->input('code');
+        $code = RequestText::get($request, 'code');
         if ($code === '') {
             throw new SsoException('Réponse incomplète du service de l\'établissement.');
         }

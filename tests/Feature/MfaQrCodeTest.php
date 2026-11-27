@@ -28,7 +28,8 @@ class MfaQrCodeTest extends TestCase
         app(SettingService::class)->set('app_name', 'Ma Médiathèque');
         $user = $this->student();
 
-        $page = $this->actingAs($user)->get(route('mfa.totp.enable.form'))->assertOk();
+        // Ajouter une methode demande le mot de passe : il vient d'etre confirme
+        $page = $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()])->get(route('mfa.totp.enable.form'))->assertOk();
 
         $secret = session('mfa_totp_setup_secret');
         $expected = app(QrCode::class)->svg(app(TotpService::class)->getOtpauthUrl($user->email, $secret, 'Ma Médiathèque'));
@@ -39,7 +40,7 @@ class MfaQrCodeTest extends TestCase
     {
         app(SettingService::class)->set('sms_driver', 'ntfy');
 
-        $this->actingAs($this->student())->get(route('mfa.sms.setup'))->assertOk()
+        $this->actingAs($this->student())->withSession(['auth.password_confirmed_at' => time()])->get(route('mfa.sms.setup'))->assertOk()
             ->assertSee('<svg', false)->assertDontSee('qrserver', false);
     }
 }

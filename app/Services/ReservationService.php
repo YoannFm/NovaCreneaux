@@ -13,6 +13,7 @@ use App\Support\MailPreferences;
 use App\Support\WebhookEvent;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -204,13 +205,32 @@ class ReservationService {
     }
 
     /**
+     * Compte supprime : ses reservations a venir sont liberees avec le webhook reservation.cancelled (sans e-mail ni
+     * cloche : le compte n'existe plus, l'e-mail AccountDeleted suffit) et inscrites au journal. Ses reservations
+     * passees partent avec lui (cascade de la base). Appele par User::booted avant la suppression.
+     */
+    public function releaseUpcomingOfDeletedAccount(User $user): int {
+        $reservations = $this->upcoming($user->reservations()->getQuery());
+        $byAdmin = auth()->id() !== $user->id;
+        foreach ($reservations as $reservation) {
+            $reservation->load('slot.resource')->setRelation('user', $user);
+            $reservation->delete();
+            $this->dispatchCancelled($reservation, $byAdmin);
+        }
+        if ($reservations->isNotEmpty()) {
+            ActivityLogger::log('Réservations libérées (compte supprimé)', "{$reservations->count()} réservation(s) à venir de {$user->name}");
+        }
+        return $reservations->count();
+    }
+
+    /**
      * L'horaire d'un creneau a change : chaque titulaire d'une reservation pas encore terminee est prevenu (cloche et
      * e-mail). La reservation est gardee. Renvoie le nombre de personnes prevenues.
      */
     public function notifyRescheduled(Slot $slot, string $previousStart, string $previousEnd): int {
         $previous = substr($previousStart, 0, 5) . ' - ' . substr($previousEnd, 0, 5);
         $reservations = $slot->reservations()->with('slot.resource', 'user')->whereDate('reservation_date', '>=', Carbon::today())->get()
-            ->filter(fn (Reservation $reservation) => $reservation->endsAt()->isFuture());
+            ->reject(fn (Reservation $reservation) => $reservation->hasEnded());
         foreach ($reservations as $reservation) {
             $this->notify($reservation->user, new ReservationRescheduled($reservation, $previous), MailPreferences::SLOT_CHANGED);
             $this->notifier->send($reservation->user, 'Horaire modifié', $this->describe($reservation, null) . "\nNouvel horaire : "
@@ -224,10 +244,25 @@ class ReservationService {
         return $cancelled > 0 ? " {$cancelled} réservation(s) à venir annulée(s), les personnes concernées ont été prévenues." : '';
     }
 
+    /**
+     * Nombre de reservations a venir de ces creneaux, eventuellement seulement certains jours de la semaine (1 = lundi) :
+     * l'administration est avertie qu'elles sont conservees quand elle desactive un creneau ou ferme un jour.
+     */
+    public function countUpcomingForSlots(iterable $slotIds, ?array $weekdays = null): int {
+        return $this->upcoming(Reservation::whereIn('slot_id', collect($slotIds)))
+            ->filter(fn (Reservation $reservation) => $weekdays === null || in_array($reservation->reservation_date->isoWeekday(), $weekdays))
+            ->count();
+    }
+
+    /** Reservations de la requete dont le creneau n'est pas termine. */
+    private function upcoming(Builder $query): Collection {
+        return $query->with('slot')->whereDate('reservation_date', '>=', Carbon::today())->get()
+            ->reject(fn (Reservation $reservation) => $reservation->hasEnded());
+    }
+
     /** Annule (et previent) les reservations de la requete dont le creneau n'est pas termine. */
     private function cancelUpcoming(Builder $query, string $reason): int {
-        $reservations = $query->with('slot')->whereDate('reservation_date', '>=', Carbon::today())->get()
-            ->filter(fn (Reservation $reservation) => $reservation->endsAt()->isFuture());
+        $reservations = $this->upcoming($query);
         foreach ($reservations as $reservation) {
             $this->remove($reservation, true, $reason);
         }
@@ -238,11 +273,15 @@ class ReservationService {
         $reservation->load('slot.resource','user.role');
         $reservation->delete();
         $this->notify($reservation->user, new ReservationCancelled($reservation, $byAdmin, $reason), $byAdmin ? MailPreferences::CANCELLED_BY_ADMIN : MailPreferences::CANCELLED_BY_ME);
-        $this->webhooks->dispatch(WebhookEvent::RESERVATION_CANCELLED, WebhookPayload::reservation($reservation) + ['cancelled_by' => $byAdmin ? 'admin' : 'user']);
+        $this->dispatchCancelled($reservation, $byAdmin);
 
         if ($byAdmin) {
             $this->notifier->send($reservation->user, 'Réservation annulée par un administrateur', $this->describe($reservation, $reason), 'warning');
         }
+    }
+
+    private function dispatchCancelled(Reservation $reservation, bool $byAdmin): void {
+        $this->webhooks->dispatch(WebhookEvent::RESERVATION_CANCELLED, WebhookPayload::reservation($reservation) + ['cancelled_by' => $byAdmin ? 'admin' : 'user']);
     }
 
     private function describe(Reservation $reservation, ?string $reason): string {

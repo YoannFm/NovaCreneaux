@@ -99,9 +99,24 @@
                         <div class="text-muted" style="font-size:.75rem;">Afficher ce lien dans la navigation</div>
                     </div>
                     <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" name="is_active" id="t-active"
+                        {{-- Case decochee : le champ cache envoie 0 (sinon le lien restait visible) --}}
+                        <input type="hidden" name="is_active" value="0">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="t-active" value="1"
                                style="width:2.2rem;height:1.1rem;cursor:pointer;"
                                {{ old('is_active', $item?->is_active ?? true) ? 'checked' : '' }}>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between gap-3" style="max-width:420px;">
+                    <div>
+                        <div class="fw-medium" style="font-size:.88rem;">Réservé aux administrateurs</div>
+                        <div class="text-muted" style="font-size:.75rem;">Seuls les administrateurs voient ce lien</div>
+                    </div>
+                    <div class="form-check form-switch mb-0">
+                        <input type="hidden" name="admin_only" value="0">
+                        <input class="form-check-input" type="checkbox" name="admin_only" id="t-admin-only" value="1"
+                               style="width:2.2rem;height:1.1rem;cursor:pointer;"
+                               {{ old('admin_only', $item?->admin_only ?? false) ? 'checked' : '' }}>
                     </div>
                 </div>
             </div>

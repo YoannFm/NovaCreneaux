@@ -51,6 +51,8 @@
 
             <div class="mb-4">
                 <div class="form-check form-switch">
+                    {{-- Case decochee : le champ cache envoie 0 (sinon le compte etait cree actif) --}}
+                    <input type="hidden" name="is_active" value="0">
                     <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
                            value="1" @checked(old('is_active', true))
                            style="width:2.2rem;height:1.1rem;cursor:pointer;">

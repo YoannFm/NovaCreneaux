@@ -39,7 +39,8 @@ class ConfigurationImporter
                 $this->importResource($resource, $report);
             }
             $changes = ActivityChanges::diff($before, $this->settings->snapshot(), SettingService::SECRET_KEYS);
-            ActivityLogger::log('Configuration importée', "{$source} : {$report->summary()}", $changes);
+            $warnings = $report->warnings() ? ' ; attention : ' . implode(' ; ', $report->warnings()) : '';
+            ActivityLogger::log('Configuration importée', "{$source} : {$report->summary()}{$warnings}", $changes);
         });
 
         return $report;
@@ -80,8 +81,13 @@ class ConfigurationImporter
                 'is_admin' => false, 'locked' => false, 'power' => 0] + Role::defaultLimits());
             $report->record('role', 'created');
         } elseif ($role->fill($values)->isDirty()) {
+            // Des permissions donnees a un role qui a des comptes les font entrer dans l'administration : le signaler
+            $opensAdmin = $role->grantsAdminAccess() && !Role::find($role->id)->grantsAdminAccess();
             $role->save();
             $report->record('role', 'updated');
+            if ($opensAdmin && ($accounts = $role->users()->count()) > 0) {
+                $report->warn("le rôle « {$role->label} » donne maintenant accès à l'administration à {$accounts} compte(s)");
+            }
         }
     }
 

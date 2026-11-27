@@ -12,7 +12,7 @@
                 <label for="email" class="form-label">Adresse email</label>
                 <input id="email" type="email" name="email"
                        class="form-control @error('email') is-invalid @enderror"
-                       value="{{ old('email', $request->email) }}"
+                       value="{{ old('email', \App\Support\RequestText::get($request, 'email')) }}"
                        required autocomplete="username">
             </div>
 

@@ -22,7 +22,7 @@
                 <label class="form-label fw-semibold">Description</label>
                 <input type="text" name="description"
                        class="form-control @error('description') is-invalid @enderror"
-                       value="{{ old('description', $page->description ?? '') }}" maxlength="500">
+                       value="{{ old('description', $page->description ?? '') }}" maxlength="255">
                 @error('description') <span class="invalid-feedback">{{ $message }}</span> @enderror
             </div>
 

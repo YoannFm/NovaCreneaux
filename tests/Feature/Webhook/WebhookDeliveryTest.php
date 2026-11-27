@@ -106,6 +106,37 @@ class WebhookDeliveryTest extends TestCase
         $this->assertSame('admin', $deleted[1]['deleted_by']);
     }
 
+    public function test_deleting_ones_own_account_announces_the_places_it_frees(): void
+    {
+        $this->hook([WebhookEvent::RESERVATION_CANCELLED, WebhookEvent::USER_DELETED]);
+        $slot = $this->slot();
+        $pupil = $this->student(['password' => bcrypt('Mot-De-Passe-1')]);
+        Reservation::create(['user_id' => $pupil->id, 'slot_id' => $slot->id, 'reservation_date' => now()->addDay()->toDateString()]);
+        Reservation::create(['user_id' => $pupil->id, 'slot_id' => $slot->id, 'reservation_date' => now()->subDays(3)->toDateString()]);
+
+        $this->actingAs($pupil)->delete(route('profile.destroy'), ['password' => 'Mot-De-Passe-1'])->assertRedirect('/');
+
+        $this->assertGuest();
+        $this->assertNull(User::find($pupil->id), 'le compte supprime ne doit pas etre reenregistre');
+        $events = WebhookDelivery::orderBy('id')->get()->map(fn ($d) => [$d->event, json_decode($d->payload, true)['data']]);
+        // Seule la reservation a venir est annoncee ; la passee disparait avec le compte
+        $this->assertSame(['reservation.cancelled', 'user.deleted'], $events->pluck(0)->all());
+        $this->assertSame('user', $events[0][1]['cancelled_by']);
+        $this->assertSame('self', $events[1][1]['deleted_by']);
+        $this->assertTrue(ActivityLog::where('action', 'Réservations libérées (compte supprimé)')->exists());
+    }
+
+    public function test_an_administrator_deleting_an_account_announces_the_places_it_frees(): void
+    {
+        $this->hook([WebhookEvent::RESERVATION_CANCELLED]);
+        $pupil = $this->student();
+        Reservation::create(['user_id' => $pupil->id, 'slot_id' => $this->slot()->id, 'reservation_date' => now()->addDay()->toDateString()]);
+
+        $this->actingAs($this->admin())->delete(route('admin.users.destroy', $pupil))->assertRedirect();
+
+        $this->assertSame('admin', json_decode(WebhookDelivery::sole()->payload, true)['data']['cancelled_by']);
+    }
+
     public function test_a_delivery_is_signed_and_marks_the_webhook_as_working(): void
     {
         Http::fake(['hooks.example.com/*' => Http::response('ok', 200)]);

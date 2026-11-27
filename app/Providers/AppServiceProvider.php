@@ -6,6 +6,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use App\Rules\TrustedProxyList;
 use App\Support\CanonicalUrl;
 use App\Support\Customization;
+use App\Support\RequestText;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -17,6 +18,33 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void {}
 
+    /**
+     * Pages ouvertes aux visiteurs (connexion par l'etablissement, inscription, mot de passe oublie). Une classe entiere
+     * arrive avec la meme adresse IP (celle du lycee) : une limite par IP seule bloquait le 7e ou le 11e eleve. On limite
+     * donc chaque personne (session ou adresse e-mail saisie) et on garde un plafond large par IP contre les abus.
+     */
+    private function limitGuestForms(): void
+    {
+        $person = fn (string $name, Request $request) => "{$name}|" . ($request->hasSession() ? $request->session()->getId() : $request->ip());
+        $email = fn (string $name, Request $request) => "{$name}|" . mb_strtolower(RequestText::get($request, 'email'));
+        $ip = fn (string $name, Request $request) => "{$name}-ip|" . $request->ip();
+
+        // Connexion par l'etablissement : un aller (redirection) et un retour par personne
+        RateLimiter::for('sso', fn (Request $request) => [
+            Limit::perMinute(10)->by($person('sso', $request)),
+            Limit::perMinute(300)->by($ip('sso', $request)),
+        ]);
+        RateLimiter::for('register', fn (Request $request) => [
+            Limit::perMinute(3)->by($email('register', $request)),
+            Limit::perMinute(100)->by($ip('register', $request)),
+        ]);
+        // Un e-mail part a l'adresse saisie : peu d'envois par adresse
+        RateLimiter::for('password-reset-link', fn (Request $request) => [
+            Limit::perMinute(3)->by($email('password-reset-link', $request)),
+            Limit::perMinute(100)->by($ip('password-reset-link', $request)),
+        ]);
+    }
+
     public function boot(): void
     {
         Paginator::useBootstrapFive();
@@ -25,6 +53,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-ip', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
         RateLimiter::for('api-write', fn (Request $request) => Limit::perMinute(30)->by('w' . ($request->user()?->currentAccessToken()?->id ?: $request->ip())));
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->currentAccessToken()?->id ?: $request->ip()));
+
+        $this->limitGuestForms();
 
         // App\Listeners\LogAuthListener (connexion, deconnexion, inscription) est decouvert par Laravel :
         // le declarer ici aussi l'executait deux fois (chaque connexion etait inscrite deux fois au journal).
@@ -38,8 +68,10 @@ class AppServiceProvider extends ServiceProvider
                 config(['app.name' => $name]);
             }
 
-            // Fuseau horaire configuré dans Paramètres > Général
-            if ($tz = setting('timezone', '')) {
+            // Fuseau horaire configuré dans Paramètres > Général. Un fuseau inconnu (valeur ecrite a la main) est ignore :
+            // applique, il faisait echouer chaque page, administration comprise, et sautait les reglages suivants
+            $tz = (string) setting('timezone', '');
+            if ($tz !== '' && in_array($tz, timezone_identifiers_list(), true)) {
                 config(['app.timezone' => $tz]);
                 date_default_timezone_set($tz);
             }

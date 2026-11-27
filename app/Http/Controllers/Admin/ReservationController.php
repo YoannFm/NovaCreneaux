@@ -14,6 +14,7 @@ use App\Support\QueryFilters;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Support\RequestText;
 class ReservationController extends Controller {
     /** Mises en page de l'export PDF, au choix de la personne qui exporte. */
     public const PDF_LAYOUTS = ['list' => 'Une seule liste', 'slots' => 'Un bloc par créneau', 'pages' => 'Une page par créneau'];
@@ -29,7 +30,7 @@ class ReservationController extends Controller {
         ]);
         $date = $filters['date'] ?? now()->toDateString();
         $resourceId = $filters['resource_id'] ?? null;
-        $query = Reservation::with(['user','slot.resource'])->whereDate('reservation_date',$date);
+        $query = Reservation::with(['user.role','slot.resource'])->whereDate('reservation_date',$date);
         if ($resourceId) $query->whereHas('slot', fn($q) => $q->where('resource_id',$resourceId));
         $reservations = $query->orderBy('created_at')->get();
         $resources = Resource::orderBy('name')->get();
@@ -95,8 +96,7 @@ class ReservationController extends Controller {
     /** Recherche d'un compte pour la fenetre d'ajout : 10 resultats au plus, seulement les comptes que l'on gere. */
     public function searchUsers(Request $request) {
         // Pas de validation (qui redirigerait au lieu de repondre en JSON) : une recherche trop courte ne renvoie rien
-        $query = $request->query('q');
-        $term = is_string($query) ? mb_substr(trim($query), 0, 100) : '';
+        $term = mb_substr(trim(RequestText::get($request, 'q')), 0, 100);
         if (mb_strlen($term) < 2) {
             return response()->json([]);
         }
@@ -119,6 +119,10 @@ class ReservationController extends Controller {
     public function destroy(Request $request, Reservation $reservation) {
         // Meme regle que l'ajout : le personnel delegue ne touche pas aux reservations des administrateurs ni du personnel
         abort_unless($request->user()->canManage($reservation->user), 403);
+        // Seance terminee : elle reste dans l'historique, et personne n'est prevenu d'une annulation sans objet
+        if ($reservation->hasEnded()) {
+            return back()->with('error', "Cette séance est terminée : la réservation reste dans l'historique.");
+        }
         $reason = $request->validate(['reason' => 'nullable|string|max:300'])['reason'] ?? null;
         $this->service->cancelByAdmin($reservation, $reason);
         ActivityLogger::log('Réservation supprimée (admin)', "#{$reservation->id}" . ($reason ? ", motif : {$reason}" : ''));

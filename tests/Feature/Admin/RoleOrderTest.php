@@ -38,4 +38,10 @@ class RoleOrderTest extends TestCase
     {
         $this->actingAs($this->student())->postJson(route('admin.roles.reorder'), ['roles' => [1, 2]])->assertRedirect('/');
     }
+
+    public function test_an_order_with_something_else_than_ids_is_refused(): void
+    {
+        $this->actingAs($this->admin())->postJson(route('admin.roles.reorder'), ['roles' => ['x', 2]])
+            ->assertSessionHasErrors('roles.0');
+    }
 }

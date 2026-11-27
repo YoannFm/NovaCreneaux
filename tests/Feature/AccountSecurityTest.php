@@ -134,6 +134,16 @@ class AccountSecurityTest extends TestCase
         $this->assertTrue($admin->fresh()->isAdmin());
     }
 
+    public function test_a_disabled_account_sees_why_it_cannot_sign_in(): void
+    {
+        $this->student(['email' => 'parti@exemple.fr', 'is_active' => false]);
+        $this->get(route('login'));
+
+        $this->post(route('login'), ['email' => 'parti@exemple.fr', 'password' => 'password'])->assertRedirect(route('login'));
+        $this->get(route('login'))->assertSee('Votre compte est désactivé.')->assertSee('parti@exemple.fr');
+        $this->assertGuest();
+    }
+
     public function test_the_authenticator_secret_is_stored_encrypted(): void
     {
         $user = User::factory()->create(['two_factor_secret' => 'JBSWY3DPEHPK3PXP']);
@@ -194,7 +204,7 @@ class AccountSecurityTest extends TestCase
         $this->assertSame('lea.martin@exemple.fr', $user->fresh()->email);
         Mail::assertSent(EmailChanged::class, fn (EmailChanged $mail) => $mail->hasTo('lea@exemple.fr') && $mail->newEmail === 'lea.martin@exemple.fr');
         $log = ActivityLog::where('action', 'Profil mis à jour')->latest('id')->firstOrFail();
-        $this->assertSame(['old' => 'lea@exemple.fr', 'new' => 'lea.martin@exemple.fr'], $log->changes['email']);
+        $this->assertEquals(['old' => 'lea@exemple.fr', 'new' => 'lea.martin@exemple.fr'], $log->changes['email']);
     }
 
     public function test_other_profile_changes_do_not_ask_for_the_password(): void

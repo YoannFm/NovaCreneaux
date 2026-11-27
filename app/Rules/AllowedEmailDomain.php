@@ -10,7 +10,8 @@ class AllowedEmailDomain implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (self::allows((string) $value)) {
+        // Un tableau a la place du texte : refuse ici (les autres regles du champ le signalent deja)
+        if (is_string($value) && self::allows($value)) {
             return;
         }
 

@@ -11,9 +11,12 @@ use Illuminate\Validation\Rule;
 
 class SanctionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $sanctions = Sanction::with(['user', 'admin'])->latest()->paginate(30);
+        // Seulement celles des comptes que l'on gere (le personnel delegue ne voit pas celles des administrateurs)
+        $sanctions = Sanction::with(['user', 'admin'])
+            ->whereHas('user', fn ($query) => $query->manageableBy($request->user()))
+            ->latest()->paginate(30);
         return view('admin.sanctions.index', compact('sanctions'));
     }
 

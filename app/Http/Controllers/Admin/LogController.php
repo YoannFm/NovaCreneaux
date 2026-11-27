@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Services\ActivityLogger;
 use App\Support\QueryFilters;
 use Illuminate\Http\Request;
 
@@ -43,6 +44,8 @@ class LogController extends Controller
     public function purge()
     {
         $deleted = ActivityLog::where('created_at', '<', now()->subDays(90))->delete();
+        // Inscrit apres la purge : cette entree, recente, reste
+        ActivityLogger::log('Journal purgé', "{$deleted} entrée(s) de plus de 90 jours supprimée(s)");
         return back()->with('success', "{$deleted} log(s) de plus de 90 jours supprimé(s).");
     }
 }

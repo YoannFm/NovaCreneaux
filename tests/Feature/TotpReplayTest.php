@@ -38,4 +38,16 @@ class TotpReplayTest extends TestCase
         $this->withSession(['mfa_user_id' => $user->id])->post(route('mfa.challenge'), ['method' => 'totp', 'code' => $this->code(1)])->assertSessionHasNoErrors();
         $this->assertAuthenticatedAs($user);
     }
+
+    /** Un code ou une reponse de cle physique envoyes en tableau : refus compte comme un echec, jamais d'erreur 500. */
+    public function test_a_malformed_challenge_answer_counts_as_a_failure(): void
+    {
+        $user = $this->student(['two_factor_secret' => self::SECRET, 'two_factor_confirmed_at' => now()]);
+
+        $this->withSession(['mfa_user_id' => $user->id])->post(route('mfa.challenge'), ['method' => 'totp', 'code' => ['123456']])->assertSessionHasErrors('code');
+        $this->withSession(['mfa_user_id' => $user->id, 'webauthn_assert_challenge' => 'x'])->post(route('mfa.challenge.webauthn'), ['assertion' => ['x']])->assertSessionHasErrors('key');
+
+        $this->assertSame(2, \Illuminate\Support\Facades\RateLimiter::attempts("mfa-attempts:{$user->id}"));
+        $this->assertGuest();
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\MfaOtpMail;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\OtpService;
 use App\Services\QrCode;
 use App\Services\SmsService;
@@ -17,11 +18,16 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use App\Support\RequestText;
+use App\Support\CurrentPassword;
 
 class MfaController extends Controller
 {
     private const MFA_MAX_ATTEMPTS = 5;
     private const MFA_DECAY_SECONDS = 300;
+
+    /** Nom de chaque methode dans le journal d'activite. */
+    private const METHOD_LABELS = ['totp' => "application d'authentification", 'email' => 'e-mail', 'sms' => 'SMS', 'webauthn' => 'clé physique'];
 
     public function __construct(
         private TotpService   $totp,
@@ -35,9 +41,12 @@ class MfaController extends Controller
     // PROFILE - TOTP
     // ══════════════════════════════════════════════════════════════════
 
-    public function totpEnableForm(Request $request): View
+    public function totpEnableForm(Request $request): View|RedirectResponse
     {
         $user   = $request->user();
+        if ($user->hasTotp()) {
+            return $this->totpAlreadyActive();
+        }
         $secret = $request->session()->get('mfa_totp_setup_secret')
             ?? $this->totp->generateSecret();
         $request->session()->put('mfa_totp_setup_secret', $secret);
@@ -53,6 +62,9 @@ class MfaController extends Controller
 
     public function totpEnable(Request $request): RedirectResponse
     {
+        if ($request->user()->hasTotp()) {
+            return $this->totpAlreadyActive();
+        }
         $request->validate(['code' => 'required|string']);
 
         $secret = $request->session()->get('mfa_totp_setup_secret');
@@ -77,13 +89,24 @@ class MfaController extends Controller
         ]);
         $request->session()->forget('mfa_totp_setup_secret');
         $request->session()->put('mfa_recovery_codes', $plainCodes);
+        $this->logMethod(true, 'totp');
 
         return redirect()->route('mfa.recovery-codes');
     }
 
+    /**
+     * Une seule application a la fois : la remplacer sans rien demander invalidait les codes de secours et laissait
+     * une session ouverte installer sa propre cle. Il faut la desactiver d'abord (mot de passe demande).
+     */
+    private function totpAlreadyActive(): RedirectResponse
+    {
+        return redirect()->route('profile.edit')
+            ->with('error', "Une application d'authentification est déjà active : désactivez-la d'abord pour en associer une autre.");
+    }
+
     public function totpDisable(Request $request): RedirectResponse
     {
-        $request->validate(['password' => 'required|current_password']);
+        $request->validate(['password' => CurrentPassword::rules()]);
 
         $request->user()->update([
             'two_factor_secret'          => null,
@@ -91,6 +114,7 @@ class MfaController extends Controller
             'two_factor_confirmed_at'    => null,
             'two_factor_recovery_codes'  => null,
         ]);
+        $this->logMethod(false, 'totp');
 
         return redirect()->route('profile.edit')->with('status', 'mfa-totp-disabled');
     }
@@ -112,13 +136,14 @@ class MfaController extends Controller
 
     public function recoveryCodesRegenerate(Request $request): RedirectResponse
     {
-        $request->validate(['password' => 'required|current_password']);
+        $request->validate(['password' => CurrentPassword::rules()]);
 
         $plainCodes  = $this->generateRecoveryCodes();
         $hashedCodes = array_map(fn($c) => hash('sha256', $c), $plainCodes);
 
         $request->user()->update(['two_factor_recovery_codes' => json_encode($hashedCodes)]);
         $request->session()->put('mfa_recovery_codes', $plainCodes);
+        ActivityLogger::log('Codes de secours régénérés');
 
         return redirect()->route('mfa.recovery-codes');
     }
@@ -165,14 +190,16 @@ class MfaController extends Controller
         }
 
         $request->user()->update(['mfa_email_enabled' => true]);
+        $this->logMethod(true, 'email');
 
         return redirect()->route('profile.edit')->with('status', 'mfa-email-enabled');
     }
 
     public function emailDisable(Request $request): RedirectResponse
     {
-        $request->validate(['password' => 'required|current_password']);
+        $request->validate(['password' => CurrentPassword::rules()]);
         $request->user()->update(['mfa_email_enabled' => false]);
+        $this->logMethod(false, 'email');
 
         return redirect()->route('profile.edit')->with('status', 'mfa-email-disabled');
     }
@@ -241,14 +268,16 @@ class MfaController extends Controller
 
         $request->user()->update(['mfa_sms_enabled' => true, 'mfa_phone' => $phone]);
         $request->session()->forget('mfa_sms_setup_phone');
+        $this->logMethod(true, 'sms');
 
         return redirect()->route('profile.edit')->with('status', 'mfa-sms-enabled');
     }
 
     public function smsDisable(Request $request): RedirectResponse
     {
-        $request->validate(['password' => 'required|current_password']);
+        $request->validate(['password' => CurrentPassword::rules()]);
         $request->user()->update(['mfa_sms_enabled' => false, 'mfa_phone' => null]);
+        $this->logMethod(false, 'sms');
 
         return redirect()->route('profile.edit')->with('status', 'mfa-sms-disabled');
     }
@@ -294,13 +323,14 @@ class MfaController extends Controller
         $credentials[] = $credential;
         $user->update(['mfa_webauthn_credentials' => json_encode($credentials)]);
         $request->session()->forget('webauthn_reg_challenge');
+        $this->logMethod(true, 'webauthn');
 
         return redirect()->route('profile.edit')->with('status', 'mfa-webauthn-added');
     }
 
     public function webAuthnRemove(Request $request, string $credentialId): RedirectResponse
     {
-        $request->validate(['password' => 'required|current_password']);
+        $request->validate(['password' => CurrentPassword::rules()]);
 
         $user        = $request->user();
         $credentials = array_filter(
@@ -308,6 +338,7 @@ class MfaController extends Controller
             fn($c) => $c['id'] !== $credentialId
         );
         $user->update(['mfa_webauthn_credentials' => json_encode(array_values($credentials))]);
+        $this->logMethod(false, 'webauthn');
 
         return redirect()->route('profile.edit')->with('status', 'mfa-webauthn-removed');
     }
@@ -344,7 +375,7 @@ class MfaController extends Controller
         if (!$userId) return redirect()->route('login');
 
         $user   = User::findOrFail($userId);
-        $method = $request->input('method');
+        $method = RequestText::get($request, 'method');
 
         if ($method === 'email' && $user->hasEmailMfa()) {
             if (!$this->otp->canResend($user, 'email')) {
@@ -375,13 +406,13 @@ class MfaController extends Controller
         if ($locked = $this->mfaLockout($userId)) return $locked;
 
         $user   = User::findOrFail($userId);
-        $method = $request->input('method');
-        $code   = $request->input('code');
+        $method = RequestText::get($request, 'method');
+        $code   = RequestText::get($request, 'code');
 
         $verified = match ($method) {
-            'totp'  => $user->hasTotp() && ($secret = $user->two_factor_secret) !== null && $this->acceptTotp($user, $secret, $code ?? ''),
-            'email' => $user->hasEmailMfa() && $this->otp->verify($user, 'email', $code ?? ''),
-            'sms'   => $user->hasSmsMfa() && $this->otp->verify($user, 'sms', $code ?? ''),
+            'totp'  => $user->hasTotp() && ($secret = $user->two_factor_secret) !== null && $this->acceptTotp($user, $secret, $code),
+            'email' => $user->hasEmailMfa() && $this->otp->verify($user, 'email', $code),
+            'sms'   => $user->hasSmsMfa() && $this->otp->verify($user, 'sms', $code),
             default => false,
         };
 
@@ -390,9 +421,7 @@ class MfaController extends Controller
             return back()->withErrors(['code' => 'Code invalide ou expiré.']);
         }
 
-        $this->completeMfaLogin($request, $user);
-
-        return redirect()->intended(route('reservations.index'));
+        return $this->completeMfaLogin($request, $user);
     }
 
     public function challengeWebAuthn(Request $request): RedirectResponse
@@ -407,16 +436,14 @@ class MfaController extends Controller
         if (!$challenge) return back()->withErrors(['key' => 'Session expirée.']);
 
         $user      = User::findOrFail($userId);
-        $assertion = json_decode($request->input('assertion', ''), true);
+        $assertion = json_decode(RequestText::get($request, 'assertion'), true);
 
         if (!is_array($assertion) || !$this->webAuthn->verifyAssertion($user, $assertion, $challenge)) {
             RateLimiter::hit($this->mfaAttemptKey($userId), self::MFA_DECAY_SECONDS);
             return back()->withErrors(['key' => 'Authentification par clé physique échouée.']);
         }
 
-        $this->completeMfaLogin($request, $user);
-
-        return redirect()->intended(route('reservations.index'));
+        return $this->completeMfaLogin($request, $user);
     }
 
     public function challengeRecoveryForm(Request $request): View|RedirectResponse
@@ -437,7 +464,8 @@ class MfaController extends Controller
         if ($locked = $this->mfaLockout($userId)) return $locked;
 
         $user        = User::findOrFail($userId);
-        $storedCodes = json_decode($user->two_factor_recovery_codes ?? '[]', true);
+        $stored      = $user->two_factor_recovery_codes;
+        $storedCodes = json_decode($stored ?? '[]', true);
         $input       = strtolower(trim(preg_replace('/\s+/', '', $request->input('code'))));
         $hashed      = hash('sha256', $input);
 
@@ -450,15 +478,17 @@ class MfaController extends Controller
             }
         }
 
-        if (!$found) {
+        // Le code n'est retire que si la liste n'a pas change depuis sa lecture : deux envois simultanes du meme code
+        // ne passent donc pas tous les deux (meme principe que acceptTotp)
+        $consumed = $found && User::whereKey($user->id)->where('two_factor_recovery_codes', $stored)
+            ->update(['two_factor_recovery_codes' => json_encode($storedCodes)]) === 1;
+
+        if (!$consumed) {
             RateLimiter::hit($this->mfaAttemptKey($userId), self::MFA_DECAY_SECONDS);
             return back()->withErrors(['code' => 'Code de récupération invalide ou déjà utilisé.']);
         }
 
-        $user->update(['two_factor_recovery_codes' => json_encode($storedCodes)]);
-        $this->completeMfaLogin($request, $user);
-
-        return redirect()->intended(route('reservations.index'));
+        return $this->completeMfaLogin($request, $user);
     }
 
     private function mfaAttemptKey(int $userId): string
@@ -476,13 +506,24 @@ class MfaController extends Controller
         return back()->withErrors(['code' => "Trop de tentatives. Réessayez dans {$minutes} minute(s)."]);
     }
 
-    private function completeMfaLogin(Request $request, User $user): void
+    /** Connexion apres un code accepte. Un compte desactive pendant le defi n'est pas connecte, meme le temps d'une page. */
+    private function completeMfaLogin(Request $request, User $user): RedirectResponse
     {
         RateLimiter::clear($this->mfaAttemptKey($user->id));
         $remember = $request->session()->pull('mfa_remember', false);
         $request->session()->forget(['mfa_user_id', 'mfa_methods']);
+        if (!$user->is_active) {
+            return redirect()->route('login')->withErrors(['email' => 'Votre compte est désactivé.']);
+        }
         Auth::login($user, $remember);
         $request->session()->regenerate();
+
+        return redirect()->intended(route('reservations.index'));
+    }
+
+    private function logMethod(bool $enabled, string $method): void
+    {
+        ActivityLogger::log($enabled ? 'Double authentification activée' : 'Double authentification désactivée', ucfirst(self::METHOD_LABELS[$method]));
     }
 
     // ══════════════════════════════════════════════════════════════════

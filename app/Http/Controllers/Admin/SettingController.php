@@ -41,7 +41,7 @@ class SettingController extends Controller
             'app_name'         => 'required|string|max:100',
             'site_url'         => 'nullable|url|max:255',
             'site_description' => 'nullable|string|max:' . Customization::DESCRIPTION_MAX,
-            'timezone'         => 'nullable|string|max:100',
+            'timezone'         => 'nullable|timezone:all',
         ] + Customization::rules());
         $data['site_description'] = Customization::plainText($data['site_description'] ?? '');
         foreach ($data as $key => $value) $this->settings->set($key, $value ?? '');
@@ -205,14 +205,14 @@ class SettingController extends Controller
         if ($request->has('sms_driver') || $request->has('_sms_save')) {
             $data = $request->validate([
                 'sms_driver'           => 'nullable|in:disabled,ntfy,android_gw,free_mobile,webhook',
-                'sms_ntfy_url'         => 'nullable|url|max:255',
+                'sms_ntfy_url'         => 'nullable|url:http,https|max:255',
                 'sms_ntfy_token'       => 'nullable|string|max:200',
-                'sms_android_url'      => 'nullable|url|max:255',
+                'sms_android_url'      => 'nullable|url:http,https|max:255',
                 'sms_android_login'    => 'nullable|string|max:50',
                 'sms_android_pass'     => 'nullable|string|max:100',
                 'sms_free_mobile_user' => 'nullable|string|max:50',
                 'sms_free_mobile_key'  => 'nullable|string|max:100',
-                'sms_webhook_url'      => 'nullable|url|max:500',
+                'sms_webhook_url'      => 'nullable|url:http,https|max:500',
                 'sms_webhook_method'   => 'nullable|in:GET,POST',
                 'sms_webhook_body'     => 'nullable|string|max:500',
                 'clear_secrets'        => 'nullable|array',
@@ -305,9 +305,11 @@ class SettingController extends Controller
 
     public function updateMaintenance(Request $request)
     {
+        // Texte simple : il est affiche sur la page de maintenance et renvoye tel quel par l'API
+        $data = $request->validate(['maintenance_message' => 'nullable|string|max:500', 'maintenance_mode' => 'boolean']);
         $before = $this->settings->snapshot();
         $this->settings->set('maintenance_mode', $request->boolean('maintenance_mode') ? '1' : '0');
-        $this->settings->set('maintenance_message', $request->input('maintenance_message', ''));
+        $this->settings->set('maintenance_message', Customization::plainText($data['maintenance_message'] ?? ''));
         $this->logSettings('Maintenance', $before);
         return back()->with('success', 'Paramètres de maintenance enregistrés.');
     }

@@ -53,7 +53,7 @@
                     @else {{ $s->banned_until->format('d/m/Y') }} @if(!$s->isActive()) <span class="badge-accent ms-1">Expiré</span> @endif
                     @endif
                 </td>
-                <td>{{ $s->admin->name ?? '-' }}</td>
+                <td>{{ $s->admin->name ?? 'Compte supprimé' }}</td>
                 <td>{{ $s->created_at->format('d/m/Y H:i') }}</td>
                 <td>
                     <form method="POST" action="{{ route('admin.sanctions.destroy', $s) }}">
