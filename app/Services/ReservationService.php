@@ -2,12 +2,14 @@
 namespace App\Services;
 use App\Mail\ReservationCancelled;
 use App\Mail\ReservationConfirmed;
+use App\Mail\ReservationRescheduled;
 use App\Models\Reservation;
 use App\Models\Slot;
 use App\Models\User;
 use App\Services\Webhook\WebhookDispatcher;
 use App\Services\Webhook\WebhookPayload;
 use App\Support\Customization;
+use App\Support\MailPreferences;
 use App\Support\WebhookEvent;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,7 +49,7 @@ class ReservationService {
     private function createChecked(User $user, int $slotId, string $date, callable $check): array {
         $result = DB::transaction(fn () => $this->book($user, $slotId, $date, $check));
         if ($result['ok']) {
-            $this->notify($user, new ReservationConfirmed($result['reservation']));
+            $this->notify($user, new ReservationConfirmed($result['reservation']), MailPreferences::RESERVATION_CONFIRMED);
             $this->webhooks->dispatch(WebhookEvent::RESERVATION_CREATED, WebhookPayload::reservation($result['reservation']));
         }
         return $result;
@@ -201,6 +203,22 @@ class ReservationService {
         return $this->cancelUpcoming(Reservation::whereIn('user_id', collect($userIds)), $reason);
     }
 
+    /**
+     * L'horaire d'un creneau a change : chaque titulaire d'une reservation pas encore terminee est prevenu (cloche et
+     * e-mail). La reservation est gardee. Renvoie le nombre de personnes prevenues.
+     */
+    public function notifyRescheduled(Slot $slot, string $previousStart, string $previousEnd): int {
+        $previous = substr($previousStart, 0, 5) . ' - ' . substr($previousEnd, 0, 5);
+        $reservations = $slot->reservations()->with('slot.resource', 'user')->whereDate('reservation_date', '>=', Carbon::today())->get()
+            ->filter(fn (Reservation $reservation) => $reservation->endsAt()->isFuture());
+        foreach ($reservations as $reservation) {
+            $this->notify($reservation->user, new ReservationRescheduled($reservation, $previous), MailPreferences::SLOT_CHANGED);
+            $this->notifier->send($reservation->user, 'Horaire modifié', $this->describe($reservation, null) . "\nNouvel horaire : "
+                . substr($slot->start_time, 0, 5) . ' - ' . substr($slot->end_time, 0, 5) . " (avant : {$previous})", 'warning');
+        }
+        return $reservations->count();
+    }
+
     /** Fin du message de confirmation apres une annulation groupee (rien si aucune reservation n'etait a venir). */
     public static function cancelledNote(int $cancelled): string {
         return $cancelled > 0 ? " {$cancelled} réservation(s) à venir annulée(s), les personnes concernées ont été prévenues." : '';
@@ -219,7 +237,7 @@ class ReservationService {
     private function remove(Reservation $reservation, bool $byAdmin = false, ?string $reason = null): void {
         $reservation->load('slot.resource','user.role');
         $reservation->delete();
-        $this->notify($reservation->user, new ReservationCancelled($reservation, $byAdmin, $reason));
+        $this->notify($reservation->user, new ReservationCancelled($reservation, $byAdmin, $reason), $byAdmin ? MailPreferences::CANCELLED_BY_ADMIN : MailPreferences::CANCELLED_BY_ME);
         $this->webhooks->dispatch(WebhookEvent::RESERVATION_CANCELLED, WebhookPayload::reservation($reservation) + ['cancelled_by' => $byAdmin ? 'admin' : 'user']);
 
         if ($byAdmin) {
@@ -239,7 +257,9 @@ class ReservationService {
     }
 
     /** Un e-mail qui echoue ne doit pas annuler l'operation, mais l'echec est journalise. */
-    private function notify(User $user, $mailable): void {
+    /** E-mail facultatif : seulement si la personne le veut (Profil > E-mails, $kind de Support\MailPreferences). */
+    private function notify(User $user, $mailable, string $kind): void {
+        if (!$user->wantsMail($kind)) return;
         try {
             Mail::to($user->email)->send($mailable);
         } catch (\Throwable $e) {

@@ -12,6 +12,7 @@ use App\Support\Customization;
 use App\Support\HtmlSanitizer;
 use App\Support\ProfileFields;
 use App\Support\ReservationLimits;
+use App\Support\SiteLogo;
 use App\Support\SsoSettings;
 use App\Services\SettingService;
 use Illuminate\Http\Request;
@@ -50,35 +51,20 @@ class SettingController extends Controller
 
     public function uploadLogo(Request $request)
     {
-        $request->validate(['logo' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:2048']);
+        $request->validate(['logo' => 'required|image|mimes:' . implode(',', SiteLogo::EXTENSIONS) . '|max:2048']);
         $file = $request->file('logo');
         // L'extension vient du contenu du fichier, jamais du nom envoye par le navigateur : un "logo.php" valide comme image resterait un script
         $extension = $file->guessExtension();
-        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+        if (!in_array($extension, SiteLogo::EXTENSIONS, true)) {
             return back()->withErrors(['logo' => "Ce fichier n'est pas une image acceptée (JPG, PNG, GIF ou WebP)."]);
         }
-        $dir = public_path('uploads/logo');
-        if (!is_dir($dir)) mkdir($dir, 0755, true);
-        $this->removeLogoFile();
-        $filename = 'logo_' . bin2hex(random_bytes(8)) . '.' . $extension;
-        $file->move($dir, $filename);
-        $this->settings->set('site_logo', 'uploads/logo/' . $filename);
+        SiteLogo::store($file, $extension);
         return back()->with('success', 'Logo mis à jour.');
-    }
-
-    /** Supprime l'ancien logo, et seulement un fichier du dossier des logos. */
-    private function removeLogoFile(): void
-    {
-        $old = (string) $this->settings->get('site_logo');
-        if (str_starts_with($old, 'uploads/logo/') && !str_contains($old, '..') && is_file(public_path($old))) {
-            @unlink(public_path($old));
-        }
     }
 
     public function deleteLogo()
     {
-        $this->removeLogoFile();
-        $this->settings->set('site_logo', '');
+        SiteLogo::delete();
         return back()->with('success', 'Logo supprimé.');
     }
 

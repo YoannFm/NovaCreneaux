@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Adresse incorrecte')
+@section('code', '405')
+@section('heading', 'Adresse incorrecte')
+@section('message', "Cette adresse ne s'ouvre pas directement. Repartez de la page précédente ou de l'accueil.")

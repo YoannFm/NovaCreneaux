@@ -23,7 +23,7 @@ class ErrorPagesTest extends TestCase
 
     public function test_every_common_error_has_a_french_page(): void
     {
-        $expected = [403 => 'Accès refusé', 419 => 'Page expirée', 429 => 'Trop de tentatives', 500 => 'Une erreur est survenue', 503 => 'Service momentanément indisponible'];
+        $expected = [403 => 'Accès refusé', 405 => 'Adresse incorrecte', 419 => 'Page expirée', 429 => 'Trop de tentatives', 500 => 'Une erreur est survenue', 503 => 'Service momentanément indisponible'];
         foreach ($expected as $status => $heading) {
             Route::get("/_test/erreur-{$status}", fn () => abort($status));
         }

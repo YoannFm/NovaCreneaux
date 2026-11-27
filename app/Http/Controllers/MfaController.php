@@ -71,6 +71,7 @@ class MfaController extends Controller
 
         $request->user()->update([
             'two_factor_secret'          => $secret,
+            'two_factor_last_step'       => null,
             'two_factor_confirmed_at'    => now(),
             'two_factor_recovery_codes'  => json_encode($hashedCodes),
         ]);
@@ -86,6 +87,7 @@ class MfaController extends Controller
 
         $request->user()->update([
             'two_factor_secret'          => null,
+            'two_factor_last_step'       => null,
             'two_factor_confirmed_at'    => null,
             'two_factor_recovery_codes'  => null,
         ]);
@@ -377,7 +379,7 @@ class MfaController extends Controller
         $code   = $request->input('code');
 
         $verified = match ($method) {
-            'totp'  => $user->hasTotp() && ($secret = $user->two_factor_secret) !== null && $this->totp->verify($secret, $code ?? ''),
+            'totp'  => $user->hasTotp() && ($secret = $user->two_factor_secret) !== null && $this->acceptTotp($user, $secret, $code ?? ''),
             'email' => $user->hasEmailMfa() && $this->otp->verify($user, 'email', $code ?? ''),
             'sms'   => $user->hasSmsMfa() && $this->otp->verify($user, 'sms', $code ?? ''),
             default => false,
@@ -500,5 +502,19 @@ class MfaController extends Controller
     public function disable(Request $request): RedirectResponse
     {
         return $this->totpDisable($request);
+    }
+
+    /**
+     * Code de l'application d'authentification valable et jamais utilise : le pas de temps accepte est retenu en une
+     * seule requete conditionnelle, si bien que le meme code (ou un plus ancien) ne passe pas deux fois, meme envoye
+     * deux fois en meme temps.
+     */
+    private function acceptTotp(User $user, string $secret, string $code): bool
+    {
+        $step = $this->totp->matchingStep($secret, $code);
+
+        return $step !== null && User::whereKey($user->id)
+            ->where(fn ($query) => $query->whereNull('two_factor_last_step')->orWhere('two_factor_last_step', '<', $step))
+            ->update(['two_factor_last_step' => $step]) === 1;
     }
 }

@@ -44,8 +44,13 @@ class HomeCountersTest extends TestCase
         $this->travelTo('2026-11-25 10:00:00');
         $this->assertSame(1, $this->stat($this->get('/')->getContent(), "Créneaux disponibles aujourd'hui"), 'M1 a commence');
 
+        $this->assertSame(1, $this->stat($this->get('/')->getContent(), "Ressources disponibles aujourd'hui"));
+
         $this->travelTo('2026-11-25 15:00:00');
-        $this->assertSame(0, $this->stat($this->get('/')->getContent(), "Créneaux disponibles aujourd'hui"), 'reservation du jour fermee');
+        $html = $this->get('/')->getContent();
+        $this->assertSame(0, $this->stat($html, "Créneaux disponibles aujourd'hui"), 'reservation du jour fermee');
+        $this->assertSame(0, $this->stat($html, "Ressources disponibles aujourd'hui"), 'plus rien a reserver au CDI');
+        $this->assertStringNotContainsString("Où réserver aujourd'hui", $html);
     }
 
     public function test_a_finished_session_is_no_longer_upcoming(): void

@@ -8,9 +8,9 @@
         {{-- Logo --}}
         <div class="mb-4 pb-4 border-bottom">
             <h6 class="fw-semibold mb-3">Logo du site</h6>
-            @if(!empty($s['site_logo']) && file_exists(public_path($s['site_logo'])))
+            @if($logo = \App\Support\SiteLogo::url())
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <img src="{{ asset($s['site_logo']) }}" alt="Logo"
+                    <img src="{{ $logo }}" alt="Logo"
                          style="max-height:60px;max-width:180px;object-fit:contain;background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:6px;">
                     <form method="POST" action="{{ route('admin.settings.logo.delete') }}">
                         @csrf @method('DELETE')
@@ -23,12 +23,12 @@
             <form method="POST" action="{{ route('admin.settings.logo.upload') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="input-group" style="max-width:400px;">
-                    <input type="file" name="logo" class="form-control" accept="image/*" required>
+                    <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/gif,image/webp" required>
                     <button type="submit" class="btn btn-outline-secondary">
                         <i class="bi bi-upload"></i> Téléverser
                     </button>
                 </div>
-                <div class="form-text">PNG, JPG, SVG - max 2 Mo</div>
+                <div class="form-text">PNG, JPG, GIF ou WebP, 2 Mo au plus.</div>
                 @error('logo')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
             </form>
         </div>

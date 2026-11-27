@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Mail\EmailChanged;
 use App\Support\ActivityChanges;
+use App\Support\MailPreferences;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,6 +13,7 @@ use App\Services\AccountDeletionNotice;
 use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -55,6 +57,19 @@ class ProfileController extends Controller
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    /** E-mails facultatifs : seuls les refus sont enregistres (un nouvel e-mail est donc recu par defaut). */
+    public function updateMails(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'mails'   => ['nullable', 'array'],
+            'mails.*' => ['string', Rule::in(array_keys(MailPreferences::LABELS))],
+        ]);
+
+        $request->user()->forceFill(['mail_opt_out' => MailPreferences::optOut($data['mails'] ?? [])])->save();
+
+        return Redirect::route('profile.edit')->with('status', 'mails-updated');
     }
 
     public function updateTheme(Request $request): RedirectResponse

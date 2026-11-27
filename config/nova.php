@@ -2,7 +2,7 @@
 
 return [
     // Version installee. A modifier uniquement au moment d'une release : l'etiquette vX.Y.Z doit avoir la meme valeur.
-    'version' => '1.6.16',
+    'version' => '1.6.17',
 
     // Depot GitHub dont les releases servent de source aux mises a jour (Admin > Mise a jour).
     'repo' => 'YoannFm/NovaCreneaux',
@@ -32,6 +32,9 @@ return [
     // Verrou d'installation (App\Services\InstallationState) : ne jamais le supprimer, il garde /install ferme.
     // Les tests le remplacent par un fichier temporaire pour ne jamais toucher a celui du site.
     'install_lock' => storage_path('app/installed.lock'),
+
+    // Logo du site (Parametres > General) : garde hors de public/, servi par le site lui-meme (route site.logo)
+    'logo_directory' => storage_path('app/logo'),
 
     'backups' => [
         // Sauvegardes de la base (Admin > Mise a jour). Hors de public/ : jamais servies directement.

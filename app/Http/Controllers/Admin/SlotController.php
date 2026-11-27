@@ -19,9 +19,31 @@ class SlotController extends Controller {
     public function edit(Resource $resource, Slot $slot) {
         return view('admin.slots.form', compact('resource','slot'));
     }
-    public function update(Request $request, Resource $resource, Slot $slot) {
+    public function update(ReservationService $reservations, Request $request, Resource $resource, Slot $slot) {
+        [$previousStart, $previousEnd] = [$slot->start_time, $slot->end_time];
         $slot->update($this->validated($request));
-        return redirect()->route('admin.slots.index',$resource)->with('success','Créneau mis à jour.');
+
+        $message = 'Créneau mis à jour.';
+        if ($slot->wasChanged(['start_time', 'end_time'])) {
+            $warned = $reservations->notifyRescheduled($slot, $previousStart, $previousEnd);
+            $message .= $warned > 0 ? " {$warned} personne(s) ayant réservé ont été prévenues du nouvel horaire." : '';
+        }
+        return redirect()->route('admin.slots.index',$resource)->with('success', $message)->with('warning', $this->overbookedWarning($slot));
+    }
+
+    /**
+     * Capacite descendue sous le nombre de reservations deja faites un jour a venir : rien n'est annule (le personnel
+     * choisit qui retirer), mais il est averti, jour par jour. Null si aucun jour n'est en surnombre.
+     */
+    private function overbookedWarning(Slot $slot): ?string {
+        $days = $slot->reservations()->whereDate('reservation_date', '>=', today())
+            ->selectRaw('reservation_date, COUNT(*) as taken')->groupBy('reservation_date')
+            ->havingRaw('COUNT(*) > ?', [$slot->max_capacity])->orderBy('reservation_date')->get();
+        if ($days->isEmpty()) return null;
+
+        $list = $days->map(fn ($day) => $day->reservation_date->isoFormat('dddd D MMMM') . " ({$day->taken} réservations)")->implode(', ');
+        $places = $slot->max_capacity . ($slot->max_capacity > 1 ? ' places' : ' place');
+        return "La capacité ({$places}) est inférieure aux réservations déjà faites : {$list}. Aucune réservation n'a été annulée : retirez-en depuis le planning si besoin.";
     }
     public function destroy(ReservationService $reservations, Resource $resource, Slot $slot) {
         $cancelled = $reservations->cancelUpcomingForSlots([$slot->id], "Le créneau {$slot->name} de {$resource->name} n'existe plus.");
