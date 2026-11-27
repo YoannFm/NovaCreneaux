@@ -1,5 +1,6 @@
 <?php
 namespace App\Models;
+use App\Casts\TimeOfDay;
 use App\Models\Concerns\Loggable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,7 +32,7 @@ class Resource extends Model {
         ];
     }
     protected function casts(): array {
-        return ['is_active'=>'boolean','closed_days'=>'array'];
+        return ['is_active'=>'boolean','closed_days'=>'array','open_time'=>TimeOfDay::class,'close_time'=>TimeOfDay::class];
     }
     public function slots() { return $this->hasMany(Slot::class); }
     public function activeSlots() { return $this->hasMany(Slot::class)->where('is_active',true); }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\ApiTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Support\CurrentPassword;
 
 /** Jetons d'API personnels : l'utilisateur gere les siens depuis son profil, si le role de son compte l'autorise. */
 class ProfileApiTokenController extends Controller
@@ -23,7 +24,7 @@ class ProfileApiTokenController extends Controller
             'abilities' => ['required', 'array', 'min:1'],
             'abilities.*' => ['string', 'in:' . implode(',', array_keys(ApiTokenService::ABILITIES))],
             'days' => ['required', 'integer', 'in:' . implode(',', ApiTokenService::PERSONAL_DURATIONS)],
-            'password' => ['required', 'current_password'],
+            'password' => CurrentPassword::rules(),
         ]);
 
         try {

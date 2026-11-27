@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\RequestText;
+use App\Support\SsoSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +18,7 @@ class ConfirmablePasswordController extends Controller
      */
     public function show(): View
     {
-        return view('auth.confirm-password');
+        return view('auth.confirm-password', ['ssoEnabled' => SsoSettings::enabled()]);
     }
 
     /**
@@ -26,7 +28,7 @@ class ConfirmablePasswordController extends Controller
     {
         if (! Auth::guard('web')->validate([
             'email' => $request->user()->email,
-            'password' => $request->password,
+            'password' => RequestText::get($request, 'password'),
         ])) {
             throw ValidationException::withMessages([
                 'password' => __('auth.password'),

@@ -153,6 +153,17 @@ class SecurityHardeningTest extends TestCase
         @unlink($victim);
     }
 
+    public function test_a_site_name_with_quotes_stays_text_inside_javascript(): void
+    {
+        app(\App\Services\SettingService::class)->set('app_name', "L'atelier \\ </script>");
+
+        $html = $this->actingAs($this->student())->withSession(['mfa_recovery_codes' => ['abcd-efgh']])
+            ->get(route('mfa.recovery-codes'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(\Illuminate\Support\Js::from("Codes de récupération - L'atelier \\ </script>")->toHtml(), $html);
+        $this->assertStringNotContainsString("Codes de récupération - L'atelier", $html);
+    }
+
     // --- En-tetes ---
 
     public function test_responses_carry_security_headers(): void
@@ -213,7 +224,7 @@ class SecurityHardeningTest extends TestCase
     {
         $user = $this->student();
 
-        $this->actingAs($user)->post(route('mfa.sms.setup.post'), ['contact' => '0612345678']);
+        $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()])->post(route('mfa.sms.setup.post'), ['contact' => '0612345678']);
         $second = $this->post(route('mfa.sms.setup.post'), ['contact' => '0612345678']);
 
         $second->assertSessionHasErrors('contact');
@@ -233,13 +244,14 @@ class SecurityHardeningTest extends TestCase
 
     public function test_signup_attempts_are_rate_limited(): void
     {
+        // Par adresse saisie ; le plafond par IP (une classe entiere) est verifie par ClassroomRateLimitTest
         $statuses = [];
-        for ($i = 0; $i < 12; $i++) {
-            $statuses[] = $this->post(route('register'), ['name' => 'x', 'email' => "x{$i}@example.com", 'password' => 'abc'])->getStatusCode();
+        for ($i = 0; $i < 4; $i++) {
+            $statuses[] = $this->post(route('register'), ['name' => 'x', 'email' => 'meme@example.com', 'password' => 'abc'])->getStatusCode();
         }
 
-        $this->assertSame(429, $statuses[11]);
-        $this->assertNotContains(429, array_slice($statuses, 0, 10));
+        $this->assertSame(429, $statuses[3]);
+        $this->assertNotContains(429, array_slice($statuses, 0, 3));
     }
 
     // --- Adresse du site dans les liens generes ---

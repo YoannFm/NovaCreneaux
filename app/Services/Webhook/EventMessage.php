@@ -74,8 +74,9 @@ class EventMessage
             'slot' => (string) ($reservation['slot']['name'] ?? ''),
             'date' => (string) ($reservation['date'] ?? ''),
             'date_fr' => $date ? $date->locale('fr')->isoFormat('dddd D MMMM YYYY') : '',
-            'start_time' => (string) ($reservation['slot']['start_time'] ?? ''),
-            'end_time' => (string) ($reservation['slot']['end_time'] ?? ''),
+            // Affichees HH:MM (la charge utile garde HH:MM:SS, le format de la base)
+            'start_time' => substr((string) ($reservation['slot']['start_time'] ?? ''), 0, 5),
+            'end_time' => substr((string) ($reservation['slot']['end_time'] ?? ''), 0, 5),
         ];
     }
 

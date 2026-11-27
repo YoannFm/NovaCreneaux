@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\ReservationCancelled;
 use App\Mail\ReservationConfirmed;
 use App\Mail\ReservationRescheduled;
+use App\Models\ActivityLog;
 use App\Models\Reservation;
 use App\Models\Resource;
 use App\Models\Slot;
@@ -72,6 +73,20 @@ class SlotChangesAndMailPreferencesTest extends TestCase
         $this->updateSlot(['name' => 'Pause de midi'])->assertSessionHas('success', 'Créneau mis à jour.');
 
         Mail::assertNothingSent();
+    }
+
+    public function test_times_read_back_with_seconds_like_on_mysql_are_not_a_change(): void
+    {
+        Mail::fake();
+        $this->book('2026-11-26');
+        // MySQL renvoie une colonne TIME en HH:MM:SS, le formulaire envoie HH:MM
+        Slot::whereKey($this->slot->id)->update(['start_time' => '12:00:00', 'end_time' => '13:00:00']);
+
+        $this->updateSlot(['max_capacity' => 4])->assertSessionHas('success', 'Créneau mis à jour.');
+
+        Mail::assertNothingSent();
+        $this->assertSame(0, UserNotification::count());
+        $this->assertArrayNotHasKey('start_time', ActivityLog::where('action', 'Créneau modifié')->latest('id')->value('changes') ?? []);
     }
 
     // --- Capacite

@@ -19,6 +19,9 @@ final class ImportReport
     /** @var list<string> */
     private array $skipped = [];
 
+    /** @var list<string> consequences a signaler (applique, mais a verifier) */
+    private array $warnings = [];
+
     public function record(string $type, string $action): void
     {
         $this->counts[$type][$action] = ($this->counts[$type][$action] ?? 0) + 1;
@@ -32,6 +35,16 @@ final class ImportReport
     public function skipped(): array
     {
         return $this->skipped;
+    }
+
+    public function warn(string $message): void
+    {
+        $this->warnings[] = $message;
+    }
+
+    public function warnings(): array
+    {
+        return $this->warnings;
     }
 
     public function changed(): bool

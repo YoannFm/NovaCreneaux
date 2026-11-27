@@ -8,10 +8,11 @@
             @csrf
 
             <div class="mb-4 pb-4 border-bottom">
-                <label class="form-label fw-semibold">Message de maintenance</label>
-                <div class="form-text mb-2">Affiché à tous les utilisateurs (hors administrateurs) lorsque le mode maintenance est actif.</div>
-                <textarea id="maintenance_message" name="maintenance_message"
-                          class="form-control">{{ old('maintenance_message', $s['maintenance_message'] ?? '') }}</textarea>
+                <label class="form-label fw-semibold" for="maintenance_message">Message de maintenance</label>
+                <div class="form-text mb-2">Affiché à tous les utilisateurs (hors administrateurs) lorsque le mode maintenance est actif. Texte simple, 500 caractères au plus.</div>
+                <textarea id="maintenance_message" name="maintenance_message" rows="3" maxlength="500"
+                          class="form-control @error('maintenance_message') is-invalid @enderror">{{ old('maintenance_message', \App\Support\Customization::plainText($s['maintenance_message'] ?? '')) }}</textarea>
+                @error('maintenance_message')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
 
             <div class="d-flex justify-content-between align-items-center py-3">
@@ -37,24 +38,4 @@
     </div>
 </div>
 
-@include('admin.partials.tinymce')
-<script>
-(function () {
-    function initTiny() {
-        var dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        if (tinymce.get('maintenance_message')) tinymce.remove('#maintenance_message');
-        tinymce.init({
-            selector: '#maintenance_message',
-            height: 220,
-            plugins: 'searchreplace autolink code link',
-            toolbar: 'bold italic underline | link | removeformat code | undo redo',
-            skin: dark ? 'oxide-dark' : 'oxide',
-            content_css: dark ? 'dark' : 'default',
-        });
-    }
-    initTiny();
-    new MutationObserver(function(m) { m.forEach(function(mm) { if (mm.attributeName === 'data-bs-theme') initTiny(); }); })
-        .observe(document.documentElement, { attributes: true });
-})();
-</script>
 @endsection

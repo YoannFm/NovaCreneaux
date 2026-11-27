@@ -400,7 +400,7 @@
     const picker = document.getElementById('accent_color');
     const hex    = document.getElementById('accent_hex');
     const reset  = document.getElementById('btn-reset-accent');
-    const defaultAccent = '{{ setting('theme_accent','#efb703') }}';
+    const defaultAccent = {{ \Illuminate\Support\Js::from(setting('theme_accent', '#efb703')) }};
     if (picker && hex) {
         picker.addEventListener('input', () => { hex.value = picker.value; });
         hex.addEventListener('input', () => {

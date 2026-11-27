@@ -79,4 +79,13 @@ class HomeCountersTest extends TestCase
             ->assertSessionHasErrors();
         $this->assertSame(0, Reservation::count());
     }
+
+    public function test_my_reservations_shows_a_session_in_progress(): void
+    {
+        $student = $this->student();
+        $this->travelTo('2026-11-25 12:10:00');
+        Reservation::create(['user_id' => $student->id, 'slot_id' => $this->noon->id, 'reservation_date' => '2026-11-25']);
+
+        $this->actingAs($student)->get(route('reservations.my'))->assertOk()->assertSee('En cours')->assertDontSee('Passée');
+    }
 }

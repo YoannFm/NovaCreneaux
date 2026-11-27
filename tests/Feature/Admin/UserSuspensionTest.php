@@ -140,4 +140,21 @@ class UserSuspensionTest extends TestCase
         $this->assertTrue($ban->fresh()->isActive());
         $this->assertNotNull($student->activeBan());
     }
+
+    public function test_sanctions_outlive_the_account_of_the_staff_member_who_gave_them(): void
+    {
+        $staff = $this->staff([Permission::SANCTIONS, Permission::USERS]);
+        $student = $this->student();
+        $this->actingAs($staff);
+        $this->suspend($student, ['permanent' => '1'])->assertSessionHas('success');
+        Sanction::create(['user_id' => $student->id, 'admin_id' => $staff->id, 'type' => 'warning', 'reason' => 'Retard']);
+
+        // Le collegue quitte l'etablissement : un administrateur supprime son compte
+        $this->actingAs($this->admin())->delete(route('admin.users.destroy', $staff))->assertRedirect();
+
+        $this->assertSame(2, Sanction::where('user_id', $student->id)->whereNull('admin_id')->count());
+        $this->assertNotNull($student->fresh()->activeBan());
+        $this->get(route('admin.sanctions.index'))->assertOk()->assertSee('Compte supprimé');
+        $this->get(route('admin.users.edit', $student))->assertOk()->assertSee('un compte supprimé');
+    }
 }

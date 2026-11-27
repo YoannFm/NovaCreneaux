@@ -255,6 +255,7 @@ return [
         'site_description' => 'description du site',
         'site_url' => 'adresse du site',
         'slug' => 'adresse de la page',
+        'maintenance_message' => 'message de maintenance',
         'sms_android_login' => 'identifiant',
         'sms_android_pass' => 'mot de passe',
         'sms_android_url' => 'adresse de la passerelle',

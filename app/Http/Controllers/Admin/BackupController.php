@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use App\Support\RequestText;
 
 /** Sauvegardes de la base (section de la page Mise a jour). Telecharger ou supprimer exige le mot de passe de l'administrateur. */
 class BackupController extends Controller
@@ -75,7 +76,7 @@ class BackupController extends Controller
 
     private function passwordIsValid(Request $request): bool
     {
-        return Hash::check((string) $request->input('password'), $request->user()->password);
+        return Hash::check(RequestText::get($request, 'password'), $request->user()->password);
     }
 
     private function refused(string $action, string $name): RedirectResponse

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\RequestText;
 
 /** Parametres > Configuration : export, import d'un fichier et modeles prets a importer (administrateurs). */
 class ConfigurationController extends Controller
@@ -62,7 +63,7 @@ class ConfigurationController extends Controller
     /** La configuration decrit tout le site : chaque action redemande le mot de passe de l'administrateur connecte. */
     private function refuseWithoutPassword(Request $request, string $action): ?RedirectResponse
     {
-        if (Hash::check((string) $request->input('password'), (string) $request->user()->password)) {
+        if (Hash::check(RequestText::get($request, 'password'), (string) $request->user()->password)) {
             return null;
         }
         ActivityLogger::log("Mot de passe refusé pour la configuration ({$action})");
@@ -78,7 +79,8 @@ class ConfigurationController extends Controller
             return back()->withErrors($e->errors(), 'import')->with('error', "Rien n'a été importé : le fichier n'est pas valide.");
         }
 
-        return back()->with('success', $this->message($report));
+        return back()->with('success', $this->message($report))
+            ->with('warning', $report->warnings() ? 'Attention : ' . implode(' ; ', $report->warnings()) . '. Vérifiez les permissions dans Admin > Rôles.' : null);
     }
 
     private function message(ImportReport $report): string

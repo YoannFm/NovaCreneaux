@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use App\Support\CurrentPassword;
 
 class ProfileController extends Controller
 {
@@ -94,7 +95,7 @@ class ProfileController extends Controller
         }
 
         $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
+            'password' => CurrentPassword::rules(),
         ]);
 
         $user = $request->user();
@@ -105,9 +106,12 @@ class ProfileController extends Controller
 
         ActivityLogger::log('Compte supprimé', $user->name);
         app(AccountDeletionNotice::class)->send($user, false);
-        Auth::logout();
 
+        // Supprime encore connecte : la suppression est attribuee a son titulaire (webhooks : deleted_by self,
+        // cancelled_by user). Puis on oublie le compte sans Auth::logout(), qui renouvellerait son jeton
+        // "se souvenir de moi" et reenregistrerait ainsi le compte supprime.
         $user->delete();
+        Auth::guard('web')->forgetUser();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

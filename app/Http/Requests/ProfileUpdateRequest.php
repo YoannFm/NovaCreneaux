@@ -8,6 +8,7 @@ use App\Support\ProfileFields;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Support\CurrentPassword;
 
 class ProfileUpdateRequest extends FormRequest
 {
@@ -31,7 +32,7 @@ class ProfileUpdateRequest extends FormRequest
         // peut garder son adresse : le domaine n'est controle qu'au changement.
         if ($this->emailChanges()) {
             $rules['email'][] = new AllowedEmailDomain;
-            $rules['current_password'] = ['required', 'current_password'];
+            $rules['current_password'] = CurrentPassword::rules();
         }
 
         return $rules;

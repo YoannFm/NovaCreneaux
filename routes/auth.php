@@ -23,7 +23,7 @@ Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('register', [RegisteredUserController::class, 'store'])->middleware('throttle:register');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
@@ -31,7 +31,7 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     // Connexion avec le compte de l'etablissement (OpenID Connect ou CAS), si elle est activee
-    Route::middleware('throttle:20,1')->group(function () {
+    Route::middleware('throttle:sso')->group(function () {
         Route::get('login/etablissement', [\App\Http\Controllers\Auth\SsoController::class, 'redirect'])->name('sso.redirect');
         Route::get('login/etablissement/retour', [\App\Http\Controllers\Auth\SsoController::class, 'callback'])->name('sso.callback');
     });
@@ -39,9 +39,9 @@ Route::middleware('guest')->group(function () {
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
-    // Limite par IP : le formulaire envoie un e-mail a l'adresse saisie
+    // Limite par adresse saisie et plafond par IP (AppServiceProvider::limitGuestForms) : le formulaire envoie un e-mail
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->middleware('throttle:6,1')
+        ->middleware('throttle:password-reset-link')
         ->name('password.email');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
@@ -56,19 +56,20 @@ Route::middleware('auth')->group(function () {
         ->name('verification.notice');
 
     Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
-        ->middleware(['signed', 'throttle:6,1'])
+        ->middleware(['signed', 'throttle:6,1,email-verification'])
         ->name('verification.verify');
 
     Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
-        ->middleware('throttle:6,1')
+        ->middleware('throttle:6,1,email-verification')
         ->name('verification.send');
 
     Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
         ->name('password.confirm');
 
-    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+    // Mot de passe verifie : limite pour qu'une session ouverte ne permette pas de l'essayer sans fin
+    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store'])->middleware('throttle:6,1,password');
 
-    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+    Route::put('password', [PasswordController::class, 'update'])->middleware('throttle:6,1,password')->name('password.update');
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');

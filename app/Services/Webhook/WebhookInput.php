@@ -6,6 +6,7 @@ use App\Models\Webhook;
 use App\Support\WebhookEvent;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use App\Support\RequestText;
 
 /**
  * Valide le formulaire d'un webhook et en tire les attributs a enregistrer. Trois formats : charge utile standard,
@@ -84,7 +85,7 @@ class WebhookInput
         $fields = [];
         foreach ($preset['fields'] ?? [] as $field) {
             $key = $field['key'];
-            $value = trim((string) $request->input("fields.{$key}", ''));
+            $value = trim(RequestText::get($request, "fields.{$key}"));
             // Un secret n'est jamais reaffiche : champ vide = valeur conservee
             if ($value === '' && ($field['secret'] ?? false)) {
                 $value = (string) ($kept[$key] ?? '');

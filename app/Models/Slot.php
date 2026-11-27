@@ -1,5 +1,6 @@
 <?php
 namespace App\Models;
+use App\Casts\TimeOfDay;
 use App\Models\Concerns\Loggable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,7 +31,7 @@ class Slot extends Model {
             "{$prefix}is_active" => 'boolean',
         ];
     }
-    protected function casts(): array { return ['is_active'=>'boolean','max_capacity'=>'integer']; }
+    protected function casts(): array { return ['is_active'=>'boolean','max_capacity'=>'integer','start_time'=>TimeOfDay::class,'end_time'=>TimeOfDay::class]; }
     /** Regle de validation d'un slot_id envoye pour reserver : un creneau supprime n'existe plus. */
     public static function existsRule(): Exists {
         return Rule::exists('slots', 'id')->whereNull('deleted_at');

@@ -33,9 +33,9 @@ class AuthenticatedSessionController extends Controller
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'email' => 'Votre compte est désactivé.',
-            ]);
+            // Redirection explicite : la session videe a perdu l'adresse precedente, un "retour" menait a l'accueil
+            // puis a la connexion, et le message etait perdu en route
+            return redirect()->route('login')->withErrors(['email' => 'Votre compte est désactivé.'])->onlyInput('email');
         }
 
         $user = auth()->user();

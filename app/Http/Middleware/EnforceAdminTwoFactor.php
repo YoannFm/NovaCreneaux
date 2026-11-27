@@ -11,7 +11,8 @@ use Illuminate\Http\Request;
  */
 class EnforceAdminTwoFactor
 {
-    private const ALWAYS_OPEN = ['up', 'logout', 'profile', 'profile/*', 'mfa/*'];
+    // confirm-password : ajouter une application, un SMS ou une cle redemande le mot de passe (password.confirm)
+    private const ALWAYS_OPEN = ['up', 'logout', 'profile', 'profile/*', 'mfa/*', 'confirm-password'];
 
     public function handle(Request $request, Closure $next)
     {

@@ -7,14 +7,9 @@
 .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.15); transform: translateY(-2px); }
 </style>
 
+@if($cards !== [])
 <div class="row g-3 mb-4">
-    @foreach([
-        ['label' => 'Utilisateurs',              'value' => $stats['users'],     'icon' => 'people',         'color' => 'primary',  'route' => route('admin.users.index')],
-        ['label' => 'Ressources',                'value' => $stats['resources'], 'icon' => 'collection',     'color' => 'success',  'route' => route('admin.resources.index')],
-        ['label' => 'Créneaux',                  'value' => $stats['slots'],     'icon' => 'clock',          'color' => 'warning',  'route' => route('admin.resources.index')],
-        ['label' => "Réservations aujourd'hui",  'value' => $stats['today'],     'icon' => 'calendar-check', 'color' => 'info',     'route' => route('admin.reservations.index')],
-        ['label' => 'Total réservations',        'value' => $stats['total'],     'icon' => 'bar-chart',      'color' => 'danger',   'route' => route('admin.reservations.index')],
-    ] as $s)
+    @foreach($cards as $s)
     <div class="col-6 col-md-4 col-xl">
         <a href="{{ $s['route'] }}" style="text-decoration:none;color:inherit;">
         <div class="card">
@@ -36,7 +31,9 @@
     </div>
     @endforeach
 </div>
+@endif
 
+@if($recent !== null)
 <div class="card">
     <div class="card-header">
         <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Dernières réservations</h5>
@@ -77,5 +74,10 @@
         </div>
     </div>
 </div>
+@endif
+
+@if($cards === [] && $recent === null)
+<p class="text-muted">Utilisez le menu pour accéder aux pages de l'administration qui vous sont ouvertes.</p>
+@endif
 
 @endsection

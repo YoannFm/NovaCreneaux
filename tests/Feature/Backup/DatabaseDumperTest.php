@@ -33,6 +33,28 @@ class DatabaseDumperTest extends TestCase
         return gzdecode(file_get_contents($this->file));
     }
 
+    /** Nom de table tel que la sauvegarde l'ecrit : la suite tourne sur SQLite et sur MySQL (CI). */
+    private function quoted(string $table): string
+    {
+        return DB::getDriverName() === 'sqlite' ? "\"{$table}\"" : "`{$table}`";
+    }
+
+    /** Une autre base, vide, du meme moteur, dans laquelle on rejoue la sauvegarde. */
+    private function restoredCopy(): PDO
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            $copy = new PDO('sqlite::memory:');
+        } else {
+            $config = DB::connection()->getConfig();
+            $copy = new PDO("mysql:host={$config['host']};port={$config['port']};charset=utf8mb4", $config['username'], $config['password']);
+            $name = $config['database'] . '_copie';
+            $copy->exec("DROP DATABASE IF EXISTS `{$name}`; CREATE DATABASE `{$name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; USE `{$name}`");
+        }
+        $copy->exec($this->sql());
+
+        return $copy;
+    }
+
     public function test_the_dump_is_a_complete_gzip_file_with_structure_and_data(): void
     {
         DB::table('settings')->insert(['key' => 'site_name', 'value' => 'CDI']);
@@ -41,7 +63,7 @@ class DatabaseDumperTest extends TestCase
 
         $sql = $this->sql();
         $this->assertStringStartsWith('-- NovaCreneaux : sauvegarde de la base de donnees', $sql);
-        $this->assertStringContainsString('CREATE TABLE "settings"', $sql);
+        $this->assertStringContainsString('CREATE TABLE ' . $this->quoted('settings'), $sql);
         $this->assertStringContainsString("'site_name','CDI'", $sql);
         $this->assertTrue(DatabaseDumper::isComplete($this->file));
     }
@@ -54,20 +76,25 @@ class DatabaseDumperTest extends TestCase
             ['key' => 'tricky', 'value' => $tricky],
             ['key' => 'empty', 'value' => ''],
             ['key' => 'nothing', 'value' => null],
-            ['key' => 'binary', 'value' => $binary],
         ]);
+        // Des octets qui ne sont pas de l'UTF-8 : MySQL les refuse deja dans une colonne de texte, seul SQLite les garde
+        $withBinary = DB::getDriverName() === 'sqlite';
+        if ($withBinary) {
+            DB::table('settings')->insert(['key' => 'binary', 'value' => $binary]);
+        }
         DB::table('users')->insert(['name' => 'Élève', 'email' => 'eleve@example.com', 'password' => 'x', 'is_active' => 1, 'created_at' => '2026-10-26 10:00:00', 'updated_at' => '2026-10-26 10:00:00']);
 
         (new DatabaseDumper())->dump($this->file);
 
-        $copy = new PDO('sqlite::memory:');
-        $copy->exec($this->sql());
+        $copy = $this->restoredCopy();
 
-        $values = $copy->query('SELECT key, value FROM settings')->fetchAll(PDO::FETCH_KEY_PAIR);
+        $values = $copy->query('SELECT ' . $this->quoted('key') . ', value FROM settings')->fetchAll(PDO::FETCH_KEY_PAIR);
         $this->assertSame($tricky, $values['tricky']);
         $this->assertSame('', $values['empty']);
         $this->assertNull($values['nothing']);
-        $this->assertSame($binary, $values['binary']);
+        if ($withBinary) {
+            $this->assertSame($binary, $values['binary']);
+        }
         $this->assertSame(DB::table('users')->count(), (int) $copy->query('SELECT COUNT(*) FROM users')->fetchColumn());
         $this->assertSame('Élève', $copy->query('SELECT name FROM users')->fetchColumn());
     }
@@ -78,9 +105,8 @@ class DatabaseDumperTest extends TestCase
 
         (new DatabaseDumper())->dump($this->file);
 
-        $this->assertGreaterThan(2, substr_count($this->sql(), 'INSERT INTO "settings"'));
-        $copy = new PDO('sqlite::memory:');
-        $copy->exec($this->sql());
+        $this->assertGreaterThan(2, substr_count($this->sql(), 'INSERT INTO ' . $this->quoted('settings')));
+        $copy = $this->restoredCopy();
         $this->assertSame(DB::table('settings')->count(), (int) $copy->query('SELECT COUNT(*) FROM settings')->fetchColumn());
     }
 
@@ -90,7 +116,7 @@ class DatabaseDumperTest extends TestCase
 
         (new DatabaseDumper())->dump($this->file);
 
-        $this->assertStringContainsString('CREATE TABLE "cache"', $this->sql());
+        $this->assertStringContainsString('CREATE TABLE ' . $this->quoted('cache'), $this->sql());
         $this->assertStringNotContainsString('donnee temporaire', $this->sql());
     }
 

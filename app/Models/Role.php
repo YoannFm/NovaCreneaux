@@ -73,6 +73,12 @@ class Role extends Model
     }
 
     /** Un compte avec ce role entre dans l'administration (tous les droits ou au moins une permission). */
+    /** Pages restreintes qui donnent acces a ce role. */
+    public function pages()
+    {
+        return $this->belongsToMany(Page::class, 'page_role');
+    }
+
     public function grantsAdminAccess(): bool
     {
         return $this->is_admin || Permission::only($this->permissions ?? []) !== [];

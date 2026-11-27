@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Support\RequestText;
 
 /** Connexion avec le compte de l'etablissement (OpenID Connect ou CAS) ; le mot de passe reste toujours possible. */
 class SsoController extends Controller
@@ -37,8 +38,7 @@ class SsoController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         $state = $request->session()->pull(self::SESSION_KEY);
-        $returned = $request->query('state');
-        if (!is_array($state) || !is_string($returned) || !hash_equals($state['state'], $returned)) {
+        if (!is_array($state) || !hash_equals($state['state'], RequestText::get($request, 'state'))) {
             return $this->fail("La connexion avec le compte de l'établissement a expiré. Recommencez.");
         }
 

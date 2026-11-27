@@ -161,7 +161,7 @@ function switchMethod(method) {
 // Auto-activate first method tab
 (function(){
     @if(count($methods) > 1)
-    switchMethod('{{ $methods[0] }}');
+    switchMethod({{ \Illuminate\Support\Js::from($methods[0]) }});
     @endif
 })();
 

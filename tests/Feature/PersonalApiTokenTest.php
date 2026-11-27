@@ -207,4 +207,16 @@ class PersonalApiTokenTest extends TestCase
         $this->actingAs($this->pupil())->put(route('admin.api-tokens.status'), ['enabled' => '0'])->assertRedirect('/');
         $this->assertTrue(ApiTokenService::enabled());
     }
+
+    public function test_the_tokens_of_a_deleted_account_are_deleted_with_it(): void
+    {
+        $pupil = $this->pupil();
+        $pupil->createToken('application', ['reservations:read']);
+        $other = $this->pupil();
+        $other->createToken('application', ['reservations:read']);
+
+        $pupil->delete();
+
+        $this->assertSame([$other->id], PersonalAccessToken::pluck('tokenable_id')->all());
+    }
 }

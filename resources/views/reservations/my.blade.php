@@ -27,7 +27,7 @@
                 <tbody>
                 @foreach($reservations as $r)
                 <tr>
-                    <td>{!! $r->reservation_date->locale('fr')->isoFormat('ddd D MMM YYYY') !!}</td>
+                    <td>{{ $r->reservation_date->locale('fr')->isoFormat('ddd D MMM YYYY') }}</td>
                     <td>{{ $r->slot->resource->name }}</td>
                     <td>{{ $r->slot->name }}</td>
                     <td class="text-muted">{{ $r->created_at->format('d/m/Y H:i') }}</td>
@@ -48,6 +48,8 @@
                         <div class="text-muted small mt-1">jusqu'à {{ $untilText }}</div>
                         @elseif(now()->lt($r->startsAt()))
                             <span class="text-muted small"><i class="bi bi-lock me-1"></i>Annulation impossible depuis {{ $untilText }}</span>
+                        @elseif(!$r->hasEnded())
+                            <span class="text-muted small">En cours</span>
                         @else
                             <span class="text-muted small">Passée</span>
                         @endif

@@ -102,10 +102,13 @@
                                     @if($r->user->classe)<span class="text-muted small ms-1">{{ $r->user->classe }}</span>@endif
                                 </div>
                                 <span class="small text-muted d-none d-md-inline">réservé le {{ $r->created_at->format('d/m à H:i') }}</span>
+                                {{-- Meme regle que le serveur : comptes geres, seance pas encore terminee --}}
+                                @if(auth()->user()->canManage($r->user) && !$r->hasEnded())
                                 <button type="button" class="btn btn-sm btn-link text-danger p-0" data-bs-toggle="modal" data-bs-target="#cancel-modal"
                                         data-action="{{ route('admin.reservations.destroy', $r) }}"
                                         data-label="{{ $r->user->name }} - {{ $resource->name }}, {{ $slot->name }} ({{ $date->format('d/m/Y') }})"
                                         title="Supprimer" aria-label="Supprimer la réservation de {{ $r->user->name }}"><i class="bi bi-trash"></i></button>
+                                @endif
                             </li>
                         @endforeach
                     </ul>

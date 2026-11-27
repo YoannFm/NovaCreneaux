@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\ActivityLogger;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
@@ -50,6 +51,8 @@ class NewPasswordController extends Controller
                 ])->save();
 
                 event(new PasswordReset($user));
+                // Personne n'est connecte ici : le compte est nomme dans le contexte
+                ActivityLogger::log('Mot de passe réinitialisé', $user->email);
             }
         );
 

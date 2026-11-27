@@ -7,6 +7,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Support\RequestText;
 
 /**
  * CAS (protocole 3) : le serveur renvoie un ticket, valide ensuite par /p3/serviceValidate. Le "state" de la
@@ -23,7 +24,7 @@ class CasProvider implements SsoProvider
 
     public function identity(Request $request, string $callback, array $state): SsoIdentity
     {
-        $ticket = (string) $request->input('ticket');
+        $ticket = RequestText::get($request, 'ticket');
         if ($ticket === '') {
             throw new SsoException('Réponse incomplète du service de l\'établissement.');
         }

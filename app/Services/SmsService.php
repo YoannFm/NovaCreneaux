@@ -49,20 +49,11 @@ class SmsService
             $headers[] = 'Authorization: Bearer ' . $token;
         }
 
-        $ch = curl_init("{$server}/{$topic}");
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => true,
+        return $this->request("{$server}/{$topic}", [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $message,
             CURLOPT_HTTPHEADER     => $headers,
-        ]);
-        curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        return $code === 200;
+        ]) === 200;
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -78,10 +69,7 @@ class SmsService
 
         if (!$url) return false;
 
-        $ch = curl_init("{$url}/api/mobile/v1/message");
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 10,
+        $code = $this->request("{$url}/api/mobile/v1/message", [
             CURLOPT_SSL_VERIFYPEER => false, // réseau local souvent sans cert valide
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode([
@@ -93,9 +81,6 @@ class SmsService
                 'Authorization: Basic ' . base64_encode("{$login}:{$pass}"),
             ],
         ]);
-        curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         return $code === 200 || $code === 201;
     }
@@ -111,21 +96,11 @@ class SmsService
 
         if (!$login || !$key) return false;
 
-        $ch = curl_init('https://smsapi.free-mobile.fr/sendmsg?' . http_build_query([
+        return $this->request('https://smsapi.free-mobile.fr/sendmsg?' . http_build_query([
             'user' => $login,
             'pass' => $key,
             'msg'  => $message,
-        ]));
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-        curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        return $code === 200;
+        ])) === 200;
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -139,12 +114,7 @@ class SmsService
         $method = strtoupper(setting('sms_webhook_method', 'GET'));
         $url    = str_replace(['{to}', '{message}'], [urlencode($phone), urlencode($message)], $urlTemplate);
 
-        $ch   = curl_init($url);
-        $opts = [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ];
+        $opts = [];
 
         if ($method === 'POST') {
             $body = setting('sms_webhook_body', '');
@@ -155,11 +125,38 @@ class SmsService
             $opts[CURLOPT_POSTFIELDS] = $body;
         }
 
-        curl_setopt_array($ch, $opts);
+        $code = $this->request($url, $opts);
+
+        return $code >= 200 && $code < 300;
+    }
+
+    /**
+     * Envoie la requete et renvoie le code HTTP (0 si rien n'est parti). Seulement http et https, sans suivre de
+     * redirection : une adresse saisie dans les reglages ne peut pas lire un fichier du serveur (file://) ni viser un
+     * autre protocole. Les adresses du reseau local restent permises : la passerelle Android y est installee.
+     */
+    private function request(string $url, array $options = []): int
+    {
+        if (!self::isAllowedUrl($url)) {
+            return 0;
+        }
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, $options + [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+        ]);
         curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return $code >= 200 && $code < 300;
+        return (int) $code;
+    }
+
+    private static function isAllowedUrl(string $url): bool
+    {
+        return in_array(strtolower((string) parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true);
     }
 }

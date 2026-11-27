@@ -69,7 +69,7 @@ class PageController extends Controller
 
         $data = $request->validate([
             'title'       => 'required|string|max:200',
-            'description' => 'nullable|string|max:500',
+            'description' => 'nullable|string|max:255',
             'slug'        => ['required', 'string', 'max:200', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/', Rule::unique('pages', 'slug')->ignore($page)],
             'content'     => 'required|string',
             'roles'       => 'nullable|array',
