@@ -102,6 +102,38 @@
             </div>
         </div>
 
+        {{-- E-mails facultatifs (Support\MailPreferences) --}}
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-envelope me-1"></i> E-mails</div>
+            <div class="card-body">
+                @if(session('status') === 'mails-updated')
+                    <div class="alert alert-success alert-dismissible">
+                        <i class="bi bi-check-circle me-1"></i> Choix des e-mails enregistré.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+                <p class="text-muted small">
+                    Choisissez les e-mails que vous recevez. Les notifications du site (la cloche) restent toujours affichées.
+                    Les e-mails de sécurité (mot de passe oublié, codes de connexion, changement d'adresse) partent toujours.
+                </p>
+                <form method="POST" action="{{ route('profile.mails') }}">
+                    @csrf @method('PATCH')
+                    @foreach(\App\Support\MailPreferences::LABELS as $kind => [$label, $hint])
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" role="switch" name="mails[]" value="{{ $kind }}" id="mail-{{ $kind }}"
+                                   @checked($user->wantsMail($kind))>
+                            <label class="form-check-label" for="mail-{{ $kind }}">
+                                {{ $label }} <span class="d-block text-muted small">{{ $hint }}</span>
+                            </label>
+                        </div>
+                    @endforeach
+                    <button type="submit" class="btn btn-primary mt-2">
+                        <i class="bi bi-check-lg me-1"></i> Enregistrer
+                    </button>
+                </form>
+            </div>
+        </div>
+
         {{-- Preferences de theme --}}
         <div class="card mb-4">
             <div class="card-header"><i class="bi bi-palette me-1"></i> Préférences de thème</div>

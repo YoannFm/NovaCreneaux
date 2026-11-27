@@ -266,8 +266,8 @@
     <nav class="navbar navbar-expand-lg px-3 py-0 h-100">
 
         <a href="{{ route('home') }}" class="navbar-brand me-3">
-            @if(setting('site_logo'))
-                <img src="{{ asset(setting('site_logo')) }}" alt="" style="height:22px;width:auto;object-fit:contain;margin-right:.4rem;vertical-align:middle;">
+            @if($siteLogo = \App\Support\SiteLogo::url())
+                <img src="{{ $siteLogo }}" alt="" style="height:22px;width:auto;object-fit:contain;margin-right:.4rem;vertical-align:middle;">
             @endif
             {{ setting('app_name','NovaCreneaux') }}
         </a>

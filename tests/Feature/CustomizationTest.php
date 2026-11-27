@@ -160,8 +160,10 @@ class CustomizationTest extends TestCase
 
     public function test_the_logo_uploaded_in_the_settings_is_shown_on_the_site(): void
     {
-        $this->set(['site_logo' => 'uploads/logo/logo_test.png']);
+        mkdir(\App\Support\SiteLogo::directory(), 0755, true);
+        file_put_contents(\App\Support\SiteLogo::directory() . '/logo_0123456789abcdef.png', 'png');
+        $this->set(['site_logo' => 'logo_0123456789abcdef.png']);
 
-        $this->actingAs($this->student())->get(route('reservations.my'))->assertOk()->assertSee('uploads/logo/logo_test.png');
+        $this->actingAs($this->student())->get(route('reservations.my'))->assertOk()->assertSee(route('site.logo', ['v' => '0123456789abcdef']), false);
     }
 }

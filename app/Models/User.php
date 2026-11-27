@@ -48,7 +48,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'classe', 'is_admin', 'is_active', 'role_id',
         'theme_mode', 'accent_color',
-        'two_factor_secret', 'two_factor_confirmed_at', 'two_factor_recovery_codes',
+        'two_factor_secret', 'two_factor_confirmed_at', 'two_factor_recovery_codes', 'two_factor_last_step',
         'mfa_email_enabled', 'mfa_sms_enabled', 'mfa_phone', 'mfa_webauthn_credentials',
         'last_login_at', 'last_ip_address', 'password_changed_at',
     ];
@@ -68,6 +68,7 @@ class User extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at'           => 'datetime',
             'password_changed_at'     => 'datetime',
+            'mail_opt_out'            => 'array',
         ];
     }
 
@@ -125,6 +126,12 @@ class User extends Authenticatable
 
     public function role()         { return $this->belongsTo(Role::class); }
     public function reservations() { return $this->hasMany(Reservation::class); }
+
+    /** Cet e-mail facultatif (Support\MailPreferences) est voulu : tous le sont tant que la personne n'en a pas refuse. */
+    public function wantsMail(string $kind): bool
+    {
+        return !in_array($kind, $this->mail_opt_out ?? [], true);
+    }
 
     /** Reservations dont le creneau n'est pas termine (une seance finie plus tot aujourd'hui n'est plus "a venir"), par date et heure. */
     public function upcomingReservations(): Collection

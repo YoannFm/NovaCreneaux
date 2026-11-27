@@ -26,6 +26,9 @@ Route::prefix('install')->name('install.')->group(function () {
 // Documentation de l'API (Swagger UI, fichier public/docs/openapi.yaml)
 Route::view('/api/docs', 'api.docs')->name('api.docs');
 
+// Logo du site, servi depuis storage (App\Support\SiteLogo)
+Route::get('/logo', \App\Http\Controllers\SiteLogoController::class)->name('site.logo');
+
 // Pages publiques
 Route::get('/p/{slug}', function (string $slug) {
     $page = \App\Models\Page::where('slug', $slug)->where('is_enabled', true)->firstOrFail();
@@ -50,6 +53,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
+    Route::patch('/profile/mails', [ProfileController::class, 'updateMails'])->name('profile.mails');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'readAll'])->name('notifications.read-all');
@@ -105,11 +109,10 @@ Route::middleware(['auth','staff'])->prefix('admin')->name('admin.')->group(func
     });
 
     Route::middleware('permission:'.Permission::RESOURCES)->group(function () {
-        Route::resource('resources', \App\Http\Controllers\Admin\ResourceController::class)->names([
-            'index'=>'resources.index','create'=>'resources.create','store'=>'resources.store',
-            'edit'=>'resources.edit','update'=>'resources.update','destroy'=>'resources.destroy','show'=>'resources.show',
-        ]);
-        Route::prefix('resources/{resource}/slots')->name('slots.')->group(function () {
+        // Pas de page de detail : la liste et la page de modification suffisent
+        Route::resource('resources', \App\Http\Controllers\Admin\ResourceController::class)->except('show');
+        // scopeBindings : un creneau n'est trouve que dans la ressource de l'adresse (sinon 404)
+        Route::prefix('resources/{resource}/slots')->name('slots.')->scopeBindings()->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\SlotController::class, 'index'])->name('index');
             Route::get('/create', [\App\Http\Controllers\Admin\SlotController::class, 'create'])->name('create');
             Route::post('/', [\App\Http\Controllers\Admin\SlotController::class, 'store'])->name('store');

@@ -20,14 +20,17 @@ abstract class TestCase extends BaseTestCase
         return parent::actingAs($user, $guard);
     }
 
-    /** Verrou d'installation propre a chaque test : celui du site (storage/app/installed.lock) n'est jamais touche. */
+    /** Verrou d'installation et dossier du logo propres a chaque test : ceux du site ne sont jamais touches. */
     private ?string $installLock = null;
+    private ?string $logoDirectory = null;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->installLock = sys_get_temp_dir() . '/nc-installed-' . bin2hex(random_bytes(6)) . '.lock';
-        config(['nova.install_lock' => $this->installLock]);
+        $id = bin2hex(random_bytes(6));
+        $this->installLock = sys_get_temp_dir() . "/nc-installed-{$id}.lock";
+        $this->logoDirectory = sys_get_temp_dir() . "/nc-logo-{$id}";
+        config(['nova.install_lock' => $this->installLock, 'nova.logo_directory' => $this->logoDirectory]);
     }
 
     protected function tearDown(): void
@@ -35,6 +38,10 @@ abstract class TestCase extends BaseTestCase
         if ($this->installLock !== null) {
             @unlink($this->installLock);
         }
+        foreach (glob($this->logoDirectory . '/*') ?: [] as $file) {
+            @unlink($file);
+        }
+        @rmdir((string) $this->logoDirectory);
         parent::tearDown();
     }
 }

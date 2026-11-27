@@ -142,8 +142,8 @@
                 <i class="bi bi-collection"></i>
             </div>
             <div>
-                <div class="stat-value">{{ $resourcesPreview->count() }}</div>
-                <div class="stat-label">Ressources disponibles</div>
+                <div class="stat-value">{{ $bookableResources->count() }}</div>
+                <div class="stat-label">Ressources disponibles aujourd'hui</div>
             </div>
         </div>
     </div>
@@ -202,13 +202,13 @@
         </div>
 
         {{-- Ressources disponibles --}}
-        @if($resourcesPreview->isNotEmpty())
+        @if($bookableResources->isNotEmpty())
         <div class="mt-4">
             <h5 class="mb-3 fw-bold" style="font-size:.9rem;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">
-                <i class="bi bi-collection me-1"></i> Ressources ouvertes aujourd'hui
+                <i class="bi bi-collection me-1"></i> Où réserver aujourd'hui
             </h5>
             <div class="d-flex flex-wrap gap-2">
-                @foreach($resourcesPreview as $resource)
+                @foreach($bookableResources->take(4) as $resource)
                     <a href="{{ route('reservations.index') }}" class="resource-pill" style="text-decoration:none;">
                         <span class="dot"></span>
                         {{ $resource->name }}

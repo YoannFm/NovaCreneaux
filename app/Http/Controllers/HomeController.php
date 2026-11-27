@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Resource;
+use App\Models\Slot;
 use App\Services\AvailabilityService;
 use App\Services\ReservationService;
 
@@ -19,22 +20,22 @@ class HomeController extends Controller
         // Creneaux que l'utilisateur peut encore reserver aujourd'hui : memes regles que les boutons de la page de
         // reservation (heure de fermeture, creneau commence, places, limites...)
         $counts = $this->availability->freeSpots($resources->flatMap->activeSlots, [$today]);
-        $slotsAvailableToday = collect($this->reservations->statuses($user, $resources, [$today], $counts))
-            ->filter(fn (array $byDate) => $byDate[$today] === null)->count();
+        $statuses = $this->reservations->statuses($user, $resources, [$today], $counts);
+        $bookable = fn (Slot $slot) => $statuses[$slot->id][$today] === null;
+        $slotsAvailableToday = $resources->flatMap->activeSlots->filter($bookable)->count();
+        // Ressources ou il reste au moins un creneau reservable aujourd'hui (meme regle que le compteur de creneaux)
+        $bookableResources = $resources->filter(fn (Resource $resource) => $resource->activeSlots->contains($bookable))->values();
 
         // Prochaines reservations : celles dont le creneau n'est pas termine
         $upcomingAll = $user->upcomingReservations();
         $upcoming = $upcomingAll->take(3);
         $totalUpcoming = $upcomingAll->count();
 
-        // Ressources actives avec dispo aujourd'hui
-        $resourcesPreview = $resources->filter(fn($r) => $r->isOpenOn($today))->take(4);
-
         return view('home.index', compact(
             'slotsAvailableToday',
             'upcoming',
             'totalUpcoming',
-            'resourcesPreview',
+            'bookableResources',
             'today',
         ));
     }

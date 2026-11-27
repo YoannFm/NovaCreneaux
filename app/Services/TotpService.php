@@ -32,19 +32,28 @@ class TotpService
 
     public function verify(string $secret, string $code): bool
     {
+        return $this->matchingStep($secret, $code) !== null;
+    }
+
+    /**
+     * Pas de temps (periode de 30 s) auquel correspond le code, ou null s'il n'est pas valable. Sert a refuser un code
+     * deja utilise : il reste valable toute sa fenetre (environ 90 s), le site retient donc le dernier pas accepte.
+     */
+    public function matchingStep(string $secret, string $code): ?int
+    {
         $code = preg_replace('/\s+/', '', $code);
         if (!preg_match('/^\d{6}$/', $code)) {
-            return false;
+            return null;
         }
 
         $timestamp = (int) floor(time() / self::PERIOD);
 
         for ($i = -self::WINDOW; $i <= self::WINDOW; $i++) {
-            if ($this->generateCode($secret, $timestamp + $i) === $code) {
-                return true;
+            if (hash_equals($this->generateCode($secret, $timestamp + $i), $code)) {
+                return $timestamp + $i;
             }
         }
-        return false;
+        return null;
     }
 
     private function generateCode(string $secret, int $timestamp): string

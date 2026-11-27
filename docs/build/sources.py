@@ -38,11 +38,12 @@ def version():
 
 # Écran de l'administration -> réglages enregistrés par cet écran (contrôlé contre SettingController ci-dessous)
 SECTIONS = {
-    'general': ('Paramètres > Général', ['app_name', 'site_url', 'site_description', 'site_keywords', 'timezone', 'locale', 'site_logo',
+    'general': ('Paramètres > Général', ['app_name', 'site_url', 'site_description', 'timezone', 'site_logo',
                                          'app_tagline', 'email_placeholder', 'contact_label', 'user_term', 'user_term_plural',
                                          'user_term_feminine', 'group_label', 'group_placeholder', 'default_theme']),
     'home': ("Paramètres > Page d'accueil", ['home_message']),
     'auth': ('Paramètres > Authentification', ['registration_open', 'registration_terms', 'allowed_email_domain', 'allow_name_change',
+                                               'allow_email_change', 'allow_classe_change',
                                                'allow_account_deletion', 'password_min_length']),
     'security': ('Paramètres > Sécurité', ['force_email_verification', 'require_2fa_admin', 'trusted_proxies', 'sms_driver', 'sms_ntfy_url',
                                           'sms_ntfy_token', 'sms_android_url', 'sms_android_login', 'sms_android_pass', 'sms_free_mobile_user',
@@ -59,11 +60,9 @@ SECTIONS = {
 ROLES = {
     'app_name': "Nom affiché sur le site, dans les e-mails et dans l'application de double authentification.",
     'site_url': 'Adresse publique du site.',
-    'site_description': "Texte de présentation enregistré pour le référencement. En 1.6.9, aucune page ne l'affiche encore.",
-    'site_keywords': "Mots-clés séparés par des virgules. En 1.6.9, aucune page ne les affiche encore.",
+    'site_description': "Texte simple de 300 caractères au plus, repris dans la balise meta description des pages publiques (moteurs de recherche, aperçus de liens).",
     'timezone': "Fuseau horaire choisi dans la liste (Europe/Paris...). Sert aux heures d'ouverture, aux créneaux et aux dates de l'API.",
-    'locale': "Langue (fr ou en). L'interface n'existe qu'en français en 1.6.9.",
-    'site_logo': "Chemin du logo envoyé (JPG, PNG, GIF ou WebP, 2 Mo au plus). Rempli par le bouton d'envoi, pas à la main.",
+    'site_logo': "Nom du fichier du logo envoyé (JPG, PNG, GIF ou WebP, 2 Mo au plus), gardé dans storage/app/logo et servi par le site à l'adresse /logo. Rempli par le bouton d'envoi, pas à la main.",
     'app_tagline': "Phrase sous le nom du site (page de connexion, en-tête).",
     'email_placeholder': "Exemple d'adresse affiché dans les champs e-mail.",
     'contact_label': 'Qui contacter, repris dans les messages de refus : « Pour toute question, contactez ... ».',
@@ -77,7 +76,9 @@ ROLES = {
     'registration_open': "1 : n'importe qui peut créer un compte. 0 : seuls l'administration et l'import CSV créent des comptes.",
     'registration_terms': "Conditions à accepter à l'inscription. Vide : aucune case à cocher.",
     'allowed_email_domain': "Domaines autorisés à l'inscription, séparés par des virgules (ex. lycee.fr). Vide : tous les domaines.",
-    'allow_name_change': 'Permet à chacun de modifier son nom dans son profil.',
+    'allow_name_change': 'Permet à chacun de modifier son nom dans son profil (défaut : oui).',
+    'allow_email_change': "Permet à chacun de modifier son adresse e-mail dans son profil (défaut : oui). Verrouillée : le profil ne demande plus le mot de passe.",
+    'allow_classe_change': 'Permet à chacun de modifier sa classe (ou le champ renommé dans Paramètres > Général) dans son profil (défaut : oui).',
     'allow_account_deletion': 'Permet à chacun de supprimer son propre compte.',
     'password_min_length': 'Longueur minimale des nouveaux mots de passe (8 à 64). Les mots de passe existants restent valables.',
     'force_email_verification': "Renvoie vers la page de vérification les comptes dont l'adresse n'est pas confirmée.",
@@ -142,6 +143,7 @@ def _code_setting_keys():
     keys |= set(re.findall(r"->set\('(backup_[a-z]+)'", read('app/Services/Backup/BackupSettings.php')))
     keys |= set(re.findall(r"^\s*'([a-z_]+)' =>", re.search(r'function rules\(\).*?return \[(.*?)\];', read('app/Support/SsoSettings.php'), re.S).group(1), re.M))
     keys |= set(re.findall(r"->set\('([a-z_]+)'", read('app/Http/Controllers/Admin/ApiTokenController.php')))
+    keys |= set(re.findall(r"->set\('([a-z_]+)'", read('app/Support/SiteLogo.php')))
     keys -= {'clear_secrets', 'mail_use_site_color', 'test_email', 'logo', 'roles', 'unlimited'}
     return keys
 
