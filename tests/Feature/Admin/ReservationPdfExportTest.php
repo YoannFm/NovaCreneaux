@@ -119,7 +119,8 @@ class ReservationPdfExportTest extends TestCase
         $this->assertStringContainsString('Mardi 1 décembre 2026', $pages);
         $this->assertTrue(ActivityLog::where('action', 'Export PDF des réservations')->where('context', self::DATE . ', une page par créneau')->exists());
 
-        $this->export(['layout' => 'autre'])->assertSessionHasErrors('layout');
+        // Mise en page inconnue : ignoree, l'export se fait avec la mise en page par defaut
+        $this->export(['layout' => 'autre'])->assertOk()->assertSee('Toutes les ressources');
     }
 
     public function test_the_resource_filter_applies_and_names_are_escaped(): void
@@ -136,12 +137,11 @@ class ReservationPdfExportTest extends TestCase
         $this->assertStringNotContainsString('Hugo Bernard', $html);
     }
 
-    public function test_an_invalid_date_is_refused_instead_of_breaking_the_page(): void
+    public function test_an_invalid_date_is_ignored_instead_of_breaking_the_page_or_the_file_name(): void
     {
         $this->actingAs($this->admin())
-            ->from(route('admin.reservations.index'))
             ->get(route('admin.reservations.index', ['date' => '2026-12-01"', 'export' => 'pdf']))
-            ->assertRedirect(route('admin.reservations.index'))->assertSessionHasErrors('date');
+            ->assertOk()->assertHeader('Content-Disposition', 'attachment; filename="reservations_' . now()->toDateString() . '.pdf"');
     }
 
     public function test_staff_managing_reservations_can_export_but_students_cannot(): void

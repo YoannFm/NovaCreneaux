@@ -37,7 +37,8 @@ class SsoController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         $state = $request->session()->pull(self::SESSION_KEY);
-        if (!is_array($state) || !hash_equals($state['state'], (string) $request->query('state'))) {
+        $returned = $request->query('state');
+        if (!is_array($state) || !is_string($returned) || !hash_equals($state['state'], $returned)) {
             return $this->fail("La connexion avec le compte de l'établissement a expiré. Recommencez.");
         }
 

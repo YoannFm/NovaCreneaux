@@ -11,7 +11,7 @@
     <div class="col-md-4 col-12 mb-3">
         <div class="input-group">
             <input type="search" class="form-control" name="search"
-                   value="{{ request('search') }}" placeholder="Rechercher">
+                   value="{{ $filters['search'] ?? '' }}" placeholder="Rechercher">
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-search"></i>
             </button>
@@ -22,7 +22,7 @@
     <div class="col-md-auto col-12 mb-3 ms-md-auto" style="color:var(--muted-text);">
         <i class="bi bi-people me-1"></i>
         <strong>{{ $users->total() }}</strong> utilisateur{{ $plural }}
-        @if(request('search')) trouvé{{ $plural }} @endif
+        @if($filters['search'] ?? null) trouvé{{ $plural }} @endif
     </div>
 </form>
 

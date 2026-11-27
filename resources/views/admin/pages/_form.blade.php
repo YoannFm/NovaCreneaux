@@ -27,7 +27,7 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label fw-semibold">Slug</label>
+                <label class="form-label fw-semibold" for="slugInput">Adresse de la page</label>
                 <div class="input-group">
                     <span class="input-group-text text-muted small">{{ setting('site_url', url('/')) }}/p/</span>
                     <input type="text" name="slug" id="slugInput"

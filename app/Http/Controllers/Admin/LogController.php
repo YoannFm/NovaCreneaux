@@ -4,24 +4,32 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Support\QueryFilters;
 use Illuminate\Http\Request;
 
 class LogController extends Controller
 {
     public function index(Request $request)
     {
+        // Filtres de l'adresse : un filtre invalide est ignore (QueryFilters), jamais d'erreur 500 ni de redirection
+        $filters = QueryFilters::valid($request, [
+            'user'   => 'string|max:100',
+            'from'   => 'date_format:Y-m-d',
+            'to'     => 'date_format:Y-m-d',
+            'action' => 'string|max:150',
+        ]);
         $query = ActivityLog::orderByDesc('created_at');
 
-        if ($search = $request->get('user')) {
+        if ($search = $filters['user'] ?? null) {
             $query->where('user_name', 'like', "%{$search}%");
         }
-        if ($from = $request->get('from')) {
+        if ($from = $filters['from'] ?? null) {
             $query->whereDate('created_at', '>=', $from);
         }
-        if ($to = $request->get('to')) {
+        if ($to = $filters['to'] ?? null) {
             $query->whereDate('created_at', '<=', $to);
         }
-        if ($action = $request->get('action')) {
+        if ($action = $filters['action'] ?? null) {
             $query->where('action', $action);
         }
 
@@ -29,7 +37,7 @@ class LogController extends Controller
         $oldCount = ActivityLog::where('created_at', '<', now()->subDays(90))->count();
         $actions  = ActivityLog::distinct()->orderBy('action')->pluck('action');
 
-        return view('admin.logs.index', compact('logs', 'oldCount', 'actions'));
+        return view('admin.logs.index', compact('logs', 'oldCount', 'actions', 'filters'));
     }
 
     public function purge()
