@@ -10,6 +10,7 @@ use App\Services\PdfRenderer;
 use App\Services\ReservationService;
 use App\Support\CsvCell;
 use App\Support\Customization;
+use App\Support\QueryFilters;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -20,11 +21,11 @@ class ReservationController extends Controller {
     public function __construct(private ReservationService $service, private PdfRenderer $pdf) {}
 
     public function index(Request $request) {
-        // La date sert aussi au nom du fichier exporte : format strict
-        $filters = $request->validate([
-            'date' => 'nullable|date_format:Y-m-d',
-            'resource_id' => 'nullable|integer',
-            'layout' => 'nullable|in:' . implode(',', array_keys(self::PDF_LAYOUTS)),
+        // La date sert aussi au nom du fichier exporte : format strict. Un filtre invalide est ignore (QueryFilters)
+        $filters = QueryFilters::valid($request, [
+            'date' => 'date_format:Y-m-d',
+            'resource_id' => 'integer',
+            'layout' => 'in:' . implode(',', array_keys(self::PDF_LAYOUTS)),
         ]);
         $date = $filters['date'] ?? now()->toDateString();
         $resourceId = $filters['resource_id'] ?? null;
@@ -94,7 +95,8 @@ class ReservationController extends Controller {
     /** Recherche d'un compte pour la fenetre d'ajout : 10 resultats au plus, seulement les comptes que l'on gere. */
     public function searchUsers(Request $request) {
         // Pas de validation (qui redirigerait au lieu de repondre en JSON) : une recherche trop courte ne renvoie rien
-        $term = mb_substr(trim((string) $request->query('q')), 0, 100);
+        $query = $request->query('q');
+        $term = is_string($query) ? mb_substr(trim($query), 0, 100) : '';
         if (mb_strlen($term) < 2) {
             return response()->json([]);
         }

@@ -8,6 +8,7 @@ use App\Services\ReservationService;
 use App\Services\UserCsvImport;
 use App\Services\UserExporter;
 use App\Support\ActivityChanges;
+use App\Support\QueryFilters;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Hash;
@@ -21,20 +22,23 @@ class UserController extends Controller {
 
 
     public function index(Request $request) {
+        // Filtres de l'adresse : un filtre invalide est ignore (QueryFilters), jamais d'erreur 500 ni de redirection
+        $filters = QueryFilters::valid($request, ['search' => 'string|max:100', 'role' => 'integer']);
         $query = User::with('role')->withExists(['sanctions as is_suspended' => fn ($q) => $q->activeBan()]);
-        if ($search = $request->get('search')) {
+        if ($search = $filters['search'] ?? null) {
             $query->where(function($q) use ($search) {
                 $q->where('name','like',"%{$search}%")
                   ->orWhere('email','like',"%{$search}%")
                   ->orWhere('classe','like',"%{$search}%");
             });
         }
-        if ($roleId = $request->get('role')) {
+        if ($roleId = $filters['role'] ?? null) {
             $query->where('role_id', $roleId);
         }
         return view('admin.users.index', [
             'users' => $query->orderBy('name')->paginate(30)->withQueryString(),
             'roles' => Role::orderBy('id')->get(),
+            'filters' => $filters,
         ]);
     }
 

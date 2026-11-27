@@ -13,8 +13,9 @@ class ActivityLogger
             ActivityLog::create([
                 'user_id'    => auth()->id(),
                 'user_name'  => auth()->user()?->name ?? 'Système',
-                'action'     => $action,
-                'context'    => $context,
+                // Longueurs des colonnes : sur MySQL strict, un texte trop long ferait perdre l'entree sans le dire
+                'action'     => mb_substr($action, 0, 150),
+                'context'    => $context === null ? null : mb_substr($context, 0, 500),
                 'changes'    => $changes ?: null,
                 'ip_address' => request()->ip(),
                 'created_at' => now(),

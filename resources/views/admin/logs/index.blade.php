@@ -9,24 +9,24 @@
         <form method="GET" action="{{ route('admin.logs.index') }}" class="row g-3 align-items-end">
             <div class="col-sm-3">
                 <label class="form-label" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;">Utilisateur</label>
-                <input type="text" name="user" class="form-control" value="{{ request('user') }}" placeholder="Nom...">
+                <input type="text" name="user" class="form-control" value="{{ $filters['user'] ?? '' }}" placeholder="Nom...">
             </div>
             <div class="col-sm-3">
                 <label class="form-label" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;">Action</label>
                 <select name="action" class="form-select">
                     <option value="">Toutes les actions</option>
                     @foreach($actions as $a)
-                        <option value="{{ $a }}" @selected(request('action') === $a)>{{ $a }}</option>
+                        <option value="{{ $a }}" @selected(($filters['action'] ?? null) === $a)>{{ $a }}</option>
                     @endforeach
                 </select>
             </div>
             <div class="col-sm-2">
                 <label class="form-label" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;">Du</label>
-                <input type="date" name="from" class="form-control" value="{{ request('from') }}">
+                <input type="date" name="from" class="form-control" value="{{ $filters['from'] ?? '' }}">
             </div>
             <div class="col-sm-2">
                 <label class="form-label" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;">Au</label>
-                <input type="date" name="to" class="form-control" value="{{ request('to') }}">
+                <input type="date" name="to" class="form-control" value="{{ $filters['to'] ?? '' }}">
             </div>
             <div class="col-sm-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-search"></i></button>
