@@ -1,0 +1,30 @@
+{
+  "id": "discord",
+  "name": "Discord",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un salon Discord.",
+  "help": "Dans Discord : Paramètres du salon > Intégrations > Webhooks > Nouveau webhook, puis « Copier l'URL du webhook ».",
+  "hosts": [
+    "discord.com",
+    "discordapp.com",
+    "*.discord.com",
+    "*.discordapp.com"
+  ],
+  "url_example": "https://discord.com/api/webhooks/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "username": "{{app_name}}",
+    "embeds": [
+      {
+        "title": "{{title}}",
+        "description": "{{text}}",
+        "color": "{{color_int}}",
+        "timestamp": "{{created_at}}"
+      }
+    ],
+    "allowed_mentions": {
+      "parse": []
+    }
+  }
+}

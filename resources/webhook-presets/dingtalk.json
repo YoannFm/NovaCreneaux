@@ -1,0 +1,19 @@
+{
+  "id": "dingtalk",
+  "name": "DingTalk",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un groupe DingTalk.",
+  "help": "Dans le groupe : Paramètres > Assistant de groupe > Robot personnalisé. Choisissez la sécurité « mots-clés » avec un mot présent dans les messages (par exemple « réservation »).",
+  "hosts": [
+    "oapi.dingtalk.com"
+  ],
+  "url_example": "https://oapi.dingtalk.com/robot/send?access_token=...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "msgtype": "text",
+    "text": {
+      "content": "{{title}}\n{{text}}"
+    }
+  }
+}

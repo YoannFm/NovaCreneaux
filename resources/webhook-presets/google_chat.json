@@ -1,0 +1,16 @@
+{
+  "id": "google_chat",
+  "name": "Google Chat",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un espace Google Chat.",
+  "help": "Dans Google Chat : espace > Applications et intégrations > Webhooks, puis copiez l'adresse.",
+  "hosts": [
+    "chat.googleapis.com"
+  ],
+  "url_example": "https://chat.googleapis.com/v1/spaces/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "text": "*{{title}}*\n{{text}}"
+  }
+}

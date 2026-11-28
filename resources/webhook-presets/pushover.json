@@ -1,0 +1,31 @@
+{
+  "id": "pushover",
+  "name": "Pushover",
+  "category": "Notifications sur téléphone",
+  "description": "Notification Pushover.",
+  "help": "Il faut le jeton d'une application (pushover.net/apps) et la clé utilisateur ou de groupe (page d'accueil Pushover).",
+  "hosts": [
+    "api.pushover.net"
+  ],
+  "url_template": "https://api.pushover.net/1/messages.json",
+  "fields": [
+    {
+      "key": "app_token",
+      "label": "Jeton de l'application",
+      "secret": true
+    },
+    {
+      "key": "user_key",
+      "label": "Clé utilisateur ou de groupe",
+      "secret": true
+    }
+  ],
+  "method": "POST",
+  "content_type": "form",
+  "body": {
+    "token": "{{app_token}}",
+    "user": "{{user_key}}",
+    "title": "{{title_plain}}",
+    "message": "{{text}}"
+  }
+}

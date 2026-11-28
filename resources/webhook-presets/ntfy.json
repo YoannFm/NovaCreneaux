@@ -1,0 +1,14 @@
+{
+  "id": "ntfy",
+  "name": "ntfy",
+  "category": "Notifications sur téléphone",
+  "description": "Notification sur téléphone avec ntfy (ntfy.sh ou votre serveur).",
+  "help": "Choisissez un nom de sujet difficile à deviner, installez l'application ntfy et abonnez-vous à ce sujet. L'adresse est https://ntfy.sh/votre-sujet.",
+  "url_example": "https://ntfy.sh/mon-sujet-secret",
+  "method": "POST",
+  "content_type": "text",
+  "headers": {
+    "Title": "{{title_plain}}"
+  },
+  "body": "{{text}}"
+}

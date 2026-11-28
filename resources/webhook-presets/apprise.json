@@ -1,0 +1,15 @@
+{
+  "id": "apprise",
+  "name": "Apprise API",
+  "category": "Notifications sur téléphone",
+  "description": "Passerelle Apprise : relaie vers plus de 100 services (e-mail, SMS, Signal, Matrix, Gotify, etc.).",
+  "help": "Installez un serveur Apprise API, enregistrez-y une configuration, puis l'adresse est https://votre-serveur/notify/CLE.",
+  "url_example": "https://apprise.exemple.fr/notify/ma-cle",
+  "method": "POST",
+  "content_type": "json",
+  "body": {
+    "title": "{{title_plain}}",
+    "body": "{{text}}",
+    "type": "info"
+  }
+}

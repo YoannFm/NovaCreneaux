@@ -1,0 +1,14 @@
+{
+  "id": "zapier",
+  "name": "Zapier",
+  "category": "Automatisation",
+  "description": "Déclenche un Zap avec les données de l'événement.",
+  "help": "Dans Zapier : déclencheur « Webhooks by Zapier » > « Catch Hook », puis copiez l'adresse. Il reçoit la charge utile standard en JSON, noms d'élèves compris.",
+  "hosts": [
+    "hooks.zapier.com"
+  ],
+  "url_example": "https://hooks.zapier.com/hooks/catch/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": "@payload"
+}

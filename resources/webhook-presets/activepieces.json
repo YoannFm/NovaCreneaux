@@ -1,0 +1,11 @@
+{
+  "id": "activepieces",
+  "name": "Activepieces",
+  "category": "Automatisation",
+  "description": "Déclenche un flux Activepieces.",
+  "help": "Dans Activepieces : déclencheur « Webhook », puis copiez l'adresse. Il reçoit la charge utile standard en JSON, noms d'élèves compris.",
+  "url_example": "https://cloud.activepieces.com/api/v1/webhooks/...",
+  "method": "POST",
+  "content_type": "json",
+  "body": "@payload"
+}

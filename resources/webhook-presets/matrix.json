@@ -1,0 +1,35 @@
+{
+  "id": "matrix",
+  "name": "Matrix (Element)",
+  "category": "Messagerie d'équipe",
+  "description": "Message dans un salon Matrix.",
+  "help": "Il faut l'adresse du serveur, l'identifiant du salon (Element : Paramètres du salon > Avancé) et le jeton d'accès d'un compte présent dans le salon.",
+  "url_template": "{{homeserver}}/_matrix/client/v3/rooms/{{room_id}}/send/m.room.message/{{delivery_id}}",
+  "fields": [
+    {
+      "key": "homeserver",
+      "label": "Adresse du serveur",
+      "type": "url",
+      "placeholder": "https://matrix.exemple.fr"
+    },
+    {
+      "key": "room_id",
+      "label": "Identifiant du salon",
+      "placeholder": "!abcdef:exemple.fr"
+    },
+    {
+      "key": "access_token",
+      "label": "Jeton d'accès",
+      "secret": true
+    }
+  ],
+  "method": "PUT",
+  "content_type": "json",
+  "headers": {
+    "Authorization": "Bearer {{access_token}}"
+  },
+  "body": {
+    "msgtype": "m.text",
+    "body": "{{title}}\n{{text}}"
+  }
+}
